@@ -1222,7 +1222,22 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
 
   return (
     <div className="min-h-screen bg-stone-50 font-sans tracking-tight text-stone-900 transition-colors duration-150 relative">
-      
+
+      {/* DATA BACKUP & MANAGEMENT INFO BANNER */}
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200 px-4 sm:px-6 lg:px-8 py-3">
+        <div className="max-w-7xl mx-auto flex items-start gap-3">
+          <div className="text-amber-600 font-bold text-lg flex-shrink-0">💾</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-900">
+              Tüm Pazarlama Verileriniz Güvenli Şekilde Yedekleniyor
+            </p>
+            <p className="text-xs text-amber-800 mt-1">
+              Tarayıcınız sıfırlanırsa bile, sağ taraftaki yan panelden <strong>"VERİLERİ İNDİR"</strong> yaparak tüm ürünleriniz, satışlarınız, masraflarınız, indirimleri ve Google entegrasyon ayarlarınızı kaydedebilirsiniz. Daha sonra <strong>"VERİLERİ YÜKLE"</strong> ile geri yükleyin.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* HEADER TOP LOGO NAVIGATION BAR */}
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">

@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
-import { 
-  HelpCircle, 
-  ChevronDown, 
-  ExternalLink, 
+import {
+  HelpCircle,
+  ChevronDown,
+  ExternalLink,
   MessageCircle,
   Zap,
   BarChart3,
   Smartphone,
   BookOpen,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  HardDrive,
+  Download,
+  Upload
 } from 'lucide-react';
 
 export default function HelpCenter() {
@@ -200,6 +203,103 @@ export default function HelpCenter() {
     },
     {
       id: 5,
+      title: "💾 Yedekleme & Veri Yönetimi (Çevrimdışı Koruma)",
+      icon: HardDrive,
+      content: (
+        <div className="space-y-4 text-sm text-slate-700">
+          <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+            <p className="font-semibold text-indigo-900 mb-3">
+              Tarayıcınız sıfırlanırsa veya silinirse verilerinizi geri yükleyebilirsiniz! 🛡️
+            </p>
+            <p className="text-xs text-indigo-800 mb-3">
+              Tüm ürünleriniz, satış verileriniz, masraflarınız, pazarlama indirimleri ve Google entegrasyon ayarlarınız, yedek dosyasında güvenli şekilde saklanır.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-white border border-slate-200 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-3 flex items-center gap-2">
+                <Download className="h-5 w-5 text-emerald-600" />
+                Adım 1: Verilerinizi İndirin (Yedek Alın)
+              </h4>
+              <ol className="space-y-2 text-xs text-slate-700 list-decimal list-inside">
+                <li>Uygulamada sağ taraftaki <strong>yan paneli</strong> açın</li>
+                <li><strong>"SQLite Veri Egemenliği"</strong> bölümünü bul</li>
+                <li><strong>"VERİLERİ İNDİR"</strong> yeşil butonuna tıkla</li>
+                <li>Sistem tüm verilerinizi bir <strong>JSON dosyası</strong> olarak indirecek</li>
+                <li>Bu dosyayı <strong>güvenli bir yerde sakla</strong> (örn: bulut, harici disk)</li>
+              </ol>
+              <div className="mt-3 p-2 bg-emerald-100 rounded border border-emerald-300 flex gap-2">
+                <CheckCircle2 className="h-4 w-4 text-emerald-700 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] font-semibold text-emerald-700">
+                  İndirilen dosya şu verileri içerir: Katalog (Ürünler), Satış Kaydı, Masraflar, İndirimli Kampanyalar, Google Analytics/Ads Entegrasyon Ayarları
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-3 flex items-center gap-2">
+                <Upload className="h-5 w-5 text-blue-600" />
+                Adım 2: Tarayıcı Sıfırlandıktan Sonra Verileri Yükleyin
+              </h4>
+              <ol className="space-y-2 text-xs text-slate-700 list-decimal list-inside">
+                <li>Tarayıcınızı sıfırladıktan veya siledikten sonra uygulamaya yeniden girin</li>
+                <li>Sağ taraftaki yan paneli açın</li>
+                <li><strong>"SQLite Veri Egemenliği"</strong> bölümüne git</li>
+                <li><strong>"VERİLERİ YÜKLE"</strong> mavi butonuna tıkla</li>
+                <li>Daha önce indirdiğin <strong>yedek JSON dosyasını seç</strong></li>
+                <li>Sistem otomatik olarak tüm verilerinizi geri yükleyecek ✅</li>
+              </ol>
+              <div className="mt-3 p-2 bg-blue-100 rounded border border-blue-300 flex gap-2">
+                <AlertCircle className="h-4 w-4 text-blue-700 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] font-semibold text-blue-700">
+                  <strong>Önemli:</strong> Yükleme işleminden sonra, tüm ürün, satış, masraf ve pazarlama verileri geri yüklenecek ve tarayıcıda gösterilecek.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-4 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-3">
+                📋 Ek Seçenekler: CSV & SQL Döküm
+              </h4>
+              <p className="text-xs text-slate-700 mb-3">
+                Eğer sadece belirli tabloları yönetmek isterseniz, şu seçenekler de mevcuttur:
+              </p>
+              <div className="space-y-2">
+                <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                  <p className="text-[11px] font-semibold text-slate-700">
+                    <strong>🗂️ Katalog Dışa Aktar (CSV)</strong> - Yalnızca ürünlerinizi CSV dosyası olarak indir
+                  </p>
+                </div>
+                <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                  <p className="text-[11px] font-semibold text-slate-700">
+                    <strong>📊 Satış Dışa Aktar (CSV)</strong> - Yalnızca satış verilerini CSV dosyası olarak indir
+                  </p>
+                </div>
+                <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                  <p className="text-[11px] font-semibold text-slate-700">
+                    <strong>💰 Masraflar Dışa Aktar (CSV)</strong> - Yalnızca masraf verilerini CSV dosyası olarak indir
+                  </p>
+                </div>
+                <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                  <p className="text-[11px] font-semibold text-slate-700">
+                    <strong>🗄️ SQL Döküm (.SQL)</strong> - Tüm veritabanının tamamen çalınabilir bir SQL yedek dosyasını indir (ileri kullanıcılar için)
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded">
+            <p className="text-[12px] text-amber-800 font-semibold">
+              💡 <strong>En iyi pratik:</strong> Haftada bir kez yedek alın ve bulut depolamasında saklayın. Böylece hiçbir zaman veri kaybı olmaz!
+            </p>
+          </div>
+        </div>
+      )
+    },
+    {
+      id: 6,
       title: "🗺️ Google Search Console'a Sitemap Gönderme (Son Adım!)",
       icon: BarChart3,
       content: (
