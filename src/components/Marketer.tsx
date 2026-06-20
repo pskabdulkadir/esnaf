@@ -1,11 +1,12 @@
 import React, { useState, useEffect, FormEvent, ChangeEvent } from "react";
-import { 
-  Sparkles, Smartphone, CheckCircle, Plus, Trash2, 
-  RefreshCw, Check, Clock, Info, Globe, Share2, Search, 
-  Eye, Copy, MapPin, X, Phone, Compass, Download, 
+import {
+  Sparkles, Smartphone, CheckCircle, Plus, Trash2,
+  RefreshCw, Check, Clock, Info, Globe, Share2, Search,
+  Eye, Copy, MapPin, X, Phone, Compass, Download,
   Map, Gift, Percent, ArrowUpRight, Flame, Heart, Lock, ShieldCheck, Activity, ChevronRight
 } from "lucide-react";
 import { PublicDiscount } from "../siftahTypes";
+import GoogleIntegrationWizard from "./GoogleIntegrationWizard";
 
 interface CoordinatePreset {
   name: string;
@@ -1705,135 +1706,28 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                          </div>
                        )}
 
-                       {/* STEP 2: Kod Girişi ve regex validation */}
+                       {/* STEP 2: Google Integration Wizard */}
                        {wizardStep === 2 && (
-                         <form onSubmit={completeWizard} className="animate-fadeIn space-y-4 text-xs">
-                           <div>
-                             <h3 className="text-sm font-black text-stone-900 leading-snug">Kurulum Kodlarını Girin</h3>
-                             <p className="text-[11px] text-stone-500 mt-0.5">Sistemimiz girilen değerleri gerçek zamanlı olarak doğrular.</p>
-                           </div>
-
-                           {wizardError && (
-                             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl font-bold text-[11px] animate-fadeIn leading-relaxed">
-                               {wizardError}
-                             </div>
-                           )}
-
-                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                             {/* Google Analytics input validation */}
-                             <div>
-                               <div className="flex justify-between items-center mb-1">
-                                 <label className="block text-[10px] uppercase tracking-wider text-stone-550 font-bold">Analytics ID (G-TAG)</label>
-                                 {wizardAnalyticsId && (
-                                   /^G-[A-Z0-9]{4,20}$/i.test(wizardAnalyticsId.trim()) 
-                                     ? <span className="text-emerald-600 font-extrabold text-[9px]">✓ Uyumlu</span>
-                                     : <span className="text-rose-500 font-extrabold text-[9px]">⚠️ Geçersiz format</span>
-                                 )}
-                               </div>
-                               <input 
-                                 type="text"
-                                 required
-                                 placeholder="Örn: G-9K7EFX8ZVL"
-                                 value={wizardAnalyticsId}
-                                 onChange={(e) => {
-                                   setWizardAnalyticsId(e.target.value.toUpperCase());
-                                   setWizardError("");
-                                 }}
-                                 className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 font-mono font-bold focus:outline-none focus:bg-white transition-all ${
-                                   wizardAnalyticsId 
-                                     ? /^G-[A-Z0-9]{4,20}$/i.test(wizardAnalyticsId.trim())
-                                        ? "border-emerald-300 focus:border-emerald-500"
-                                        : "border-rose-300 focus:border-rose-500 bg-rose-50/10"
-                                     : "border-stone-200 focus:border-stone-400"
-                                 }`}
-                               />
-                               <span className="text-[9px] text-stone-400 font-medium block mt-1 leading-snug">
-                                 Google Analytics "G-" ile başlar.
-                               </span>
-                             </div>
-
-                             {/* Google Ads conversion input validation */}
-                             <div>
-                               <div className="flex justify-between items-center mb-1">
-                                 <label className="block text-[10px] uppercase tracking-wider text-stone-550 font-bold">Ads Conversion ID</label>
-                                 {wizardAdsId && (
-                                   /^AW-[0-9]{4,20}$/i.test(wizardAdsId.trim())
-                                     ? <span className="text-emerald-600 font-extrabold text-[9px]">✓ Uyumlu</span>
-                                     : <span className="text-rose-500 font-extrabold text-[9px]">⚠️ Sadece rakam</span>
-                                 )}
-                               </div>
-                               <input 
-                                 type="text"
-                                 required
-                                 placeholder="Örn: AW-384910248"
-                                 value={wizardAdsId}
-                                 onChange={(e) => {
-                                   setWizardAdsId(e.target.value.toUpperCase());
-                                   setWizardError("");
-                                 }}
-                                 className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 font-mono font-bold focus:outline-none focus:bg-white transition-all ${
-                                   wizardAdsId
-                                     ? /^AW-[0-9]{4,20}$/i.test(wizardAdsId.trim())
-                                        ? "border-emerald-300 focus:border-emerald-500"
-                                        : "border-rose-300 focus:border-rose-500 bg-rose-50/10"
-                                     : "border-stone-200 focus:border-stone-400"
-                                 }`}
-                               />
-                               <span className="text-[9px] text-stone-400 font-medium block mt-1 leading-snug">
-                                 Google Ads Conversion "AW-" ile başlar.
-                               </span>
-                             </div>
-
-                             {/* Ads Label input validation */}
-                             <div>
-                               <div className="flex justify-between items-center mb-1">
-                                 <label className="block text-[10px] uppercase tracking-wider text-stone-550 font-bold">Dönüşüm Etiketi (Ads Label)</label>
-                                 {wizardAdsLabel && (
-                                   wizardAdsLabel.trim().length >= 3 
-                                     ? <span className="text-emerald-600 font-extrabold text-[9px]">✓ Hazır</span>
-                                     : <span className="text-rose-500 font-extrabold text-[9px]">⚠️ Çok kısa</span>
-                                 )}
-                               </div>
-                               <input 
-                                 type="text"
-                                 required
-                                 placeholder="Örn: abcdXYZ123"
-                                 value={wizardAdsLabel}
-                                 onChange={(e) => {
-                                   setWizardAdsLabel(e.target.value);
-                                   setWizardError("");
-                                 }}
-                                 className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 font-mono font-bold focus:outline-none focus:bg-white transition-all ${
-                                   wizardAdsLabel
-                                     ? wizardAdsLabel.trim().length >= 3
-                                        ? "border-emerald-300 focus:border-emerald-500"
-                                        : "border-rose-300 focus:border-rose-500 bg-rose-50/10"
-                                     : "border-stone-200 focus:border-stone-400"
-                                 }`}
-                               />
-                               <span className="text-[9px] text-stone-400 font-medium block mt-1 leading-snug">
-                                 Müşteri size dokunduğunda iletilen etiket.
-                               </span>
-                             </div>
-                           </div>
-
-                           <div className="flex gap-3 justify-between items-center pt-2 border-t border-stone-100">
+                         <div className="animate-fadeIn">
+                           <GoogleIntegrationWizard
+                             initialGaId={wizardAnalyticsId}
+                             initialAdsId={wizardAdsId}
+                             onSuccess={(gaId, adsId) => {
+                               setWizardAnalyticsId(gaId);
+                               setWizardAdsId(adsId);
+                               setWizardStep(3);
+                             }}
+                           />
+                           <div className="mt-6 pt-4 border-t border-stone-100">
                              <button
                                type="button"
                                onClick={() => setWizardStep(1)}
                                className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer"
                              >
-                               ⬅ Geri
-                             </button>
-                             <button
-                               type="submit"
-                               disabled={isLoading}
-                               className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-6 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer whitespace-nowrap flex items-center gap-1"
-                             >
-                               {isLoading ? "Bağlantı Kuruluyor..." : "Kayıt Et ve Canlıya Al 🎉"}
+                               ⬅ Geri Dön
                              </button>
                            </div>
-                         </form>
+                         </div>
                        )}
 
                        {/* STEP 3: Headless - Silent Success */}
