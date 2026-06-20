@@ -15,12 +15,12 @@ import {
 export const APP_CURRENT_VERSION = '1.2.0';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCPTtggfLTiOlnZuoXIQ5fyPiDKJPUU_H4",
-  authDomain: "esnaf-b407c.firebaseapp.com",
-  projectId: "esnaf-b407c",
-  storageBucket: "esnaf-b407c.firebasestorage.app",
-  messagingSenderId: "291127941210",
-  appId: "1:291127941210:web:dd9f86764f1f62c935e063"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
 // Initialize Firebase App
