@@ -14,6 +14,7 @@ const Automation = lazy(() => import('./components/Automation'));
 const Contact = lazy(() => import('./components/Contact'));
 const Marketer = lazy(() => import('./components/Marketer'));
 const GuideAndVoice = lazy(() => import('./components/GuideAndVoice'));
+const HelpCenter = lazy(() => import('./components/HelpCenter'));
 import { TRANSLATIONS } from './lib/translations';
 import { sqliteDb } from './lib/sqlite';
 import {
@@ -961,6 +962,18 @@ export default function App() {
               <span>{t.tabGuide}</span>
             </button>
 
+            <button
+              onClick={() => setCurrentTab('help')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'help'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-blue-600 hover:bg-blue-50/40 bg-blue-50/15 border border-blue-200/50'
+              }`}
+            >
+              <HelpCircle className="h-4.5 w-4.5" />
+              <span>📖 Yardım Merkezi</span>
+            </button>
+
           </nav>
 
           {/* Quick Stats sidebar footer info widget */}
@@ -1176,6 +1189,12 @@ export default function App() {
               <GuideAndVoice
                 language={language}
               />
+            </Suspense>
+          )}
+
+          {currentTab === 'help' && (
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <HelpCenter />
             </Suspense>
           )}
 
