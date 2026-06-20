@@ -84,6 +84,7 @@ export interface SecurityStatus {
  */
 export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   const deviceId = getOrCreateDeviceId();
+  console.log('[AUTH_CHECK] Başlangıç - Device ID:', deviceId, 'DB var mı:', !!db);
 
   // Storage fallback keys
   const LAST_AUTH_CHECK = 'akn_last_auth_success_time';
@@ -98,7 +99,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   const getCachedState = (): SecurityStatus => {
     const lastCheck = localStorage.getItem(LAST_AUTH_CHECK);
     const cachedAuth = localStorage.getItem(SEC_STATUS_KEY);
-    const cachedUserAccess = localStorage.getItem(USER_ACCESS_KEY) === 'true'; // Explicit check
+    const cachedUserAccess = localStorage.getItem(USER_ACCESS_KEY) !== 'false'; // Default true if not set
     const cachedReqVersion = localStorage.getItem(SEC_VERSION_KEY) || APP_CURRENT_VERSION;
 
     // Check if user access is denied (isAccessAllowed = false)
@@ -176,12 +177,14 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   }
 
   try {
+    console.log('[AUTH_CHECK] Firebase bağlantısı başarılı, Config okunuyor...');
     // 1. Fetch system-wide config for required version comparison
     const systemConfigRef = doc(db, 'Config', 'system');
     let requiredVersion = APP_CURRENT_VERSION;
 
     try {
       const configSnap = await getDoc(systemConfigRef);
+      console.log('[AUTH_CHECK] Config kontrol edildi');
       if (configSnap.exists()) {
         const data = configSnap.data();
         if (data && data.requiredVersion) {
@@ -210,24 +213,27 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
     }
 
     // 3. Fetch user doc from Users collection
-    const userRef = doc(db, 'Users', deviceId);
+    console.log('[AUTH_CHECK] Devices koleksiyonundan cihaz okunuyor...');
+    const deviceRef = doc(db, 'Devices', deviceId);
     let isAccessAllowed = true;
 
-    const userSnap = await getDoc(userRef);
-    if (userSnap.exists()) {
-      const data = userSnap.data();
+    const deviceSnap = await getDoc(deviceRef);
+    console.log('[AUTH_CHECK] Cihaz belge var mı:', deviceSnap.exists(), 'Data:', deviceSnap.data());
+    if (deviceSnap.exists()) {
+      const data = deviceSnap.data();
       isAccessAllowed = data?.isAccessAllowed !== false;
+      console.log('[AUTH_CHECK] Device data:', data, 'isAccessAllowed:', isAccessAllowed);
 
       // Update metadata on server asynchronously
-      setDoc(userRef, {
+      setDoc(deviceRef, {
         currentVersion: APP_CURRENT_VERSION,
         lastOnlineTime: serverTimestamp(),
         platform: "Web Portal"
       }, { merge: true }).catch(e => console.warn("Kullanıcı telemetrisi güncellenemedi", e));
 
     } else {
-      // İlk kez kaydedilen kullanıcı - varsayılan olarak erişim izni verilir
-      await setDoc(userRef, {
+      // İlk kez kaydedilen cihaz - varsayılan olarak erişim izni verilir
+      await setDoc(deviceRef, {
         deviceId,
         isAccessAllowed: true,
         currentVersion: APP_CURRENT_VERSION,
@@ -264,6 +270,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
       };
     }
   } catch (err: any) {
+    console.error("[AUTH_CHECK] HATA!", err.code, err.message);
     console.warn("Erişim sorgulaması başarısız. Çevrimdışı güvenlik stratejisi başlatılıyor", err);
     return getCachedState();
   }
