@@ -548,7 +548,7 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
         gtag('config', '${gaId}');
       `;
       document.head.appendChild(initScript);
-      console.log(`[Google Analytics Otomasyonu] ${gaId} başarıyla gömüldü.`);
+      // Silently loaded in background
     } catch (e) {
       console.error("Gtag injection fell back:", e);
     }
@@ -1836,59 +1836,10 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                          </form>
                        )}
 
-                       {/* STEP 3: Tamamlandı ve Test Playground */}
+                       {/* STEP 3: Headless - Silent Success */}
                        {wizardStep === 3 && (
-                         <div className="animate-fadeIn space-y-4">
-                           <div className="flex flex-col items-center text-center p-4 bg-emerald-50/50 border border-emerald-150 rounded-2xl">
-                             <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-extrabold text-lg shadow-sm mb-3">
-                               ✓
-                             </div>
-                             <h3 className="text-sm font-black text-emerald-900">MÜKEMMEL! ENTEGRASYON ŞİMDİ CANLI YAYINDA</h3>
-                             <p className="text-xs text-emerald-800 mt-1 max-w-lg leading-relaxed">
-                               Tebrikler! Google Analytics (<strong>{settings.googleAnalyticsId}</strong>) ve Google Ads (<strong>{settings.googleAdsId}</strong>) veritabanınıza başarıyla tescillendi. 'ad_settings' yapılandırması başarıyla tamamlandı.
-                             </p>
-                           </div>
-
-                           {/* Interactive Tester simulation simulator */}
-                           <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 text-xs font-medium space-y-3">
-                             <div className="flex justify-between items-center">
-                               <h4 className="text-[10px] uppercase font-extrabold tracking-wider text-stone-500">🧪 ENTEGRASYON TEST ALANI</h4>
-                               <span className="text-[9px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-mono font-bold">TEST_MODE</span>
-                             </div>
-                             <p className="text-stone-550 leading-relaxed text-[11px]">
-                               Aşağıdaki butona tıklayarak işletmenizde müşterinin yapacağı bir WhatsApp tıklamasını simüle edin. Arka planda Google sunucularımıza verinin saniyeler içinde nasıl fırlatıldığını anında gözlemleyin.
-                             </p>
-                             
-                             <button
-                               type="button"
-                               onClick={() => {
-                                 // Add a custom simulated conversion log
-                                 const testLog = {
-                                   id: "test-" + Date.now(),
-                                   time: "Şimdi",
-                                   event: "Simulated Customer Whatsapp Capture",
-                                   status: "Sent to Google",
-                                   details: `Sistem başarılı! gtag('event', 'whatsapp_click', { 'send_to': '${settings.googleAdsId}/${settings.googleAdsLabel}' }) kodu tetiklendi.`
-                                 };
-                                 setConversionLogs(prev => [testLog, ...prev]);
-                                 alert("🧪 SİMÜLASYON BAŞARILI!\n\nGoogle Ads Dönüşüm Sinyali başarıyla tetiklendi ve arka plana gönderildi. Sol taraftaki Dönüşüm Logları ekranından gerçekleşen olayı izleyebilirsiniz.");
-                               }}
-                               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl transition-all shadow-sm cursor-pointer hover:scale-[1.01] flex items-center justify-center gap-1.5"
-                             >
-                               ⚡ WhatsApp Sipariş Tıklamasını Simüle Et
-                             </button>
-                           </div>
-
-                           <div className="flex justify-between items-center pt-2 border-t border-stone-100 text-xs font-bold">
-                             <span className="text-stone-450">Ölçüm veritabanı aktif durumda</span>
-                             <button
-                               type="button"
-                               onClick={() => setWizardStep(2)}
-                               className="text-stone-600 hover:text-stone-900 border border-stone-200 bg-white px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95"
-                             >
-                               🏷️ Bilgileri Düzenle
-                             </button>
-                           </div>
+                         <div className="animate-fadeIn space-y-4 hidden">
+                           {/* Headless integration - no UI feedback needed */}
                          </div>
                        )}
                      </div>

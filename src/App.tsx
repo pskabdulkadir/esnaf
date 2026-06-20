@@ -1,15 +1,19 @@
 import React, { useState, useEffect } from 'react';
+import { lazy, Suspense } from 'react';
 import { Product, Sale, Expense, UserRole } from './types';
 import { INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES } from './data';
 import Dashboard from './components/Dashboard';
-import Inventory from './components/Inventory';
-import SalesEntry from './components/SalesEntry';
-import Expenses from './components/Expenses';
-import QuickLookup from './components/QuickLookup';
-import Automation from './components/Automation';
-import Contact from './components/Contact';
-import Marketer from './components/Marketer';
-import GuideAndVoice from './components/GuideAndVoice';
+import { SkeletonLoader } from './components/SkeletonLoader';
+
+// Lazy load heavy components for faster initial load
+const Inventory = lazy(() => import('./components/Inventory'));
+const SalesEntry = lazy(() => import('./components/SalesEntry'));
+const Expenses = lazy(() => import('./components/Expenses'));
+const QuickLookup = lazy(() => import('./components/QuickLookup'));
+const Automation = lazy(() => import('./components/Automation'));
+const Contact = lazy(() => import('./components/Contact'));
+const Marketer = lazy(() => import('./components/Marketer'));
+const GuideAndVoice = lazy(() => import('./components/GuideAndVoice'));
 import { TRANSLATIONS } from './lib/translations';
 import { sqliteDb } from './lib/sqlite';
 import {
@@ -181,6 +185,19 @@ export default function App() {
     }
 
     initializeSystem();
+  }, []);
+
+  // Keep-alive mechanism: Ping backend every 5 minutes to prevent Render cold start
+  useEffect(() => {
+    const keepAliveInterval = setInterval(async () => {
+      try {
+        await fetch("/api/health", { method: "GET" });
+      } catch (err) {
+        console.warn("Keep-alive ping failed (offline?):", err);
+      }
+    }, 5 * 60 * 1000); // 5 dakikada bir
+
+    return () => clearInterval(keepAliveInterval);
   }, []);
 
   // Sync state with local SQLite DB helper (reloads state from SQLite and triggers notifications)
@@ -1060,64 +1077,78 @@ export default function App() {
           )}
 
           {currentTab === 'inventory' && (
-            <Inventory 
-              products={products}
-              onAddProduct={handleAddProduct}
-              onUpdateProduct={handleUpdateProduct}
-              onDeleteProduct={handleDeleteProduct}
-              userRole={userRole}
-              brandName={brandName}
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <Inventory
+                products={products}
+                onAddProduct={handleAddProduct}
+                onUpdateProduct={handleUpdateProduct}
+                onDeleteProduct={handleDeleteProduct}
+                userRole={userRole}
+                brandName={brandName}
+                language={language}
+              />
+            </Suspense>
           )}
 
           {currentTab === 'expenses' && (
-            <Expenses 
-              expenses={expenses}
-              onAddExpense={handleAddExpense}
-              onDeleteExpense={handleDeleteExpense}
-              brandName={brandName}
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <Expenses
+                expenses={expenses}
+                onAddExpense={handleAddExpense}
+                onDeleteExpense={handleDeleteExpense}
+                brandName={brandName}
+                language={language}
+              />
+            </Suspense>
           )}
 
           {currentTab === 'lookup' && (
-            <QuickLookup 
-              products={products} 
-              brandName={brandName} 
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <QuickLookup
+                products={products}
+                brandName={brandName}
+                language={language}
+              />
+            </Suspense>
           )}
 
           {currentTab === 'automation' && (
-            <Automation
-              products={products}
-              sales={sales}
-              expenses={expenses}
-              userEmail="abdulkadirkqn@gmail.com"
-              brandName={brandName}
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <Automation
+                products={products}
+                sales={sales}
+                expenses={expenses}
+                userEmail="abdulkadirkqn@gmail.com"
+                brandName={brandName}
+                language={language}
+              />
+            </Suspense>
           )}
 
           {currentTab === 'contact' && (
-            <Contact 
-              brandName={brandName} 
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <Contact
+                brandName={brandName}
+                language={language}
+              />
+            </Suspense>
           )}
 
           {currentTab === 'marketer' && (
-            <Marketer 
-              brandName={brandName} 
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <Marketer
+                brandName={brandName}
+                language={language}
+              />
+            </Suspense>
           )}
 
           {currentTab === 'guide' && (
-            <GuideAndVoice 
-              language={language}
-            />
+            <Suspense fallback={<div className="p-4 text-center text-slate-500">Yükleniyor...</div>}>
+              <GuideAndVoice
+                language={language}
+              />
+            </Suspense>
           )}
 
         </main>

@@ -2,13 +2,14 @@
 // Coordinates Cloud Authentication checks, Remote Update enforcement, Offline Grace Policies, and Device Fingerprinting.
 
 import { initializeApp } from 'firebase/app';
-import { 
-  getFirestore, 
-  doc, 
-  getDoc, 
+import {
+  getFirestore,
+  doc,
+  getDoc,
   setDoc,
   serverTimestamp,
-  type Firestore
+  type Firestore,
+  enableIndexedDbPersistence
 } from 'firebase/firestore';
 
 // Current local application metadata
@@ -30,6 +31,19 @@ export let db: Firestore | null = null;
 try {
   app = initializeApp(firebaseConfig);
   db = getFirestore(app);
+
+  // Enable offline persistence for better UX on slow/unstable networks
+  enableIndexedDbPersistence(db)
+    .then(() => console.log("✓ Firestore offline persistence enabled"))
+    .catch((err: any) => {
+      if (err.code === 'failed-precondition') {
+        console.warn("Firestore: Multiple tabs open - persistence disabled");
+      } else if (err.code === 'unimplemented') {
+        console.warn("Firestore: Browser doesn't support IndexedDB - persistence unavailable");
+      } else {
+        console.warn("Firestore persistence error:", err);
+      }
+    });
 } catch (e) {
   console.error("Firebase SDK failed to initialize", e);
 }

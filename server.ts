@@ -633,6 +633,17 @@ JSON formatında şu değerleri tam olarak döndür (başka açıklama veya mark
   }
 });
 
+// ========================
+// SERVER HEALTH CHECK (Keep-Alive)
+// ========================
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 function getFallbackSeoMeta(productName: string, discountPrice: number, category: string, merchantName: string, lang: string) {
   let image = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800"; // default groceries
   
