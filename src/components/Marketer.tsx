@@ -442,47 +442,55 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
     setIsLoading(true);
     try {
       // 1. Fetch persistent store settings
-      const settingsRes = await fetch("/api/settings");
-      if (!settingsRes.ok) {
-        console.warn(`Ayarlar yüklenemedi (HTTP ${settingsRes.status})`);
-      } else {
-        const settingsData = await settingsRes.json();
-        setSettings(settingsData);
+      try {
+        const settingsRes = await fetch("/api/settings");
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setSettings(settingsData);
+        } else {
+          console.error(`Ayarlar yüklenemedi (HTTP ${settingsRes.status})`);
+        }
+      } catch (err) {
+        console.error("Settings API detailed error:", err);
       }
 
       // 2. Fetch public active discounts
-      const pubRes = await fetch("/api/public-discounts");
-      if (!pubRes.ok) {
-        console.warn(`İndirimler yüklenemedi (HTTP ${pubRes.status})`);
-      } else {
-        const discountsData = await pubRes.json();
-        setPublicDiscounts(discountsData);
+      try {
+        const pubRes = await fetch("/api/public-discounts");
+        if (pubRes.ok) {
+          const discountsData = await pubRes.json();
+          setPublicDiscounts(discountsData);
 
-        // Analyze URL params for Isolasyon and Deep linking
-        const urlParams = new URLSearchParams(window.location.search);
-        const discountId = urlParams.get("discountId");
-        const slug = urlParams.get("slug");
-        const viewMode = urlParams.get("view");
+          // Analyze URL params for Isolasyon and Deep linking
+          const urlParams = new URLSearchParams(window.location.search);
+          const discountId = urlParams.get("discountId");
+          const slug = urlParams.get("slug");
+          const viewMode = urlParams.get("view");
 
-        // If explicitly requested Showcase view, trigger isolated showcase lock
-        if (viewMode === "showcase" || slug || discountId) {
-          setIsCustomerShowcase(true);
-          setIsPublicUrlLocked(true); // Locks user screen into isolated showcase mode (no admin options)
-        }
-
-        if (slug) {
-          const matched = discountsData.find((d: any) => d.slug === slug);
-          if (matched) {
-            setSelectedDetailDiscount(matched);
-            incrementViewCount(matched.id);
+          // If explicitly requested Showcase view, trigger isolated showcase lock
+          if (viewMode === "showcase" || slug || discountId) {
+            setIsCustomerShowcase(true);
+            setIsPublicUrlLocked(true); // Locks user screen into isolated showcase mode (no admin options)
           }
-        } else if (discountId) {
-          const matched = discountsData.find((d: any) => d.id === discountId);
-          if (matched) {
-            setSelectedDetailDiscount(matched);
-            incrementViewCount(matched.id);
+
+          if (slug) {
+            const matched = discountsData.find((d: any) => d.slug === slug);
+            if (matched) {
+              setSelectedDetailDiscount(matched);
+              incrementViewCount(matched.id);
+            }
+          } else if (discountId) {
+            const matched = discountsData.find((d: any) => d.id === discountId);
+            if (matched) {
+              setSelectedDetailDiscount(matched);
+              incrementViewCount(matched.id);
+            }
           }
+        } else {
+          console.error(`İndirimler yüklenemedi (HTTP ${pubRes.status})`);
         }
+      } catch (err) {
+        console.error("Discounts API detailed error:", err);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
