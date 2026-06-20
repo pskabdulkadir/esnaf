@@ -604,7 +604,9 @@ export default function App() {
         showToast("Cihaz lisans doğrulaması ve sürüm kontrolleri başarıyla güncellendi!", "success");
       }
     } catch (e) {
-      showToast("Bulut anahtar bağlantısı kurulamadı. Yerel SQLite izole çalışmaya devam ediyor.", "warning");
+      showToast("Bulut bağlantısı başarısız. Çevrimdışı mod etkinleştiriliyor...", "warning");
+      const fallbackStatus = await runSovereigntyAuthCheck();
+      setSecurityStatus(fallbackStatus);
     }
   };
 
@@ -681,36 +683,49 @@ export default function App() {
         </div>
       )}
 
-      {/* 3. Authorized/Device Lock Screen overlay */}
+      {/* 3. User Access Denied Screen - Erişim Durdurulması */}
       {!isCheckingAuth && securityStatus.isLocked && securityStatus.lockType === 'unauthorized' && (
         <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-6 text-slate-200">
           <div className="w-full max-w-lg bg-slate-900 rounded-3xl border border-slate-850 p-8 text-center space-y-6 shadow-2xl relative overflow-hidden text-slate-800">
-            
+
             <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-600 via-amber-500 to-red-650" />
-            
+
             <div className="h-16 w-16 bg-red-650/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto border border-red-650/20 animate-pulse">
               <Lock className="h-8 w-8 text-red-550" />
             </div>
 
             <div className="space-y-1">
-              <h1 className="text-xs font-bold uppercase tracking-widest text-slate-205 font-mono">AKN Kurumsal - Erişim Engeli</h1>
-              <p className="text-[9px] text-indigo-400 font-mono tracking-wider font-semibold">SECURE DEVICE LICENSE TERMINATION</p>
+              <h1 className="text-sm font-bold uppercase tracking-widest text-slate-205 font-sans">
+                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
+                  ? 'İnternet Bağlantısı Gerekli'
+                  : 'Erişiminiz Durdurulmuştur'}
+              </h1>
+              <p className="text-[9px] text-amber-400 font-mono tracking-wider font-semibold">
+                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
+                  ? 'OFFLINE / CONNECTION REQUIRED'
+                  : 'TEMPORARY ACCESS SUSPENSION'}
+              </p>
             </div>
 
             <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850/60 text-left space-y-4">
-              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
-                Bu cihazın sisteme erişim yetkisi doğrulanmadı veya geçici olarak yöneticiniz tarafından askıya alındı. Lisanslama onayı için lütfen yöneticiniz ile iletişime geçiniz.
+              <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
+                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
+                  ? 'Sistemi kullanmak için internet bağlantısı gereklidir. Lütfen ağa bağlanıp tekrar deneyin.'
+                  : 'Bu hesabın sisteme erişim izni yöneticiniz tarafından geçici olarak durdurulmuştur. Detaylı bilgi ve erişim talebiniz için lütfen yöneticinizle iletişime geçiniz.'}
               </p>
 
               <div className="space-y-2 font-mono text-[10px] pt-3 border-t border-slate-850/40 text-slate-400">
                 <div className="flex justify-between items-center bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-850">
-                  <span className="text-slate-500 text-[9px] uppercase font-bold">Cihaz ID Kodunuz:</span>
-                  <span className="text-amber-400 font-bold tracking-wide select-all mt-0.5">{getOrCreateDeviceId()}</span>
+                  <span className="text-slate-500 text-[9px] uppercase font-bold">Cihaz Kimliği:</span>
+                  <span className="text-amber-400 font-bold tracking-wide select-all">{getOrCreateDeviceId()}</span>
                 </div>
-                
+
                 {securityStatus.errorMessage && (
-                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-850 text-[10.5px] leading-normal font-sans text-slate-400 flex items-start gap-2.5">
-                    <WifiOff className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-850 text-[10.5px] leading-normal font-sans text-slate-300 flex items-start gap-2.5">
+                    {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
+                      ? <WifiOff className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                      : <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                    }
                     <span>{securityStatus.errorMessage}</span>
                   </div>
                 )}
@@ -722,14 +737,17 @@ export default function App() {
                 onClick={handleManualAuthSync}
                 className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-2xl text-[11px] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-950/40"
               >
-                <RefreshCw className="h-4 w-4" /> BİLGİSAYARI YENİDEN SORGULA / LİSANS SYNC
+                <RefreshCw className="h-4 w-4" />
+                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
+                  ? 'AĞA BAĞLAN VE YENİDEN DENE'
+                  : 'ERIŞIM DURUMUNU KONTROL ET'}
               </button>
-              
+
               <p className="text-[9.5px] text-slate-500 leading-relaxed font-sans pt-1">
-                🔒 <b>Sovereignty Güvencesi:</b> Yerel SQLite veritabanınız (Özet: Ürünler, Satışlar ve Gider belgeleri) tarayıcı alanında izole ve tamamen korunmaktadır. Hiçbir yerel veri silinmez.
+                🔒 <b>Veri Güvenliği:</b> Yerel veritabanınız (Ürünler, Satışlar, Giderler) tarayıcıda güvenli şekilde saklanmıştır. Erişim kısıtlanması hiçbir yerel veriyi etkilemez.
               </p>
             </div>
-            
+
           </div>
         </div>
       )}

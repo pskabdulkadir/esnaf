@@ -80,7 +80,7 @@ export interface SecurityStatus {
 
 /**
  * Perform startup check comparing current system state, Firestore client details and global settings.
- * Also checks 15-day expiry dates for device licenses.
+ * Checks user access status from Users collection (isAccessAllowed field).
  */
 export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   const deviceId = getOrCreateDeviceId();
@@ -89,58 +89,52 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   const LAST_AUTH_CHECK = 'akn_last_auth_success_time';
   const SEC_STATUS_KEY = 'akn_cached_auth_state'; // "true" or "false"
   const SEC_VERSION_KEY = 'akn_cached_required_version';
-  const DEVICE_EXPIRY_KEY = 'akn_device_expiry_date';
+  const USER_ACCESS_KEY = 'akn_cached_user_access';
 
   const now = Date.now();
   const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
-
-  // Helper to check if device license has expired (15-day trial)
-  const checkExpiryDate = (): boolean => {
-    const expiryStr = localStorage.getItem(DEVICE_EXPIRY_KEY);
-    if (!expiryStr) return false; // No expiry date set, assume not expired
-
-    try {
-      const expiryDate = new Date(expiryStr);
-      const today = new Date();
-      return today > expiryDate; // Expired if today is after expiry
-    } catch {
-      return false;
-    }
-  };
 
   // Helper local reader for grace calculation
   const getCachedState = (): SecurityStatus => {
     const lastCheck = localStorage.getItem(LAST_AUTH_CHECK);
     const cachedAuth = localStorage.getItem(SEC_STATUS_KEY);
+    const cachedUserAccess = localStorage.getItem(USER_ACCESS_KEY) === 'true'; // Explicit check
     const cachedReqVersion = localStorage.getItem(SEC_VERSION_KEY) || APP_CURRENT_VERSION;
 
-    // Check if device license has expired
-    if (checkExpiryDate()) {
+    // Check if user access is denied (isAccessAllowed = false)
+    if (cachedAuth === 'true' && !cachedUserAccess) {
       return {
         isLocked: true,
         lockType: 'unauthorized',
-        errorMessage: 'Bu cihazın 15 günlük deneme süresi dolmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
+        errorMessage: 'Erişiminiz geçici olarak durdurulmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
         offlineGraceActive: false
       };
     }
 
-    // Set fallback 15-day trial period if first time initializing offline/sandbox
+    // Set fallback access allowed if first time initializing offline/sandbox
     if (!lastCheck && !cachedAuth) {
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 15);
-      localStorage.setItem(DEVICE_EXPIRY_KEY, expiryDate.toISOString());
       localStorage.setItem(LAST_AUTH_CHECK, now.toString());
       localStorage.setItem(SEC_STATUS_KEY, 'true');
+      localStorage.setItem(USER_ACCESS_KEY, 'true');
       return {
         isLocked: false,
         lockType: 'none',
         offlineGraceActive: true,
-        daysRemainingInGrace: 15
+        daysRemainingInGrace: 3
       };
     }
 
-    if (cachedAuth === 'true' && lastCheck) {
+    if (cachedAuth === 'true' && lastCheck && cachedUserAccess) {
       const lastCheckTime = parseInt(lastCheck, 10);
+      if (isNaN(lastCheckTime)) {
+        localStorage.removeItem(LAST_AUTH_CHECK);
+        return {
+          isLocked: true,
+          lockType: 'unauthorized',
+          errorMessage: 'Erişim doğrulama için internet bağlantısı gereklidir. Lütfen bağlantı sağlayarak devam etmeyi deneyin.',
+          offlineGraceActive: false
+        };
+      }
       const diff = now - lastCheckTime;
 
       if (diff < threeDaysMs) {
@@ -171,7 +165,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
     return {
       isLocked: true,
       lockType: 'unauthorized',
-      errorMessage: 'Internet connection required to verify access. Please connect to proceed with authorization check.',
+      errorMessage: 'İnternet bağlantısı olmadan erişim doğrulaması yapılamıyor. Lütfen ağa bağlanıp "Erişim Durumunu Kontrol Et" düğmesini tıklayın.',
       offlineGraceActive: false
     };
   };
@@ -185,7 +179,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
     // 1. Fetch system-wide config for required version comparison
     const systemConfigRef = doc(db, 'Config', 'system');
     let requiredVersion = APP_CURRENT_VERSION;
-    
+
     try {
       const configSnap = await getDoc(systemConfigRef);
       if (configSnap.exists()) {
@@ -198,15 +192,14 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
         // Seed initial system config if not exist for user convenience
         await setDoc(systemConfigRef, {
           requiredVersion: APP_CURRENT_VERSION,
-          lastUpdated: serverTimestamp(),
-          lockAllDevices: false
+          lastUpdated: serverTimestamp()
         }, { merge: true });
       }
     } catch (err) {
-      console.warn("Could not retrieve system-wide configuration, choosing fallback version", err);
+      console.warn("Sistem yapılandırması alınamadı, yedek sürüm kullanılıyor", err);
     }
 
-    // 2. Clear update status check
+    // 2. Check update requirement
     if (isVersionHigher(requiredVersion, APP_CURRENT_VERSION)) {
       return {
         isLocked: true,
@@ -216,90 +209,62 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
       };
     }
 
-    // 3. Fetch device doc
-    const deviceRef = doc(db, 'Devices', deviceId);
-    let isAuthorized = true;
-    let deviceExpiryDate: Date | null = null;
+    // 3. Fetch user doc from Users collection
+    const userRef = doc(db, 'Users', deviceId);
+    let isAccessAllowed = true;
 
-    const deviceSnap = await getDoc(deviceRef);
-    if (deviceSnap.exists()) {
-      const data = deviceSnap.data();
-      isAuthorized = data?.isAuthorized !== false;
+    const userSnap = await getDoc(userRef);
+    if (userSnap.exists()) {
+      const data = userSnap.data();
+      isAccessAllowed = data?.isAccessAllowed !== false;
 
-      // Check expiry date from Firebase
-      if (data?.expiryDate) {
-        deviceExpiryDate = new Date(data.expiryDate);
-        localStorage.setItem(DEVICE_EXPIRY_KEY, data.expiryDate);
-
-        const today = new Date();
-        if (today > deviceExpiryDate) {
-          isAuthorized = false; // Trial period expired
-        }
-      }
-
-      // Update metadata on server asynchronously to trace current version & access activity
-      setDoc(deviceRef, {
+      // Update metadata on server asynchronously
+      setDoc(userRef, {
         currentVersion: APP_CURRENT_VERSION,
         lastOnlineTime: serverTimestamp(),
         platform: "Web Portal"
-      }, { merge: true }).catch(e => console.warn("Syncing telemetry device details failed", e));
+      }, { merge: true }).catch(e => console.warn("Kullanıcı telemetrisi güncellenemedi", e));
 
     } else {
-      // İlk kez kaydedilen cihazlar 15 günlük deneme süresi ile kaydedilir
-      const expiryDate = new Date();
-      expiryDate.setDate(expiryDate.getDate() + 15);
-
-      await setDoc(deviceRef, {
+      // İlk kez kaydedilen kullanıcı - varsayılan olarak erişim izni verilir
+      await setDoc(userRef, {
         deviceId,
-        isAuthorized: true,
+        isAccessAllowed: true,
         currentVersion: APP_CURRENT_VERSION,
         platform: "Web Portal",
         createdAt: serverTimestamp(),
-        expiryDate: expiryDate.toISOString(),
         lastOnlineTime: serverTimestamp()
       });
 
-      // Ayrıca localStorage'a da kaydet (çevrimdışı kontrol için)
-      localStorage.setItem(DEVICE_EXPIRY_KEY, expiryDate.toISOString());
-      isAuthorized = true; // 15 günlük deneme süresi başladı
+      isAccessAllowed = true;
     }
 
     // 4. Record local verification status for offline grace validation
-    if (isAuthorized) {
+    if (isAccessAllowed) {
       localStorage.setItem(LAST_AUTH_CHECK, now.toString());
       localStorage.setItem(SEC_STATUS_KEY, 'true');
-
-      // Calculate days remaining in trial if expiry date exists
-      let daysRemaining: number | undefined = undefined;
-      if (deviceExpiryDate) {
-        const today = new Date();
-        const timeDiff = deviceExpiryDate.getTime() - today.getTime();
-        daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-      }
+      localStorage.setItem(USER_ACCESS_KEY, 'true');
 
       return {
         isLocked: false,
         lockType: 'none',
         offlineGraceActive: true,
-        daysRemainingInGrace: daysRemaining
+        daysRemainingInGrace: 3
       };
     } else {
-      localStorage.setItem(SEC_STATUS_KEY, 'false');
-
-      let errorMsg = 'Bu cihazın yetkisi yöneticiniz tarafından askıya alınmıştır.';
-      if (deviceExpiryDate && new Date() > deviceExpiryDate) {
-        errorMsg = 'Bu cihazın 15 günlük deneme süresi dolmuştur. Lütfen yöneticiniz ile iletişime geçiniz.';
-      }
+      localStorage.setItem(LAST_AUTH_CHECK, now.toString()); // Set timestamp for offline denial check
+      localStorage.setItem(SEC_STATUS_KEY, 'true'); // Connection was successful
+      localStorage.setItem(USER_ACCESS_KEY, 'false'); // But access is denied
 
       return {
         isLocked: true,
         lockType: 'unauthorized',
-        offlineGraceActive: false,
-        errorMessage: errorMsg
+        errorMessage: 'Erişiminiz geçici olarak durdurulmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
+        offlineGraceActive: false
       };
     }
   } catch (err: any) {
-    console.warn("Auth query failed. Initiating fallback offline sovereignty strategy", err);
+    console.warn("Erişim sorgulaması başarısız. Çevrimdışı güvenlik stratejisi başlatılıyor", err);
     return getCachedState();
   }
 }
