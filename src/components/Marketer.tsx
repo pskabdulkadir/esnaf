@@ -1707,7 +1707,7 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                        )}
 
                        {/* STEP 2: Google Integration Wizard */}
-                       {wizardStep === 2 && (
+                       {(wizardStep === 2 || wizardStep === 3 || wizardStep === 4) && (
                          <div className="animate-fadeIn">
                            <GoogleIntegrationWizard
                              initialGaId={wizardAnalyticsId}
@@ -1715,25 +1715,19 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                              onSuccess={(gaId, adsId) => {
                                setWizardAnalyticsId(gaId);
                                setWizardAdsId(adsId);
-                               setWizardStep(3);
                              }}
                            />
-                           <div className="mt-6 pt-4 border-t border-stone-100">
-                             <button
-                               type="button"
-                               onClick={() => setWizardStep(1)}
-                               className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer"
-                             >
-                               ⬅ Geri Dön
-                             </button>
-                           </div>
-                         </div>
-                       )}
-
-                       {/* STEP 3: Headless - Silent Success */}
-                       {wizardStep === 3 && (
-                         <div className="animate-fadeIn space-y-4 hidden">
-                           {/* Headless integration - no UI feedback needed */}
+                           {wizardStep === 2 && (
+                             <div className="mt-6 pt-4 border-t border-stone-100">
+                               <button
+                                 type="button"
+                                 onClick={() => setWizardStep(1)}
+                                 className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer"
+                               >
+                                 ⬅ Geri Dön
+                               </button>
+                             </div>
+                           )}
                          </div>
                        )}
                      </div>

@@ -197,6 +197,102 @@ export default function HelpCenter() {
           </div>
         </div>
       )
+    },
+    {
+      id: 5,
+      title: "🗺️ Google Search Console'a Sitemap Gönderme (Son Adım!)",
+      icon: BarChart3,
+      content: (
+        <div className="space-y-4 text-sm text-slate-700">
+          <div className="bg-indigo-50 border border-indigo-200 p-4 rounded-lg">
+            <p className="font-semibold text-indigo-900 mb-3">
+              Bu adım, tüm ürünlerinizi Google Arama Sonuçlarında gösterir! 📍
+            </p>
+            <p className="text-xs text-indigo-800 mb-3">
+              Sitemap, Google'a senin dükkanının haritası. Bu harita olmadan Google senin dükkanını bulamaz.
+            </p>
+          </div>
+
+          <div className="space-y-3">
+            <div className="bg-white border border-slate-200 p-3 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">1</span>
+                Google Search Console'a Git
+              </h4>
+              <p className="text-xs text-slate-600 mb-2">
+                Şu linke tıkla ve Google hesapla oturum aç:
+              </p>
+              <a
+                href="https://search.google.com/search-console/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-blue-600 hover:underline text-xs font-semibold"
+              >
+                search.google.com/search-console/ →
+              </a>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-3 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">2</span>
+                "Sitemap'lar" Sekmesine Tıkla
+              </h4>
+              <p className="text-xs text-slate-600">
+                Sol taraftaki menüde <strong>"Sitemap'lar"</strong> (veya "Sitemaps") seçeneğini bul ve tıkla.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-3 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">3</span>
+                "Yeni Sitemap Ekle" Kutucuğuna Tıkla
+              </h4>
+              <p className="text-xs text-slate-600">
+                Sağ üst köşede <strong>"Yeni sitemap ekle"</strong> yazan gri kutucuk görünecek.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-3 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">4</span>
+                Sitemap URL'sini Yapıştır
+              </h4>
+              <p className="text-xs text-slate-600 mb-2">
+                Şu URL'yi kopyala ve yapıştır:
+              </p>
+              <code className="block bg-slate-100 p-2 rounded text-[11px] font-mono text-slate-800 break-all">
+                sitemap.xml
+              </code>
+              <p className="text-[11px] text-slate-500 mt-2">
+                (Sadece "sitemap.xml" yazman yeterli, bundan sonrası sistem tarafından otomatik ekleniyor)
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-200 p-3 rounded-lg">
+              <h4 className="font-bold text-slate-900 text-sm mb-2 flex items-center gap-2">
+                <span className="bg-blue-600 text-white rounded-full h-6 w-6 flex items-center justify-center text-xs font-bold">5</span>
+                "Gönder" Butonuna Bas
+              </h4>
+              <p className="text-xs text-slate-600">
+                Hepsi bu! Google şimdi sitemapı alacak ve tüm ürünlerinizi taramaya başlayacak.
+              </p>
+            </div>
+          </div>
+
+          <div className="bg-emerald-50 border border-emerald-200 p-3 rounded-lg">
+            <p className="text-[12px] text-emerald-800 font-semibold flex gap-2">
+              <span>✅</span>
+              <span><strong>24-48 saat içinde</strong> tüm ürünleriniz Google Arama sonuçlarında görünmeye başlayacak!</span>
+            </p>
+          </div>
+
+          <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded">
+            <p className="text-[12px] text-amber-800 font-semibold">
+              💡 <strong>Not:</strong> Bu işlemi bir kez yap, sonra otomatik olarak ürünler güncellenecek.
+            </p>
+          </div>
+        </div>
+      )
     }
   ];
 
