@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Product, Sale, Expense, Currency } from '../types';
+import { TRANSLATIONS } from '../lib/translations';
 import {
   TrendingUp,
   TrendingDown,
@@ -21,6 +22,7 @@ interface DashboardProps {
   expenses: Expense[];
   onNavigate: (view: string) => void;
   brandName?: string;
+  language?: 'tr' | 'en' | 'de';
 }
 
 // Helper function to get currency symbol
@@ -33,7 +35,8 @@ const getCurrencySymbol = (currency: Currency): string => {
   }
 };
 
-export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd' }: DashboardProps) {
+export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd', language = 'tr' }: DashboardProps) {
+  const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // Calculations
   const totalSalesAmount = useMemo(() => {
     return sales.reduce((acc, sale) => acc + sale.totalAmount, 0);
@@ -119,14 +122,14 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
           <span className="text-xs font-semibold uppercase tracking-wider text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full">
-            Yönetim Kontrol Paneli
+            {t.controlPanel}
           </span>
           <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-800 sm:text-3xl">{brandName}</h1>
-          <p className="text-sm text-slate-500 mt-1">Küresel operasyonların, satış otomasyonlarının ve stok kontrollerinin gerçek zamanlı genel görünümü.</p>
+          <p className="text-sm text-slate-500 mt-1">{t.overviewSubtitle}</p>
         </div>
         <div className="flex flex-col gap-2 items-start md:items-end">
           <div className="text-xs font-mono text-slate-400 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
-            SİSTEM SAATİ: {new Date().toLocaleDateString('tr-TR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            {t.systemTime || 'SİSTEM SAATİ'}: {new Date().toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
           <a
             href="https://wa.me/905425783748"
@@ -135,7 +138,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
             className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
           >
             <MessageCircle className="h-4 w-4" />
-            WhatsApp İletişim
+            {language === 'tr' ? 'WhatsApp İletişim' : language === 'de' ? 'WhatsApp Kontakt' : 'WhatsApp Contact'}
           </a>
         </div>
       </div>
@@ -146,7 +149,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
         <div id="kpi-total-sales" className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Toplam Satış Hacmi</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{t.kpiSalesVolume}</p>
               <h3 className="text-3xl font-bold tracking-tight text-slate-900 mt-2">
                 ₺{totalSalesAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
@@ -157,9 +160,9 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
           </div>
           <div className="mt-4 flex items-center justify-between text-xs text-emerald-600 bg-emerald-50/50 p-2 rounded-lg">
             <span className="font-semibold flex items-center gap-1">
-              Aktif Siparişler: {sales.length}
+              {language === 'tr' ? 'Aktif Siparişler' : language === 'de' ? 'Aktive Bestellungen' : 'Active Orders'}: {sales.length}
             </span>
-            <span className="text-slate-400 font-mono">Brüt Gelir</span>
+            <span className="text-slate-400 font-mono">{language === 'tr' ? 'Brüt Gelir' : language === 'de' ? 'Bruttoeinnahmen' : 'Gross Revenue'}</span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-emerald-500" />
         </div>
@@ -168,29 +171,29 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
         <div id="kpi-total-expenses" className="relative overflow-hidden rounded-2xl bg-white border border-slate-200/80 p-6 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex justify-between items-start">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">Toplam Genel Giderler</p>
+              <p className="text-xs font-medium uppercase tracking-wider text-slate-400">{t.kpiTotalExpenses}</p>
               <h3 className="text-3xl font-bold tracking-tight text-slate-900 mt-2">
                 ₺{totalExpensesAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
             </div>
-            <div className="p-3 bg-red-50 rounded-xl text-red-600">
+            <div className="p-3 bg-red-50 rounded-xl text-red-650">
               <TrendingDown className="h-6 w-6" />
             </div>
           </div>
           <div className="mt-4 flex items-center justify-between text-xs text-red-600 bg-red-50/50 p-2 rounded-lg">
             <span className="font-semibold flex items-center gap-1">
-              Kayıtlı Faturalar: {expenses.length}
+              {language === 'tr' ? 'Kayıtlı Faturalar' : language === 'de' ? 'Registrierte Rechnungen' : 'Registered Invoices'}: {expenses.length}
             </span>
-            <span className="text-slate-400 font-mono">Gider Toplamı</span>
+            <span className="text-slate-400 font-mono">{language === 'tr' ? 'Gider Toplamı' : language === 'de' ? 'Ausgabensumme' : 'Total Expenses'}</span>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-500" />
         </div>
 
         {/* KPI Card 3: Net Profit */}
-        <div id="kpi-net-profit" className={`relative overflow-hidden rounded-2xl border p-6 shadow-sm hover:shadow-md transition-all duration-200 ${netProfit >= 0 ? "bg-slate-900 border-slate-800 text-white" : "bg-red-950 border-red-900 text-white"}`}>
+        <div id="kpi-net-profit" className={`relative overflow-hidden rounded-2xl border p-6 shadow-sm hover:shadow-md transition-all duration-200 ${netProfit >= 0 ? "bg-slate-900 border-slate-800 text-white" : "bg-red-955 border-red-900 text-white"}`}>
           <div className="flex justify-between items-start">
             <div>
-              <p className={`text-xs font-medium uppercase tracking-wider ${netProfit >= 0 ? "text-slate-400" : "text-red-300"}`}>Birleşik Net Kâr</p>
+              <p className={`text-xs font-medium uppercase tracking-wider ${netProfit >= 0 ? "text-slate-400" : "text-red-300"}`}>{t.kpiNetProfit}</p>
               <h3 className="text-3xl font-bold tracking-tight mt-2">
                 ₺{netProfit.toLocaleString('tr-TR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
@@ -201,9 +204,9 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
           </div>
           <div className="mt-4 flex items-center justify-between text-xs p-2 rounded-lg bg-white/10">
             <span className="font-semibold">
-              Kâr Marjı: {profitMarginPercent}%
+              {t.kpiProfitMargin}: {profitMarginPercent}%
             </span>
-            <span className="opacity-75 font-mono">Formül: Satışlar - Giderler</span>
+            <span className="opacity-75 font-mono">{language === 'tr' ? 'Formül: Satışlar - Giderler' : language === 'de' ? 'Formel: Verkäufe - Ausgaben' : 'Formula: Sales - Expenses'}</span>
           </div>
           <div className={`absolute bottom-0 left-0 right-0 h-1 ${netProfit >= 0 ? "bg-amber-500" : "bg-red-500"}`} />
         </div>
@@ -217,12 +220,12 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
           <div>
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">Operasyonel Gelir Akışları</h3>
-                <p className="text-xs text-slate-500">Satış hacmi ve günlük işlem zaman çizelgesi</p>
+                <h3 className="text-lg font-bold text-slate-800">{t.salesChartTitle || 'Operasyonel Gelir Akışları'}</h3>
+                <p className="text-xs text-slate-500">{language === 'tr' ? 'Satış hacmi ve günlük işlem zaman çizelgesi' : language === 'de' ? 'Umsatzvolumen und tägliche Transaktions-Timeline' : 'Sales volume and daily transaction timeline'}</p>
               </div>
               <div className="flex items-center gap-4 text-xs font-mono">
                 <span className="flex items-center gap-1 text-slate-500">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" /> Günlük Tutar
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block" /> {language === 'tr' ? 'Günlük Tutar' : language === 'de' ? 'Täglicher Betrag' : 'Daily Amount'}
                 </span>
               </div>
             </div>
@@ -231,12 +234,12 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
             <div className="mt-6 h-60 w-full relative">
               {dailySalesTrends.length === 0 ? (
                 <div className="h-full flex flex-col items-center justify-center text-slate-400 text-sm">
-                  <p>Henüz geçmiş satış kaydı bulunamadı.</p>
+                  <p>{language === 'tr' ? 'Henüz geçmiş satış kaydı bulunamadı.' : language === 'de' ? 'Noch keine Verkaufsdaten gefunden.' : 'No sales records found yet.'}</p>
                   <button 
                     onClick={() => onNavigate('sales')}
                     className="mt-2 text-xs text-indigo-600 hover:underline font-semibold"
                   >
-                    İlk satışı kaydet →
+                    {language === 'tr' ? 'İlk satışı kaydet →' : language === 'de' ? 'Ersten Verkauf buchen →' : 'Record first sale →'}
                   </button>
                 </div>
               ) : (
@@ -262,7 +265,8 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                       points={`
                         0,100
                         ${dailySalesTrends.map((t, idx) => {
-                          const x = (idx / (dailySalesTrends.length - 1)) * 500;
+                          const xRatio = dailySalesTrends.length > 1 ? idx / (dailySalesTrends.length - 1) : 0;
+                          const x = xRatio * 500;
                           const y = 100 - (t.amount / maxSaleValue) * 85;
                           return `${x},${y}`;
                         }).join(' ')}
@@ -273,7 +277,8 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                     {/* Line path */}
                     <path
                       d={dailySalesTrends.map((t, idx) => {
-                        const x = (idx / (dailySalesTrends.length - 1)) * 500;
+                        const xRatio = dailySalesTrends.length > 1 ? idx / (dailySalesTrends.length - 1) : 0;
+                        const x = xRatio * 500;
                         const y = 100 - (t.amount / maxSaleValue) * 85;
                         return `${idx === 0 ? 'M' : 'L'} ${x} ${y}`;
                       }).join(' ')}
@@ -285,7 +290,8 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
 
                     {/* Nodes and Dots */}
                     {dailySalesTrends.map((t, idx) => {
-                      const x = (idx / (dailySalesTrends.length - 1)) * 500;
+                      const xRatio = dailySalesTrends.length > 1 ? idx / (dailySalesTrends.length - 1) : 0;
+                      const x = xRatio * 500;
                       const y = 100 - (t.amount / maxSaleValue) * 85;
                       return (
                         <g key={idx}>
@@ -312,10 +318,10 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
           <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
             <span className="flex items-center gap-1.5 font-medium text-slate-700">
               <CheckCircle className="h-4 w-4 text-emerald-500" />
-              Otomatik stok takip entegrasyonu AKTİF
+              {language === 'tr' ? 'Otomatik envanter döküm entegrasyonu AKTİF' : language === 'de' ? 'Automatische Bestandsaktualisierung AKTIV' : 'Automatic stock reduction integration ACTIVE'}
             </span>
-            <span className="font-mono text-xs text-indigo-600 hover:underline cursor-pointer" onClick={() => onNavigate('sales_entry')}>
-              Doğrudan Kasa Satış Girişi →
+            <span className="font-mono text-xs text-indigo-600 hover:underline cursor-pointer" onClick={() => onNavigate('sales')}>
+              {language === 'tr' ? 'Doğrudan Kasa Satış Girişi →' : language === 'de' ? 'Direkte Kassenbuchung →' : 'Direct POS Entry →'}
             </span>
           </div>
         </div>
@@ -323,8 +329,8 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
         {/* Expenses Category Breakdown */}
         <div id="expenses-category-breakdown" className="bg-white rounded-2xl border border-slate-200 p-6 flex flex-col justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">Gider Dağılımı</h3>
-            <p className="text-xs text-slate-500">Kategorilere göre sıralanmış operasyonel harcamalar</p>
+            <h3 className="text-lg font-bold text-slate-800">{t.expensesChartTitle || 'Gider Dağılımı'}</h3>
+            <p className="text-xs text-slate-500">{language === 'tr' ? 'Kategorilere göre sıralanmış operasyonel harcamalar' : language === 'de' ? 'Betriebsausgaben sortiert nach Kategorien' : 'Operational expenses classified by categories'}</p>
 
             <div className="mt-6 space-y-5">
               {/* Category: Tax */}
@@ -332,7 +338,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                 <div className="flex justify-between text-xs">
                   <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-indigo-500 inline-block" />
-                    Vergi, Ruhsat ve Harçlar
+                    {t.expenseCategoryTax || 'Vergi, Ruhsat ve Harçlar'}
                   </span>
                   <span className="font-mono text-slate-600 font-medium">
                     ₺{expenseBreakdown.Vergi.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
@@ -351,7 +357,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                 <div className="flex justify-between text-xs">
                   <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-blue-500 inline-block" />
-                    Sevkiyat ve Lojistik Giderleri
+                    {t.expenseCategoryLogistics || 'Sevkiyat ve Lojistik Giderleri'}
                   </span>
                   <span className="font-mono text-slate-600 font-medium">
                     ₺{expenseBreakdown.Lojistik.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
@@ -370,7 +376,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                 <div className="flex justify-between text-xs">
                   <span className="font-semibold text-slate-700 flex items-center gap-1.5">
                     <span className="h-2 w-2 rounded-full bg-amber-500 inline-block" />
-                    Operasyonel Giderler
+                    {t.expenseCategoryOps || 'Operasyonel Giderler'}
                   </span>
                   <span className="font-mono text-slate-600 font-medium">
                     ₺{expenseBreakdown.Operasyonel.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
@@ -388,15 +394,15 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
 
           <div className="mt-8 pt-4 border-t border-slate-100 flex flex-col gap-2">
             <div className="flex justify-between text-xs font-mono text-slate-500">
-              <span>Toplam Vergi:</span>
+              <span>{language === 'tr' ? 'Toplam Vergi:' : language === 'de' ? 'Gesamtsteuer:' : 'Total Tax:'}</span>
               <span>₺{expenseBreakdown.Vergi}</span>
             </div>
             <div className="flex justify-between text-xs font-mono text-slate-500">
-              <span>Toplam Lojistik:</span>
+              <span>{language === 'tr' ? 'Toplam Lojistik:' : language === 'de' ? 'Gesamtlogistik:' : 'Total Logistics:'}</span>
               <span>₺{expenseBreakdown.Lojistik}</span>
             </div>
             <div className="flex justify-between text-xs font-mono text-slate-500">
-              <span>Toplam Operasyonel:</span>
+              <span>{language === 'tr' ? 'Toplam Operasyonel:' : language === 'de' ? 'Gesamtbetrieb:' : 'Total Operational:'}</span>
               <span>₺{expenseBreakdown.Operasyonel}</span>
             </div>
 
@@ -408,7 +414,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                 className="w-full flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-150"
               >
                 <MessageCircle className="h-4 w-4" />
-                WhatsApp'tan İletişime Geç
+                {language === 'tr' ? "WhatsApp'tan İletişime Geç" : language === 'de' ? 'Auf WhatsApp kontaktieren' : 'Contact on WhatsApp'}
               </a>
             </div>
           </div>
@@ -424,23 +430,23 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-500" />
-                Kritik Stok Uyarısı
+                {t.criticalNoticeTitle}
               </h3>
               <span className="text-xs bg-red-100 text-red-600 py-0.5 px-2 rounded-full font-bold">
-                {criticalStockItems.length} Ürün Kritik
+                {criticalStockItems.length} {language === 'tr' ? 'Kritik Ürün' : language === 'de' ? 'Kritische Artikel' : 'Critical Items'}
               </span>
             </div>
-            <p className="text-xs text-slate-500 mt-1">Mevcut stok miktarı belirlenen kritik limitin altına düşen ürünler.</p>
+            <p className="text-xs text-slate-500 mt-1">{t.criticalNoticeSubtitle}</p>
 
             <div className="mt-4 space-y-3">
               {criticalStockItems.slice(0, 3).map((item) => (
                 <div key={item.id} className="flex items-center justify-between p-2 rounded-lg bg-red-50/50 border border-red-100">
                   <div className="min-w-0 pr-2">
                     <p className="text-xs font-semibold text-slate-800 truncate">{item.name}</p>
-                    <p className="text-[10px] text-slate-400 font-mono">Barkod: {item.barcode}</p>
+                    <p className="text-[10px] text-slate-400 font-mono">{language === 'tr' ? 'Barkod' : 'Barcode'}: {item.barcode}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <span className="text-xs font-bold text-red-600 block font-mono">Stok: {item.currentStock}</span>
+                    <span className="text-xs font-bold text-red-650 block font-mono">{language === 'tr' ? 'Stok' : language === 'de' ? 'Bestand' : 'Stock'}: {item.currentStock}</span>
                     <span className="text-[10px] text-slate-400 font-mono">Limit: {item.lowStockThreshold}</span>
                   </div>
                 </div>
@@ -448,7 +454,7 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
               {criticalStockItems.length === 0 && (
                 <div className="py-6 text-center text-xs text-slate-400">
                   <span className="inline-block p-2 bg-emerald-50 rounded-full text-emerald-500 mb-2">✓</span>
-                  <p>Tüm ürün stokları güvenli aralıktadır.</p>
+                  <p>{language === 'tr' ? 'Tüm ürün stokları güvenli aralıktadır.' : language === 'de' ? 'Alle Bestände sind im grünen Bereich.' : 'All stock levels are secure.'}</p>
                 </div>
               )}
             </div>
@@ -458,20 +464,20 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
             onClick={() => onNavigate('inventory')}
             className={`w-full mt-4 py-2 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-center gap-1.5 ${criticalStockItems.length > 0 ? "bg-red-600 hover:bg-red-700 text-white" : "bg-slate-100 hover:bg-slate-200 text-slate-700"}`}
           >
-            Envanteri Yönet ve Stokları Gör
+            {t.resolveNowBtn}
             <ArrowUpRight className="h-4 w-4" />
           </button>
         </div>
 
         {/* Top Products Volume Leaderboard */}
         <div id="product-leaderboard" className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6">
-          <h3 className="text-lg font-bold text-slate-800">En Çok Satan Operasyonel Ürünler</h3>
-          <p className="text-xs text-slate-500 mt-1">Oluşturulan toplam satış değerine göre en yüksek hacimli ürün grupları</p>
+          <h3 className="text-lg font-bold text-slate-800">{t.topProductsTitle}</h3>
+          <p className="text-xs text-slate-500 mt-1">{t.topProductsSubtitle}</p>
 
           <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
             {topSellingProducts.length === 0 ? (
               <div className="col-span-2 py-12 text-center text-xs text-slate-400">
-                En çok satanlar listesi için henüz satış işlemi bulunmuyor.
+                {language === 'tr' ? 'En çok satanlar listesi için henüz satış işlemi bulunmuyor.' : language === 'de' ? 'Keine Verkaufsdaten für die Bestsellerliste vorhanden.' : 'No sales records found for bestseller list yet.'}
               </div>
             ) : (
               topSellingProducts.map((p, idx) => (
@@ -482,8 +488,8 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-bold text-slate-800 truncate">{p.name}</p>
                     <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
-                      <span>Kasa Satışı: {p.quantity} adet</span>
-                      <span className="font-mono font-bold text-emerald-600">${p.revenue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                      <span>{language === 'tr' ? 'Kasa Satışı' : language === 'de' ? 'Kassenverkauf' : 'POS Sales'}: {p.quantity} {language === 'tr' ? 'adet' : language === 'de' ? 'Stück' : 'units'}</span>
+                      <span className="font-mono font-bold text-emerald-600">₺{p.revenue.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
                     </div>
                   </div>
                 </div>

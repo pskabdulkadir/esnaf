@@ -443,14 +443,18 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
     try {
       // 1. Fetch persistent store settings
       const settingsRes = await fetch("/api/settings");
-      if (settingsRes.ok) {
+      if (!settingsRes.ok) {
+        console.warn(`Ayarlar yüklenemedi (HTTP ${settingsRes.status})`);
+      } else {
         const settingsData = await settingsRes.json();
         setSettings(settingsData);
       }
 
       // 2. Fetch public active discounts
       const pubRes = await fetch("/api/public-discounts");
-      if (pubRes.ok) {
+      if (!pubRes.ok) {
+        console.warn(`İndirimler yüklenemedi (HTTP ${pubRes.status})`);
+      } else {
         const discountsData = await pubRes.json();
         setPublicDiscounts(discountsData);
 
@@ -481,7 +485,8 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
         }
       }
     } catch (err) {
-      console.error("Veriler alınırken hata oluştu:", err);
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      console.error("Veriler alınırken hata oluştu:", errorMsg);
     } finally {
       setIsLoading(false);
     }
