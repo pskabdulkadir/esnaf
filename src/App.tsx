@@ -200,6 +200,34 @@ export default function App() {
     return () => clearInterval(keepAliveInterval);
   }, []);
 
+  // JSON-LD Schema injection for SEO (organization-level schema)
+  useEffect(() => {
+    const organizationSchema = {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": brandName || "Bizim Mahalle İşletmesi",
+      "url": "https://example.com",
+      "logo": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=200",
+      "description": "Yerel esnaf yönetim ve pazarlama sistemi",
+      "sameAs": [
+        "https://www.facebook.com",
+        "https://www.instagram.com",
+        "https://www.twitter.com"
+      ]
+    };
+
+    // Remove existing script if present
+    const existingScript = document.getElementById("org-schema-ld");
+    if (existingScript) existingScript.remove();
+
+    // Inject new schema
+    const script = document.createElement("script");
+    script.id = "org-schema-ld";
+    script.type = "application/ld+json";
+    script.textContent = JSON.stringify(organizationSchema);
+    document.head.appendChild(script);
+  }, [brandName]);
+
   // Sync state with local SQLite DB helper (reloads state from SQLite and triggers notifications)
   const reloadDataFromSQLite = async () => {
     try {

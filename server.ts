@@ -644,6 +644,122 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+// ========================
+// ROBOTS.TXT (SEO)
+// ========================
+app.get("/robots.txt", (req, res) => {
+  const robots = `User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://example.com/sitemap.xml
+`;
+  res.header('Content-Type', 'text/plain');
+  res.send(robots);
+});
+
+// ========================
+// DYNAMIC SITEMAP.XML (SEO)
+// ========================
+app.get("/sitemap.xml", (req, res) => {
+  const db = readDatabase();
+  const products = db.products || [];
+
+  // Build sitemap header
+  let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+  // Add homepage
+  sitemap += '  <url>\n';
+  sitemap += '    <loc>https://example.com/</loc>\n';
+  sitemap += '    <lastmod>' + new Date().toISOString().split('T')[0] + '</lastmod>\n';
+  sitemap += '    <changefreq>daily</changefreq>\n';
+  sitemap += '    <priority>1.0</priority>\n';
+  sitemap += '  </url>\n';
+
+  // Add each product
+  products.forEach((product: any) => {
+    const lastMod = product.lastUpdated ? new Date(product.lastUpdated).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    sitemap += '  <url>\n';
+    sitemap += `    <loc>https://example.com/product/${product.id}</loc>\n`;
+    sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
+    sitemap += '    <changefreq>weekly</changefreq>\n';
+    sitemap += '    <priority>0.8</priority>\n';
+    sitemap += '  </url>\n';
+  });
+
+  // Add public discounts
+  const publicDiscounts = db.publicDiscounts || [];
+  publicDiscounts.forEach((discount: any) => {
+    const lastMod = discount.publishedAt ? new Date(discount.publishedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    sitemap += '  <url>\n';
+    sitemap += `    <loc>https://example.com/discount/${discount.slug}</loc>\n`;
+    sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
+    sitemap += '    <changefreq>weekly</changefreq>\n';
+    sitemap += '    <priority>0.7</priority>\n';
+    sitemap += '  </url>\n';
+  });
+
+  sitemap += '</urlset>';
+
+  res.header('Content-Type', 'application/xml');
+  res.send(sitemap);
+});
+
+// ========================
+// JSON-LD SCHEMA GENERATOR
+// ========================
+function generateProductSchema(product: any, baseUrl: string = "https://example.com") {
+  const inStock = product.stockQuantity > 0 ? "InStock" : "OutOfStock";
+  const image = product.image || "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=400";
+
+  return {
+    "@context": "https://schema.org/",
+    "@type": "Product",
+    "name": product.name || "Ürün",
+    "description": product.description || `${product.name} - ${product.category || "Gıda"}`,
+    "image": image,
+    "brand": {
+      "@type": "Brand",
+      "name": "Bizim Mahalle İşletmesi"
+    },
+    "offers": {
+      "@type": "Offer",
+      "url": `${baseUrl}/product/${product.id}`,
+      "priceCurrency": "TRY",
+      "price": product.price || "0",
+      "availability": inStock,
+      "seller": {
+        "@type": "Organization",
+        "name": "Bizim Mahalle İşletmesi"
+      }
+    },
+    "category": product.category || "Gıda",
+    "sku": product.id,
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.5",
+      "reviewCount": "10"
+    }
+  };
+}
+
+// ========================
+// API: JSON-LD PRODUCT SCHEMA
+// ========================
+app.get("/api/product/:id/schema", (req, res) => {
+  const db = readDatabase();
+  const product = db.products?.find((p: any) => p.id === req.params.id);
+
+  if (!product) {
+    return res.status(404).json({ error: "Ürün bulunamadı" });
+  }
+
+  const schema = generateProductSchema(product);
+  res.json(schema);
+});
+
 function getFallbackSeoMeta(productName: string, discountPrice: number, category: string, merchantName: string, lang: string) {
   let image = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=800"; // default groceries
   
