@@ -672,30 +672,20 @@ function getFallbackSeoMeta(productName: string, discountPrice: number, category
 }
 
 async function startServer() {
-  // ⚠️ CRITICAL: Vite/SPA middleware MUST come AFTER all API routes
-  // Otherwise Vite's SPA fallback (/*) catches API requests and returns index.html
+  // In production, serve static files and SPA fallback
+  // In development, Vite dev server handles frontend (via separate process)
+  // This backend only needs to serve API routes
 
-  // Serve Frontend Vite app / static files
-  if (process.env.NODE_ENV !== "production") {
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    // Mount AFTER API routes defined above
-    app.use(vite.middlewares);
-  } else {
+  if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
-  }
 
-  // SPA fallback for non-API routes (must be last)
-  app.get("*", (req, res) => {
-    if (process.env.NODE_ENV === "production") {
-      res.sendFile(path.join(process.cwd(), "dist", "index.html"));
-    }
-    // In dev, Vite handles SPA fallback
-  });
+    // SPA fallback for non-API routes
+    app.get("*", (req, res) => {
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  }
+  // In dev: API routes only, frontend served by Vite dev server
 
   // Global server port binding (port is 3000 as required)
   app.listen(PORT, "0.0.0.0", () => {
