@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useTranslation } from 'react-i18next';
 import { Product, Sale, Expense, UserRole } from './types';
 import { INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES } from './data';
 import Dashboard from './components/Dashboard';
@@ -10,8 +9,8 @@ import QuickLookup from './components/QuickLookup';
 import Automation from './components/Automation';
 import Contact from './components/Contact';
 import Marketer from './components/Marketer';
-import Tutorial from './components/Tutorial';
-import { useLanguage } from './context/LanguageContext';
+import GuideAndVoice from './components/GuideAndVoice';
+import { TRANSLATIONS } from './lib/translations';
 import { sqliteDb } from './lib/sqlite';
 import {
   runSovereigntyAuthCheck,
@@ -22,15 +21,15 @@ import {
   restoreDataFromFirestore,
   type SecurityStatus
 } from './lib/firebase';
-import {
-  Building2,
-  LayoutDashboard,
-  Package,
-  ShoppingCart,
-  FileText,
-  User,
-  ShieldCheck,
-  RotateCcw,
+import { 
+  Building2, 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  FileText, 
+  User, 
+  ShieldCheck, 
+  RotateCcw, 
   Database,
   Eye,
   Cpu,
@@ -42,17 +41,31 @@ import {
   WifiOff,
   Phone,
   Megaphone,
-  HelpCircle,
-  Globe
+  HelpCircle
 } from 'lucide-react';
 
 export default function App() {
-  const { t } = useTranslation();
-  const { currentLanguage, setLanguage, languages } = useLanguage();
-
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
-  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+
+  // Multi-lingual Language Selector State ('tr', 'en', 'de')
+  const [language, setLanguage] = useState<'tr' | 'en' | 'de'>(() => {
+    try {
+      return (localStorage.getItem('akn_language') as 'tr' | 'en' | 'de') || 'tr';
+    } catch {
+      return 'tr';
+    }
+  });
+
+  const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('akn_language', language);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [language]);
 
   // Permission / Security Mode State (Yonetici is default Admin)
   const [userRole, setUserRole] = useState<UserRole>('Yonetici');
@@ -561,7 +574,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none antialiased">
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
       
       {/* 1. Loading/Authorization Check view state */}
       {isCheckingAuth && (
@@ -704,41 +717,27 @@ export default function App() {
             </div>
             <div>
               <span className="font-bold text-sm tracking-wide block text-slate-100 uppercase">{brandName}</span>
-              <span className="text-[10px] text-indigo-400 font-mono tracking-widest block uppercase font-semibold">Kurumsal Portal</span>
+              <span className="text-[10px] text-indigo-400 font-mono tracking-widest block uppercase font-semibold">{t.corpPortal}</span>
             </div>
           </div>
 
           {/* Right Header Navigation Controllers */}
           <div className="flex items-center gap-3">
 
-            {/* Language Selector Button */}
-            <div className="flex items-center border border-slate-700 rounded-xl overflow-hidden">
-              {languages.map((lang) => (
-                <button
-                  key={lang.code}
-                  onClick={() => setLanguage(lang.code)}
-                  className={`px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
-                    currentLanguage === lang.code
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-800 text-slate-300 hover:text-white'
-                  }`}
-                  title={`${lang.name} seçin`}
-                >
-                  {lang.code.toUpperCase()}
-                </button>
-              ))}
+            {/* Manual Language Selector dropdown */}
+            <div className="flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 transition-colors">
+              <span className="text-xs text-indigo-300 font-extrabold hidden md:inline">🌐 DİL / LANG:</span>
+              <select
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as 'tr' | 'en' | 'de')}
+                className="bg-transparent text-white text-xs font-black font-sans border-none outline-none focus:ring-0 cursor-pointer uppercase py-0"
+              >
+                <option value="tr" className="bg-slate-900 text-white font-bold">🇹🇷 Türkçe (TR)</option>
+                <option value="en" className="bg-slate-900 text-white font-bold">🇺🇸 English (EN)</option>
+                <option value="de" className="bg-slate-900 text-white font-bold">🇩🇪 Deutsch (DE)</option>
+              </select>
             </div>
-
-            {/* Tutorial Button */}
-            <button
-              onClick={() => setIsTutorialOpen(true)}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-green-500/25 to-emerald-600/25 hover:from-green-500/40 hover:to-emerald-600/40 text-green-300 border border-green-500/30 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs font-bold"
-              title="Nasıl Kullanılır Rehberi"
-            >
-              <HelpCircle className="h-4 w-4" />
-              {t('navigation.tutorial')}
-            </button>
-
+            
             {/* Brand Modifier Button */}
             <button
               onClick={() => {
@@ -748,9 +747,9 @@ export default function App() {
               className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/25 to-amber-600/25 hover:from-amber-500/40 hover:to-amber-600/40 text-amber-300 border border-amber-500/30 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs font-bold"
               title="Sistem Marka ve Şirket İsmini Düzenle"
             >
-              ✍️ Şirket Adı Ekle/Değiştir
+              {t.addChangeBrand}
             </button>
-
+            
             {/* Quick Switch Switcher for user role permissions */}
             <button
               onClick={toggleRole}
@@ -760,16 +759,16 @@ export default function App() {
               {userRole === 'Yonetici' ? (
                 <>
                   <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  <span className="text-slate-200 hidden sm:inline text-[11px] font-semibold font-sans">Mevcut Yetki: Yönetici</span>
+                  <span className="text-slate-200 hidden sm:inline text-[11px] font-semibold font-sans">{t.currentRoleManager}</span>
                 </>
               ) : (
                 <>
                   <User className="h-4 w-4 text-amber-400" />
-                  <span className="text-slate-400 hidden sm:inline text-[11px] font-sans">Mevcut Yetki: Görevli</span>
+                  <span className="text-slate-400 hidden sm:inline text-[11px] font-sans">{t.currentRoleOperator}</span>
                 </>
               )}
               <span className="text-[9px] bg-slate-800 py-0.5 px-1.5 rounded text-indigo-300 font-mono uppercase font-bold text-center">
-                DEĞİŞTİR
+                {t.roleChangeBtn}
               </span>
             </button>
 
@@ -803,7 +802,7 @@ export default function App() {
               }`}
             >
               <LayoutDashboard className="h-4.5 w-4.5" />
-              <span>Yönetim Kontrol Paneli</span>
+              <span>{t.tabDashboard}</span>
             </button>
 
             {/* Tab: Sales Entries */}
@@ -816,7 +815,7 @@ export default function App() {
               }`}
             >
               <ShoppingCart className="h-4.5 w-4.5" />
-              <span>Kasa Satış Ekranı</span>
+              <span>{t.tabSales}</span>
             </button>
 
             {/* Tab: Manage Catalog Inventory */}
@@ -830,7 +829,7 @@ export default function App() {
             >
               <div className="flex items-center gap-3">
                 <Package className="h-4.5 w-4.5" />
-                <span>Depo ve Envanter Yönetimi</span>
+                <span>{t.tabInventory}</span>
               </div>
               {products.filter(p => p.currentStock < p.lowStockThreshold).length > 0 && (
                 <span className="h-4.5 px-1.5 bg-red-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center font-mono">
@@ -849,7 +848,7 @@ export default function App() {
               }`}
             >
               <FileText className="h-4.5 w-4.5" />
-              <span>Giderler ve Harcamalar</span>
+              <span>{t.tabExpenses}</span>
             </button>
 
             {/* Tab: Quick Lookup */}
@@ -862,7 +861,7 @@ export default function App() {
               }`}
             >
               <Eye className="h-4.5 w-4.5" />
-              <span>Barkod ile Hızlı Arama</span>
+              <span>{t.tabLookup}</span>
             </button>
 
             {/* Tab: Automation */}
@@ -875,7 +874,7 @@ export default function App() {
               }`}
             >
               <Cpu className="h-4.5 w-4.5" />
-              <span>Otomasyon & Botlar</span>
+              <span>{t.tabAutomation}</span>
             </button>
 
             {/* Tab: İletişim */}
@@ -888,7 +887,7 @@ export default function App() {
               }`}
             >
               <Phone className="h-4.5 w-4.5" />
-              <span>İletişim Merkezi</span>
+              <span>{t.tabContact}</span>
             </button>
 
             {/* Tab: Pazarlamacı */}
@@ -901,7 +900,20 @@ export default function App() {
               }`}
             >
               <Megaphone className="h-4.5 w-4.5" />
-              <span>Pazarlamacı</span>
+              <span>{t.tabMarketer}</span>
+            </button>
+
+            {/* Tab: Kullanım Kılavuzu & Sesli Asistan */}
+            <button
+              onClick={() => setCurrentTab('guide')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'guide'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-indigo-600 hover:bg-indigo-50/40 bg-indigo-50/15 border border-indigo-200/50'
+              }`}
+            >
+              <HelpCircle className="h-4.5 w-4.5" />
+              <span>{t.tabGuide}</span>
             </button>
 
           </nav>
@@ -910,28 +922,28 @@ export default function App() {
           <div className="mt-6 bg-slate-900/5 p-4 rounded-2xl border border-slate-200/55 text-xs text-slate-500 space-y-3">
             <p className="font-bold text-slate-700 flex items-center gap-1.5 font-sans">
               <Database className="h-4 w-4 text-indigo-500 animate-pulse" />
-              Sistem Kalemleri (SQLite)
+              {t.systemItems}
             </p>
             <div className="space-y-1.5 font-mono text-[10px]">
               <div className="flex justify-between">
-                <span>Katalog Tablosu:</span>
-                <span className="font-bold text-slate-800">{products.length} ürün</span>
+                <span>{t.catalogTable}</span>
+                <span className="font-bold text-slate-800">{products.length} {language === 'tr' ? 'ürün' : language === 'de' ? 'Artikel' : 'items'}</span>
               </div>
               <div className="flex justify-between">
-                <span>Kritik Uyarılar:</span>
-                <span className="font-bold text-red-650">{products.filter(p => p.currentStock < p.lowStockThreshold).length} ürün</span>
+                <span>{t.criticalAlerts}</span>
+                <span className="font-bold text-red-650">{products.filter(p => p.currentStock < p.lowStockThreshold).length} {language === 'tr' ? 'ürün' : language === 'de' ? 'Artikel' : 'items'}</span>
               </div>
               <div className="flex justify-between">
-                <span>Satış Log Tablosu:</span>
-                <span className="font-bold text-slate-800">{sales.length} kayıt</span>
+                <span>{t.salesLogTable}</span>
+                <span className="font-bold text-slate-800">{sales.length} {language === 'tr' ? 'kayıt' : language === 'de' ? 'Einträge' : 'records'}</span>
               </div>
               <div className="flex justify-between">
-                <span>Gider Tablosu:</span>
-                <span className="font-bold text-slate-800">{expenses.length} kayıt</span>
+                <span>{t.expensesTable}</span>
+                <span className="font-bold text-slate-800">{expenses.length} {language === 'tr' ? 'kayıt' : language === 'de' ? 'Einträge' : 'records'}</span>
               </div>
             </div>
             <div className="pt-2 border-t border-slate-200 text-[9px] text-slate-400">
-              Gerçek SQLite Relational Tabloları Mapped.
+              {t.realtimeMapped}
             </div>
           </div>
 
@@ -939,26 +951,26 @@ export default function App() {
           <div className="mt-4 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-3 shadow-lg shadow-slate-900/20">
             <p className="font-bold text-slate-200 flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-mono">
               <Server className="h-4 w-4 text-emerald-400" />
-              SQLite Veri Egemenliği
+              {t.sqliteSovereignty}
             </p>
             
             <div className="space-y-1 font-mono text-[9px] text-slate-350">
               <div className="flex justify-between border-b border-slate-800/60 pb-1">
-                <span>Cihaz Kimliği:</span>
+                <span>{t.deviceIdentity}</span>
                 <span className="font-bold text-amber-400">{getOrCreateDeviceId()}</span>
               </div>
               <div className="flex justify-between border-b border-slate-800/60 pb-1">
-                <span>Portal Sürüm:</span>
+                <span>{t.portalVersion}</span>
                 <span className="font-bold text-indigo-300">v{APP_CURRENT_VERSION}</span>
               </div>
               
               {securityStatus.offlineGraceActive ? (
-                <div className="bg-emerald-950/40 text-emerald-450 p-1.5 rounded border border-emerald-900/30 font-semibold leading-normal mt-1 text-center">
-                  ⚡ Çevrimdışı Tolerans Aktif: {securityStatus.daysRemainingInGrace} gün kaldı
+                <div className="bg-emerald-950/40 text-emerald-455 p-1.5 rounded border border-emerald-900/30 font-semibold leading-normal mt-1 text-center">
+                  ⚡ {t.offlineGrace}: {securityStatus.daysRemainingInGrace} {language === 'tr' ? 'gün kaldı' : language === 'de' ? 'Tage übrig' : 'days left'}
                 </div>
               ) : (
                 <div className="flex justify-between text-[8px] text-emerald-400">
-                  <span>Bulut Lisans Durumu:</span>
+                  <span>{t.cloudLicenseStatus}</span>
                   <span className="font-bold">AKTİF & DOĞRULANDI</span>
                 </div>
               )}
@@ -966,36 +978,36 @@ export default function App() {
 
             {/* Dışa Aktar Actions */}
             <div className="space-y-2 pt-1 border-t border-slate-700 mt-3 pt-3">
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">YEDEKLEMEVERİ YÖNETIMI</p>
+              <p className="text-[9px] text-slate-405 font-bold uppercase tracking-wider">{language === 'tr' ? 'YEDEKLEME & VERİ YÖNETİMİ' : language === 'de' ? 'BACKUP & VERWALTUNG' : 'BACKUP & DATA MANAGEMENT'}</p>
 
               <button
                 onClick={handleDownloadBackup}
                 className="w-full py-2 px-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg text-[9px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-emerald-600/30"
-                title="Tüm verilerinizi JSON olarak indir"
+                title={language === 'tr' ? "Tüm verilerinizi JSON olarak indir" : language === 'de' ? "Daten als JSON herunterladen" : "Download all data as JSON"}
               >
-                <Download className="h-3 w-3" /> VERİLERİ İNDİR
+                <Download className="h-3 w-3" /> {t.downloadData}
               </button>
 
               <button
                 onClick={handleRestoreBackup}
                 className="w-full py-2 px-2 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg text-[9px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-blue-600/30"
-                title="JSON yedek dosyasını yükle"
+                title={language === 'tr' ? "JSON yedek dosyasını yükle" : language === 'de' ? "JSON Backup-Datei hochladen" : "Upload JSON backup file"}
               >
-                <Download className="h-3 w-3 rotate-180" /> VERİLERİ YÜKLE
+                <Download className="h-3 w-3 rotate-180" /> {t.uploadData}
               </button>
 
               <div className="text-[8px] text-slate-500 p-2 bg-slate-900/50 rounded border border-slate-800 italic">
-                💾 Tüm verilerinizi güvenli şekilde indirin. Tarayıcı sıfırlandığında yeniden yükleyin.
+                {t.backupInfo}
               </div>
 
-              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider pt-2">ESKI YÖNTEMLEREİNDİRME</p>
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider pt-2">{language === 'tr' ? 'YEDEK DIŞA AKTAR' : language === 'de' ? 'REINES BACKUP ENTLADEN' : 'LEGACY BACKUP DUMPS'}</p>
 
               <button
                 onClick={handleExportSQL}
                 className="w-full py-1.5 px-2 bg-slate-800 hover:bg-slate-750 text-amber-500 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-amber-500/10"
-                title="Tüm SQLite veritabanınızı .SQL olarak yedekleyin"
+                title={language === 'tr' ? "Tüm SQLite veritabanınızı .SQL olarak yedekleyin" : language === 'de' ? "Gesamtes SQLite Backup als .SQL sichern" : "Backup entire SQLite DB as .SQL file"}
               >
-                <Download className="h-3 w-3" /> SQLITE DUMP (.SQL)
+                <Download className="h-3 w-3" /> {t.sqliteDump}
               </button>
 
               <div className="grid grid-cols-3 gap-1">
@@ -1003,19 +1015,19 @@ export default function App() {
                   onClick={() => handleExportCSV('Products')}
                   className="py-1 bg-slate-800/50 hover:bg-slate-800 text-[8.5px] rounded border border-slate-800 hover:border-slate-700 font-medium text-slate-300"
                 >
-                  Katalog
+                  {t.catalog}
                 </button>
                 <button
                   onClick={() => handleExportCSV('Sales')}
                   className="py-1 bg-slate-800/50 hover:bg-slate-800 text-[8.5px] rounded border border-slate-800 hover:border-slate-700 font-medium text-slate-300"
                 >
-                  Satış
+                  {t.sales}
                 </button>
                 <button
                   onClick={() => handleExportCSV('Expenses')}
                   className="py-1 bg-slate-800/50 hover:bg-slate-800 text-[8.5px] rounded border border-slate-800 hover:border-slate-700 font-medium text-slate-300"
                 >
-                  Gider
+                  {t.expenses}
                 </button>
               </div>
             </div>
@@ -1032,6 +1044,7 @@ export default function App() {
               expenses={expenses}
               onNavigate={(view) => setCurrentTab(view)}
               brandName={brandName}
+              language={language}
             />
           )}
 
@@ -1042,6 +1055,7 @@ export default function App() {
               onAddSale={handleAddSale}
               onNavigateToInventory={() => setCurrentTab('inventory')}
               brandName={brandName}
+              language={language}
             />
           )}
 
@@ -1053,6 +1067,7 @@ export default function App() {
               onDeleteProduct={handleDeleteProduct}
               userRole={userRole}
               brandName={brandName}
+              language={language}
             />
           )}
 
@@ -1062,11 +1077,16 @@ export default function App() {
               onAddExpense={handleAddExpense}
               onDeleteExpense={handleDeleteExpense}
               brandName={brandName}
+              language={language}
             />
           )}
 
           {currentTab === 'lookup' && (
-            <QuickLookup products={products} brandName={brandName} />
+            <QuickLookup 
+              products={products} 
+              brandName={brandName} 
+              language={language}
+            />
           )}
 
           {currentTab === 'automation' && (
@@ -1076,15 +1096,28 @@ export default function App() {
               expenses={expenses}
               userEmail="abdulkadirkqn@gmail.com"
               brandName={brandName}
+              language={language}
             />
           )}
 
           {currentTab === 'contact' && (
-            <Contact brandName={brandName} />
+            <Contact 
+              brandName={brandName} 
+              language={language}
+            />
           )}
 
           {currentTab === 'marketer' && (
-            <Marketer brandName={brandName} />
+            <Marketer 
+              brandName={brandName} 
+              language={language}
+            />
+          )}
+
+          {currentTab === 'guide' && (
+            <GuideAndVoice 
+              language={language}
+            />
           )}
 
         </main>
@@ -1123,7 +1156,7 @@ export default function App() {
                 ✕
               </button>
             </div>
-
+            
             <form onSubmit={(e) => {
               e.preventDefault();
               handleUpdateBrandName(tempBrandName);
@@ -1189,9 +1222,6 @@ export default function App() {
           </div>
         </div>
       )}
-
-      {/* Tutorial Modal */}
-      <Tutorial isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
 
       {/* Ingress HMR and Port validation metrics */}
     </div>
