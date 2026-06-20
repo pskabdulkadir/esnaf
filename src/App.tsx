@@ -1,0 +1,1159 @@
+import React, { useState, useEffect } from 'react';
+import { Product, Sale, Expense, UserRole } from './types';
+import { INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES } from './data';
+import Dashboard from './components/Dashboard';
+import Inventory from './components/Inventory';
+import SalesEntry from './components/SalesEntry';
+import Expenses from './components/Expenses';
+import QuickLookup from './components/QuickLookup';
+import Automation from './components/Automation';
+import Contact from './components/Contact';
+import Marketer from './components/Marketer';
+import { sqliteDb } from './lib/sqlite';
+import {
+  runSovereigntyAuthCheck,
+  forceResyncAuthStatus,
+  getOrCreateDeviceId,
+  APP_CURRENT_VERSION,
+  backupDataToFirestore,
+  restoreDataFromFirestore,
+  type SecurityStatus
+} from './lib/firebase';
+import { 
+  Building2, 
+  LayoutDashboard, 
+  Package, 
+  ShoppingCart, 
+  FileText, 
+  User, 
+  ShieldCheck, 
+  RotateCcw, 
+  Database,
+  Eye,
+  Cpu,
+  AlertTriangle,
+  Server,
+  Download,
+  RefreshCw,
+  Lock,
+  WifiOff,
+  Phone,
+  Megaphone
+} from 'lucide-react';
+
+export default function App() {
+  // Navigation State
+  const [currentTab, setCurrentTab] = useState<string>('dashboard');
+
+  // Permission / Security Mode State (Yonetici is default Admin)
+  const [userRole, setUserRole] = useState<UserRole>('Yonetici');
+
+  // Core Database States
+  const [products, setProducts] = useState<Product[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+
+  // Security Verification status
+  const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [securityStatus, setSecurityStatus] = useState<SecurityStatus>({
+    isLocked: false,
+    lockType: 'none',
+    offlineGraceActive: false
+  });
+
+  // Hot Toast Notification Feedback state
+  const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'warning' } | null>(null);
+
+  // Corporate Brand Customization States
+  const [brandName, setBrandName] = useState<string>(() => {
+    try {
+      return localStorage.getItem('akn_brand_name') || 'AKN Global Group Ltd';
+    } catch {
+      return 'AKN Global Group Ltd';
+    }
+  });
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [tempBrandName, setTempBrandName] = useState('');
+
+  const handleUpdateBrandName = (newName: string) => {
+    const name = newName.trim() || 'AKN Global Group Ltd';
+    setBrandName(name);
+    try {
+      localStorage.setItem('akn_brand_name', name);
+    } catch (e) {
+      console.error(e);
+    }
+    showToast(`Sistem genel adı "${name}" olarak güncellendi.`, 'success');
+    setIsBrandModalOpen(false);
+  };
+
+  // Initialize SQLite database and check auth status on startup
+  useEffect(() => {
+    async function initializeSystem() {
+      setIsCheckingAuth(true);
+
+      // 1. Run Firebase cloud verification checks (License verification & update checker)
+      try {
+        const authStatus = await runSovereigntyAuthCheck();
+        setSecurityStatus(authStatus);
+      } catch (err) {
+        console.warn("Auth check failed on start:", err);
+      }
+
+      // 2. Try to restore from Firestore backup first
+      let restoredFromCloud = false;
+      try {
+        const cloudData = await restoreDataFromFirestore();
+        if (cloudData && cloudData.products.length > 0) {
+          // Cloud backup bulundu, SQLite'ye yükle
+          sqliteDb.initializeDefaults(cloudData.products, cloudData.sales, cloudData.expenses);
+          setProducts(cloudData.products);
+          setSales(cloudData.sales);
+          setExpenses(cloudData.expenses);
+          restoredFromCloud = true;
+
+          // Doc settings'i localStorage'a kaydET
+          if (cloudData.docSettings) {
+            localStorage.setItem('automation_doc_settings', JSON.stringify(cloudData.docSettings));
+          }
+
+          showToast('Veriler cloud\'dan geri yüklendi!', 'success');
+        }
+      } catch (err) {
+        console.warn("Cloud restore failed, using local SQLite:", err);
+      }
+
+      // 3. Eğer cloud'dan restore edilemezse, local SQLite'den yükle
+      if (!restoredFromCloud) {
+        try {
+          // Ensure standard schema tables have fallback defaults seeded on first use
+          sqliteDb.initializeDefaults(INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES);
+
+          // Execute SELECT queries to populate application states
+          const sqlProducts = sqliteDb.query<Product>("SELECT * FROM Products");
+          const sqlSales = sqliteDb.query<Sale>("SELECT * FROM Sales");
+          const sqlExpenses = sqliteDb.query<Expense>("SELECT * FROM Expenses");
+
+          setProducts(sqlProducts);
+          setSales(sqlSales);
+          setExpenses(sqlExpenses);
+        } catch (e) {
+          console.error("SQLite dynamic relational query loading failed, using fallback arrays", e);
+          setProducts(INITIAL_PRODUCTS);
+          setSales(INITIAL_SALES);
+          setExpenses(INITIAL_EXPENSES);
+        }
+      }
+
+      // Load role preferences
+      try {
+        const savedRole = localStorage.getItem('akn_role');
+        if (savedRole) {
+          setUserRole(savedRole as UserRole);
+        }
+      } catch (e) {
+        console.error("Role loading failed:", e);
+      }
+
+      setIsCheckingAuth(false);
+    }
+
+    initializeSystem();
+  }, []);
+
+  // Sync state with local SQLite DB helper (reloads state from SQLite and triggers notifications)
+  const reloadDataFromSQLite = async () => {
+    try {
+      const sqlProducts = sqliteDb.query<Product>("SELECT * FROM Products");
+      const sqlSales = sqliteDb.query<Sale>("SELECT * FROM Sales");
+      const sqlExpenses = sqliteDb.query<Expense>("SELECT * FROM Expenses");
+
+      setProducts(sqlProducts);
+      setSales(sqlSales);
+      setExpenses(sqlExpenses);
+
+      // Firestore'a backup et
+      try {
+        const docSettings = localStorage.getItem('automation_doc_settings')
+          ? JSON.parse(localStorage.getItem('automation_doc_settings')!)
+          : {};
+
+        await backupDataToFirestore(sqlProducts, sqlSales, sqlExpenses, docSettings);
+      } catch (err) {
+        console.warn("Cloud backup failed (offline?):", err);
+      }
+    } catch (e) {
+      console.error("Failed to reload data from SQLite engine", e);
+    }
+  };
+
+  // Save changes to local storage helper
+  const saveStateToStorage = (key: string, data: any) => {
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      console.error(`Failed to lock state to storage for key: ${key}`, e);
+    }
+  };
+
+  // Toast notifier helper
+  const showToast = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
+    setToast({ message, type });
+  };
+
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
+
+  // Inventory modifications using SQLite SQL Statements
+  const handleAddProduct = async (newProduct: Product) => {
+    try {
+      sqliteDb.run(
+        "INSERT INTO Products (id, name, barcode, purchasePrice, salePrice, currentStock, lowStockThreshold, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [
+          newProduct.id,
+          newProduct.name,
+          newProduct.barcode || '',
+          newProduct.purchasePrice,
+          newProduct.salePrice,
+          newProduct.currentStock,
+          newProduct.lowStockThreshold,
+          newProduct.category
+        ]
+      );
+      await reloadDataFromSQLite();
+      showToast(`Ürün SQLite veritabanına SQL INSERT ile kaydedildi: ${newProduct.name}`, 'success');
+    } catch (e) {
+      console.error("SQL INSERT for product failed", e);
+      showToast("Veri tabanı yazma hatası oluştu.", "warning");
+    }
+  };
+
+  const handleUpdateProduct = async (modifiedProduct: Product) => {
+    try {
+      sqliteDb.run(
+        "UPDATE Products SET name=?, barcode=?, purchasePrice=?, salePrice=?, currentStock=?, lowStockThreshold=?, category=? WHERE id=?",
+        [
+          modifiedProduct.name,
+          modifiedProduct.barcode || '',
+          modifiedProduct.purchasePrice,
+          modifiedProduct.salePrice,
+          modifiedProduct.currentStock,
+          modifiedProduct.lowStockThreshold,
+          modifiedProduct.category,
+          modifiedProduct.id
+        ]
+      );
+      await reloadDataFromSQLite();
+      showToast(`SQL UPDATE tamamlandı: ${modifiedProduct.id} ürün bilgileri güncellendi`, 'info');
+    } catch (e) {
+      console.error("SQL UPDATE for product failed", e);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      sqliteDb.run("DELETE FROM Products WHERE id=?", [id]);
+      await reloadDataFromSQLite();
+      showToast(`SQL DELETE tamamlandı: Ürün kaydı envanterden silindi.`, 'warning');
+    } catch (e) {
+      console.error("SQL DELETE for product failed", e);
+    }
+  };
+
+  // Sales Automation Implementation:
+  // Automatically subtracts the sold quantity from Products currentStock
+  const handleAddSale = async (newSale: Sale) => {
+    try {
+      const relProduct = products.find(p => p.id === newSale.productId);
+
+      // SQL transaction representing automation steps
+      if (relProduct) {
+        const newStock = Math.max(0, relProduct.currentStock - newSale.quantity);
+        sqliteDb.run("UPDATE Products SET currentStock=? WHERE id=?", [newStock, newSale.productId]);
+      }
+
+      sqliteDb.run(
+        "INSERT INTO Sales (id, productId, quantity, totalAmount, date) VALUES (?, ?, ?, ?, ?)",
+        [
+          newSale.id,
+          newSale.productId,
+          newSale.quantity,
+          newSale.totalAmount,
+          newSale.date
+        ]
+      );
+
+      await reloadDataFromSQLite();
+
+      const prodName = relProduct ? relProduct.name : newSale.productId;
+      showToast(
+        `Satış kaydedildi. SQL ONAYLI: "${prodName}" stok miktarından ${newSale.quantity} adet düşüldü.`,
+        'success'
+      );
+    } catch (e) {
+      console.error("SQL transaction for recording sale failed", e);
+    }
+  };
+
+  // Expenses logs matching relational model
+  const handleAddExpense = async (newExpense: Expense) => {
+    try {
+      sqliteDb.run(
+        "INSERT INTO Expenses (id, description, amount, category, date) VALUES (?, ?, ?, ?, ?)",
+        [
+          newExpense.id,
+          newExpense.description,
+          newExpense.amount,
+          newExpense.category,
+          newExpense.date
+        ]
+      );
+      await reloadDataFromSQLite();
+      showToast(`SQLite Gider belgesi kaydedildi: ${newExpense.id} ($${newExpense.amount.toFixed(2)})`, 'success');
+    } catch (e) {
+      console.error("SQL INSERT for expense failed", e);
+    }
+  };
+
+  const handleDeleteExpense = async (id: string) => {
+    try {
+      sqliteDb.run("DELETE FROM Expenses WHERE id=?", [id]);
+      await reloadDataFromSQLite();
+      showToast(`SQL DELETE tamamlandı: Gider kaydı geri alındı.`, 'warning');
+    } catch (e) {
+      console.error("SQL DELETE for expense failed", e);
+    }
+  };
+
+  // Security switcher helper
+  const toggleRole = () => {
+    const nextRole = userRole === 'Yonetici' ? 'Uye' : 'Yonetici';
+    setUserRole(nextRole);
+    localStorage.setItem('akn_role', nextRole);
+    showToast(`Kullanıcı güvenlik yetkisi değiştirildi: ${nextRole === 'Yonetici' ? 'Tam Yönetici Yetkisi' : 'Sınırlı Satış Görevlisi'}`, 'info');
+  };
+
+  // Diagnostic Data Reset returning state to pristine local DB schemas
+  const handleResetDataToDefaults = () => {
+    if (confirm(`${brandName} sistemindeki tüm ürün envanterini, satışları ve giderleri sıfırlayarak varsayılan şablona döndürmek istediğinizden emin misiniz?\n\nBu işlem yerel SQLite veritabanınızı fabrika ayarlarına döndürecektir.`)) {
+      try {
+        sqliteDb.resetToDefaults(INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES);
+        reloadDataFromSQLite();
+        setUserRole('Yonetici');
+        localStorage.setItem('akn_role', 'Yonetici');
+        
+        showToast(`${brandName} SQLite yerel veritabanı fabrika ayarlarına döndürüldü.`, "info");
+        setCurrentTab('dashboard');
+      } catch (e) {
+        console.error("SQL Reset execution failed", e);
+      }
+    }
+  };
+
+  // SQLite Data Export file triggers (Disaster Recovery & Sovereignty backup)
+  const handleExportSQL = () => {
+    try {
+      showToast("Relational SQL veritabanı çıktısı hesaplanıyor...", "info");
+      const dump = sqliteDb.exportToSQLDump();
+      const blob = new Blob([dump], { type: 'text/sql;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const fileSafeBrand = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      link.setAttribute("download", `${fileSafeBrand}_sqlite_sovereignty_backup_${new Date().toISOString().split('T')[0]}.sql`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast("Relational SQL işlem kayıt döküm dosyası başarıyla indirildi.", "success");
+    } catch (e) {
+      console.error(e);
+      showToast("Veri tabanı dışarı aktarma hatası", "warning");
+    }
+  };
+
+  const handleExportCSV = (tableName: 'Products' | 'Sales' | 'Expenses') => {
+    try {
+      showToast(`${tableName} tablosu CSV formatına dönüştürülüyor...`, "info");
+      const csv = sqliteDb.exportToCSVDump(tableName);
+      if (!csv) {
+        showToast(`${tableName} tablosunda dışa aktarılacak satır bulunamadı.`, "info");
+        return;
+      }
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      
+      const fileSafeBrand = brandName.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      link.setAttribute("download", `${fileSafeBrand}_sqlite_${tableName.toLowerCase()}_backup.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast(`${tableName} verileriniz CSV dosyası olarak cihazınıza indirildi.`, "success");
+    } catch (e) {
+      console.error(e);
+      showToast("CSV dönüştürme başarısız oldu", "warning");
+    }
+  };
+
+  // Download all data as JSON backup
+  const handleDownloadBackup = async () => {
+    try {
+      showToast("Verileriniz derleniyor...", "info");
+      
+      // Fetch public discounts, settings, and campaigns from backend API to include in the backup package
+      let publicDiscountsList = [];
+      let storeSettings = {};
+      let campaignsList = [];
+      
+      try {
+        const pdRes = await fetch("/api/public-discounts");
+        if (pdRes.ok) publicDiscountsList = await pdRes.json();
+        
+        const setRes = await fetch("/api/settings");
+        if (setRes.ok) storeSettings = await setRes.json();
+        
+        const campRes = await fetch("/api/campaigns");
+        if (campRes.ok) campaignsList = await campRes.json();
+      } catch (err) {
+        console.warn("Could not fetch marketing data for backup, skipping:", err);
+      }
+
+      const backupData = {
+        timestamp: new Date().toISOString(),
+        version: APP_CURRENT_VERSION,
+        products,
+        sales,
+        expenses,
+        docSettings: localStorage.getItem('automation_doc_settings') ? JSON.parse(localStorage.getItem('automation_doc_settings')!) : {},
+        publicDiscounts: publicDiscountsList,
+        settings: storeSettings,
+        campaigns: campaignsList
+      };
+
+      const jsonString = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonString], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+
+      const fileName = `${brandName.toLowerCase().replace(/[^a-z0-9]/g, '_')}_backup_${new Date().toISOString().split('T')[0]}.json`;
+      link.setAttribute("download", fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      showToast(`✅ Tüm verileriniz (SQLite + Pazarlama & Ayarlar) başarıyla indirildi: ${fileName}`, "success");
+    } catch (e) {
+      console.error("Backup download failed:", e);
+      showToast("Yedek dosya indirilemedi.", "warning");
+    }
+  };
+
+  // Upload and restore data from JSON backup
+  const handleRestoreBackup = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      try {
+        const fileContent = await file.text();
+        const backupData = JSON.parse(fileContent);
+
+        if (!backupData.products || !Array.isArray(backupData.products)) {
+          showToast("Geçersiz yedek dosyası.", "warning");
+          return;
+        }
+
+        // Clear and restore data
+        showToast("Veriler yükleniyor...", "info");
+
+        // Clear old data
+        sqliteDb.resetToDefaults([], [], []);
+
+        // Insert restored data
+        if (backupData.products && backupData.products.length > 0) {
+          sqliteDb.initializeDefaults(backupData.products, backupData.sales || [], backupData.expenses || []);
+        }
+
+        // Restore doc settings
+        if (backupData.docSettings) {
+          localStorage.setItem('automation_doc_settings', JSON.stringify(backupData.docSettings));
+        }
+
+        // Bulk restore server marketing data, settings, and campaigns
+        if (backupData.publicDiscounts || backupData.settings || backupData.campaigns) {
+          try {
+            await fetch("/api/restore-marketing", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                publicDiscounts: backupData.publicDiscounts || [],
+                settings: backupData.settings || {},
+                campaigns: backupData.campaigns || []
+              })
+            });
+            showToast("Pazarlama & ayarlar verileri başarıyla entegre edildi! 📣", "success");
+          } catch (mErr) {
+            console.error("Marketing bulk restore failed", mErr);
+          }
+        }
+
+        // Reload from SQLite
+        await reloadDataFromSQLite();
+        showToast("✅ Tüm verileriniz başarıyla yüklendi ve eşitlendi!", "success");
+      } catch (e) {
+        console.error("Restore failed:", e);
+        showToast("Yedek dosya yüklenirken hata oluştu.", "warning");
+      }
+    };
+
+    input.click();
+  };
+
+  // Trigger manual authorization check override
+  const handleManualAuthSync = async () => {
+    showToast("Bulut sunucu lisans doğrulama sistemine erişiliyor...", "info");
+    try {
+      const status = await forceResyncAuthStatus();
+      setSecurityStatus(status);
+      if (status.isLocked) {
+        showToast("Sunucu doğrulama kilidi aktifleştirildi.", "warning");
+      } else {
+        showToast("Cihaz lisans doğrulaması ve sürüm kontrolleri başarıyla güncellendi!", "success");
+      }
+    } catch (e) {
+      showToast("Bulut anahtar bağlantısı kurulamadı. Yerel SQLite izole çalışmaya devam ediyor.", "warning");
+    }
+  };
+
+  const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
+  const isShowcaseUrl = urlParams.get('view') === 'showcase' || urlParams.has('slug') || urlParams.has('discountId');
+
+  if (isShowcaseUrl) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-text antialiased">
+        <Marketer brandName={brandName} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-none antialiased">
+      
+      {/* 1. Loading/Authorization Check view state */}
+      {isCheckingAuth && (
+        <div className="fixed inset-0 z-50 bg-slate-900 flex flex-col items-center justify-center p-6 text-white text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-500 border-t-transparent mb-5" />
+          <h2 className="text-xs font-bold tracking-widest font-mono uppercase text-indigo-400">AKN GLOBAL SOVEREIGNTY SYSTEM</h2>
+          <p className="text-[11px] text-slate-400 font-mono mt-1.5 max-w-sm leading-relaxed">Güvenlik lisans dosyaları, cihaz ID yetkilendirmesi ve güncelleme durumları denetleniyor...</p>
+        </div>
+      )}
+
+      {/* 2. Mandatory Upgrade Screen overlay */}
+      {!isCheckingAuth && securityStatus.isLocked && securityStatus.lockType === 'update_required' && (
+        <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-6 text-slate-200">
+          <div className="w-full max-w-md bg-slate-900 rounded-3xl border border-slate-800 p-8 text-center space-y-6 shadow-2xl animate-scale-up text-slate-800">
+            <div className="h-16 w-16 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto border border-amber-500/20">
+              <AlertTriangle className="h-8 w-8 animate-bounce" />
+            </div>
+            
+            <div className="space-y-1">
+              <h1 className="text-sm font-bold uppercase tracking-wider text-slate-105 font-mono">SÜRÜM GÜNCELLEMESİ ZORUNLUDUR</h1>
+              <p className="text-[9.5px] text-indigo-400 font-mono tracking-widest uppercase font-semibold">MANDATORY SYSTEM UPDATE</p>
+            </div>
+
+            <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+              Mevcut portal sürümünüz (<b className="text-amber-500 font-mono">v{APP_CURRENT_VERSION}</b>), yönetim merkezinde belirlenen asgari zorunlu sürümden (<b className="text-indigo-400 font-mono">v{securityStatus.requiredVersion}</b>) daha düşüktür. Güvenlik, veri bütünlüğü ve yeni SQLite özellikleri için lütfen güncelleyin.
+            </p>
+
+            <div className="bg-slate-950 p-4 rounded-xl border border-slate-850 text-left space-y-2 text-[10.5px] text-slate-350">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Şirket/Kuruluş:</span>
+                <span className="font-bold text-slate-300">{brandName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Cihaz Kimliği:</span>
+                <span className="font-bold text-amber-500 font-mono">{getOrCreateDeviceId()}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <a
+                href="https://ai.studio/build"
+                className="block w-full py-3 bg-gradient-to-r from-indigo-650 to-indigo-700 hover:from-indigo-500 hover:to-indigo-650 text-white font-bold rounded-2xl text-[11px] transition-all shadow-lg shadow-indigo-600/20 text-center cursor-pointer"
+              >
+                Uygulama Mağazasından En Son Sürümü İndir
+              </a>
+              <button 
+                onClick={handleManualAuthSync}
+                className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-slate-400 font-semibold rounded-2xl text-[11px] transition cursor-pointer"
+              >
+                Güncellemeyi Kurdum (Yeniden Sorgula)
+              </button>
+            </div>
+            
+            <p className="text-[9px] text-slate-500 font-mono">
+              Safe Recovery: Yerel SQLite veritabanındaki hiçbir veri bu kilitten etkilenmez.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* 3. Authorized/Device Lock Screen overlay */}
+      {!isCheckingAuth && securityStatus.isLocked && securityStatus.lockType === 'unauthorized' && (
+        <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-6 text-slate-200">
+          <div className="w-full max-w-lg bg-slate-900 rounded-3xl border border-slate-850 p-8 text-center space-y-6 shadow-2xl relative overflow-hidden text-slate-800">
+            
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-600 via-amber-500 to-red-650" />
+            
+            <div className="h-16 w-16 bg-red-650/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto border border-red-650/20 animate-pulse">
+              <Lock className="h-8 w-8 text-red-550" />
+            </div>
+
+            <div className="space-y-1">
+              <h1 className="text-xs font-bold uppercase tracking-widest text-slate-205 font-mono">AKN Kurumsal - Erişim Engeli</h1>
+              <p className="text-[9px] text-indigo-400 font-mono tracking-wider font-semibold">SECURE DEVICE LICENSE TERMINATION</p>
+            </div>
+
+            <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850/60 text-left space-y-4">
+              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+                Bu cihazın sisteme erişim yetkisi doğrulanmadı veya geçici olarak yöneticiniz tarafından askıya alındı. Lisanslama onayı için lütfen yöneticiniz ile iletişime geçiniz.
+              </p>
+
+              <div className="space-y-2 font-mono text-[10px] pt-3 border-t border-slate-850/40 text-slate-400">
+                <div className="flex justify-between items-center bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-850">
+                  <span className="text-slate-500 text-[9px] uppercase font-bold">Cihaz ID Kodunuz:</span>
+                  <span className="text-amber-400 font-bold tracking-wide select-all mt-0.5">{getOrCreateDeviceId()}</span>
+                </div>
+                
+                {securityStatus.errorMessage && (
+                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-850 text-[10.5px] leading-normal font-sans text-slate-400 flex items-start gap-2.5">
+                    <WifiOff className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+                    <span>{securityStatus.errorMessage}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={handleManualAuthSync}
+                className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-2xl text-[11px] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-950/40"
+              >
+                <RefreshCw className="h-4 w-4" /> BİLGİSAYARI YENİDEN SORGULA / LİSANS SYNC
+              </button>
+              
+              <p className="text-[9.5px] text-slate-500 leading-relaxed font-sans pt-1">
+                🔒 <b>Sovereignty Güvencesi:</b> Yerel SQLite veritabanınız (Özet: Ürünler, Satışlar ve Gider belgeleri) tarayıcı alanında izole ve tamamen korunmaktadır. Hiçbir yerel veri silinmez.
+              </p>
+            </div>
+            
+          </div>
+        </div>
+      )}
+      
+      {/* Dynamic Toast Feedback Overlay */}
+      {toast && (
+        <div className="fixed top-5 right-5 z-50 max-w-sm bg-white rounded-2xl shadow-xl border border-slate-200/60 p-4 flex items-center gap-3 animate-slide-up transition-all">
+          <div className={`p-2 rounded-xl text-xs font-bold ${
+            toast.type === 'success' 
+              ? 'bg-emerald-50 text-emerald-600' 
+              : toast.type === 'warning'
+              ? 'bg-red-50 text-red-650'
+              : 'bg-indigo-50 text-indigo-600'
+          }`}>
+            {toast.type === 'success' ? '✓' : toast.type === 'warning' ? '⚠️' : 'ℹ'}
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-slate-800 leading-relaxed">{toast.message}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Structural Navbar Branded for 'AKN Global Group Ltd' */}
+      <header className="sticky top-0 z-40 bg-slate-900 text-white border-b border-slate-800 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          
+          {/* Logo / Corporate Identity */}
+          <div className="flex items-center gap-3 cursor-pointer" onClick={() => setCurrentTab('dashboard')}>
+            <div className="h-9 w-9 rounded-xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center font-bold text-white shadow-md shadow-indigo-500/25">
+              <Building2 className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="font-bold text-sm tracking-wide block text-slate-100 uppercase">{brandName}</span>
+              <span className="text-[10px] text-indigo-400 font-mono tracking-widest block uppercase font-semibold">Kurumsal Portal</span>
+            </div>
+          </div>
+
+          {/* Right Header Navigation Controllers */}
+          <div className="flex items-center gap-3">
+            
+            {/* Brand Modifier Button */}
+            <button
+              onClick={() => {
+                setTempBrandName(brandName);
+                setIsBrandModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/25 to-amber-600/25 hover:from-amber-500/40 hover:to-amber-600/40 text-amber-300 border border-amber-500/30 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs font-bold"
+              title="Sistem Marka ve Şirket İsmini Düzenle"
+            >
+              ✍️ Şirket Adı Ekle/Değiştir
+            </button>
+            
+            {/* Quick Switch Switcher for user role permissions */}
+            <button
+              onClick={toggleRole}
+              className="flex items-center gap-2 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs"
+              title="Güvenlik Yetkilerini Değiştir"
+            >
+              {userRole === 'Yonetici' ? (
+                <>
+                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
+                  <span className="text-slate-200 hidden sm:inline text-[11px] font-semibold font-sans">Mevcut Yetki: Yönetici</span>
+                </>
+              ) : (
+                <>
+                  <User className="h-4 w-4 text-amber-400" />
+                  <span className="text-slate-400 hidden sm:inline text-[11px] font-sans">Mevcut Yetki: Görevli</span>
+                </>
+              )}
+              <span className="text-[9px] bg-slate-800 py-0.5 px-1.5 rounded text-indigo-300 font-mono uppercase font-bold text-center">
+                DEĞİŞTİR
+              </span>
+            </button>
+
+            {/* Reset Defaults button */}
+            <button
+              onClick={handleResetDataToDefaults}
+              className="p-2 hover:bg-slate-800 text-slate-400 hover:text-white rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-800 text-left"
+              title="Fabrika Ayarlarına Şablon Gönder"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </button>
+          </div>
+
+        </div>
+      </header>
+
+      {/* Main Container Workspace */}
+      <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-8">
+        
+        {/* Navigation Sidebar Drawer */}
+        <aside className="w-full md:w-60 flex-shrink-0">
+          <nav className="flex flex-row md:flex-col gap-1.5 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm overflow-x-auto whitespace-nowrap">
+            
+            {/* Tab: Dashboard */}
+            <button
+              onClick={() => setCurrentTab('dashboard')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'dashboard' 
+                  ? 'bg-slate-900 text-white shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <LayoutDashboard className="h-4.5 w-4.5" />
+              <span>Yönetim Kontrol Paneli</span>
+            </button>
+
+            {/* Tab: Sales Entries */}
+            <button
+              onClick={() => setCurrentTab('sales')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'sales' 
+                  ? 'bg-slate-900 text-white shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <ShoppingCart className="h-4.5 w-4.5" />
+              <span>Kasa Satış Ekranı</span>
+            </button>
+
+            {/* Tab: Manage Catalog Inventory */}
+            <button
+              onClick={() => setCurrentTab('inventory')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer ${
+                currentTab === 'inventory' 
+                  ? 'bg-slate-900 text-white shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Package className="h-4.5 w-4.5" />
+                <span>Depo ve Envanter Yönetimi</span>
+              </div>
+              {products.filter(p => p.currentStock < p.lowStockThreshold).length > 0 && (
+                <span className="h-4.5 px-1.5 bg-red-600 text-white text-[9px] font-bold rounded-full flex items-center justify-center font-mono">
+                  {products.filter(p => p.currentStock < p.lowStockThreshold).length}
+                </span>
+              )}
+            </button>
+
+            {/* Tab: Expenses */}
+            <button
+              onClick={() => setCurrentTab('expenses')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'expenses' 
+                  ? 'bg-slate-900 text-white shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <FileText className="h-4.5 w-4.5" />
+              <span>Giderler ve Harcamalar</span>
+            </button>
+
+            {/* Tab: Quick Lookup */}
+            <button
+              onClick={() => setCurrentTab('lookup')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'lookup' 
+                  ? 'bg-slate-900 text-white shadow-sm' 
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <Eye className="h-4.5 w-4.5" />
+              <span>Barkod ile Hızlı Arama</span>
+            </button>
+
+            {/* Tab: Automation */}
+            <button
+              onClick={() => setCurrentTab('automation')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'automation'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <Cpu className="h-4.5 w-4.5" />
+              <span>Otomasyon & Botlar</span>
+            </button>
+
+            {/* Tab: İletişim */}
+            <button
+              onClick={() => setCurrentTab('contact')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'contact'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <Phone className="h-4.5 w-4.5" />
+              <span>İletişim Merkezi</span>
+            </button>
+
+            {/* Tab: Pazarlamacı */}
+            <button
+              onClick={() => setCurrentTab('marketer')}
+              className={`w-full text-left py-3 px-4 rounded-xl text-xs font-bold transition-all duration-150 flex items-center gap-3 cursor-pointer ${
+                currentTab === 'marketer'
+                  ? 'bg-slate-900 text-white shadow-sm'
+                  : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+              }`}
+            >
+              <Megaphone className="h-4.5 w-4.5" />
+              <span>Pazarlamacı</span>
+            </button>
+
+          </nav>
+
+          {/* Quick Stats sidebar footer info widget */}
+          <div className="mt-6 bg-slate-900/5 p-4 rounded-2xl border border-slate-200/55 text-xs text-slate-500 space-y-3">
+            <p className="font-bold text-slate-700 flex items-center gap-1.5 font-sans">
+              <Database className="h-4 w-4 text-indigo-500 animate-pulse" />
+              Sistem Kalemleri (SQLite)
+            </p>
+            <div className="space-y-1.5 font-mono text-[10px]">
+              <div className="flex justify-between">
+                <span>Katalog Tablosu:</span>
+                <span className="font-bold text-slate-800">{products.length} ürün</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Kritik Uyarılar:</span>
+                <span className="font-bold text-red-650">{products.filter(p => p.currentStock < p.lowStockThreshold).length} ürün</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Satış Log Tablosu:</span>
+                <span className="font-bold text-slate-800">{sales.length} kayıt</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Gider Tablosu:</span>
+                <span className="font-bold text-slate-800">{expenses.length} kayıt</span>
+              </div>
+            </div>
+            <div className="pt-2 border-t border-slate-200 text-[9px] text-slate-400">
+              Gerçek SQLite Relational Tabloları Mapped.
+            </div>
+          </div>
+
+          {/* SQLite Sovereignty & Cloud Security Control Center */}
+          <div className="mt-4 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-3 shadow-lg shadow-slate-900/20">
+            <p className="font-bold text-slate-200 flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-mono">
+              <Server className="h-4 w-4 text-emerald-400" />
+              SQLite Veri Egemenliği
+            </p>
+            
+            <div className="space-y-1 font-mono text-[9px] text-slate-350">
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span>Cihaz Kimliği:</span>
+                <span className="font-bold text-amber-400">{getOrCreateDeviceId()}</span>
+              </div>
+              <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                <span>Portal Sürüm:</span>
+                <span className="font-bold text-indigo-300">v{APP_CURRENT_VERSION}</span>
+              </div>
+              
+              {securityStatus.offlineGraceActive ? (
+                <div className="bg-emerald-950/40 text-emerald-450 p-1.5 rounded border border-emerald-900/30 font-semibold leading-normal mt-1 text-center">
+                  ⚡ Çevrimdışı Tolerans Aktif: {securityStatus.daysRemainingInGrace} gün kaldı
+                </div>
+              ) : (
+                <div className="flex justify-between text-[8px] text-emerald-400">
+                  <span>Bulut Lisans Durumu:</span>
+                  <span className="font-bold">AKTİF & DOĞRULANDI</span>
+                </div>
+              )}
+            </div>
+
+            {/* Dışa Aktar Actions */}
+            <div className="space-y-2 pt-1 border-t border-slate-700 mt-3 pt-3">
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">YEDEKLEMEVERİ YÖNETIMI</p>
+
+              <button
+                onClick={handleDownloadBackup}
+                className="w-full py-2 px-2 bg-emerald-700 hover:bg-emerald-600 text-white font-bold rounded-lg text-[9px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-emerald-600/30"
+                title="Tüm verilerinizi JSON olarak indir"
+              >
+                <Download className="h-3 w-3" /> VERİLERİ İNDİR
+              </button>
+
+              <button
+                onClick={handleRestoreBackup}
+                className="w-full py-2 px-2 bg-blue-700 hover:bg-blue-600 text-white font-bold rounded-lg text-[9px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-blue-600/30"
+                title="JSON yedek dosyasını yükle"
+              >
+                <Download className="h-3 w-3 rotate-180" /> VERİLERİ YÜKLE
+              </button>
+
+              <div className="text-[8px] text-slate-500 p-2 bg-slate-900/50 rounded border border-slate-800 italic">
+                💾 Tüm verilerinizi güvenli şekilde indirin. Tarayıcı sıfırlandığında yeniden yükleyin.
+              </div>
+
+              <p className="text-[9px] text-slate-400 font-bold uppercase tracking-wider pt-2">ESKI YÖNTEMLEREİNDİRME</p>
+
+              <button
+                onClick={handleExportSQL}
+                className="w-full py-1.5 px-2 bg-slate-800 hover:bg-slate-750 text-amber-500 font-bold rounded-lg text-[10px] flex items-center justify-center gap-1 transition-all cursor-pointer border border-amber-500/10"
+                title="Tüm SQLite veritabanınızı .SQL olarak yedekleyin"
+              >
+                <Download className="h-3 w-3" /> SQLITE DUMP (.SQL)
+              </button>
+
+              <div className="grid grid-cols-3 gap-1">
+                <button
+                  onClick={() => handleExportCSV('Products')}
+                  className="py-1 bg-slate-800/50 hover:bg-slate-800 text-[8.5px] rounded border border-slate-800 hover:border-slate-700 font-medium text-slate-300"
+                >
+                  Katalog
+                </button>
+                <button
+                  onClick={() => handleExportCSV('Sales')}
+                  className="py-1 bg-slate-800/50 hover:bg-slate-800 text-[8.5px] rounded border border-slate-800 hover:border-slate-700 font-medium text-slate-300"
+                >
+                  Satış
+                </button>
+                <button
+                  onClick={() => handleExportCSV('Expenses')}
+                  className="py-1 bg-slate-800/50 hover:bg-slate-800 text-[8.5px] rounded border border-slate-800 hover:border-slate-700 font-medium text-slate-300"
+                >
+                  Gider
+                </button>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Dynamic Route View Stage */}
+        <main className="flex-1 bg-white p-6 md:p-8 rounded-3xl border border-slate-200/75 shadow-sm min-w-0">
+          
+          {currentTab === 'dashboard' && (
+            <Dashboard 
+              products={products}
+              sales={sales}
+              expenses={expenses}
+              onNavigate={(view) => setCurrentTab(view)}
+              brandName={brandName}
+            />
+          )}
+
+          {currentTab === 'sales' && (
+            <SalesEntry 
+              products={products}
+              sales={sales}
+              onAddSale={handleAddSale}
+              onNavigateToInventory={() => setCurrentTab('inventory')}
+              brandName={brandName}
+            />
+          )}
+
+          {currentTab === 'inventory' && (
+            <Inventory 
+              products={products}
+              onAddProduct={handleAddProduct}
+              onUpdateProduct={handleUpdateProduct}
+              onDeleteProduct={handleDeleteProduct}
+              userRole={userRole}
+              brandName={brandName}
+            />
+          )}
+
+          {currentTab === 'expenses' && (
+            <Expenses 
+              expenses={expenses}
+              onAddExpense={handleAddExpense}
+              onDeleteExpense={handleDeleteExpense}
+              brandName={brandName}
+            />
+          )}
+
+          {currentTab === 'lookup' && (
+            <QuickLookup products={products} brandName={brandName} />
+          )}
+
+          {currentTab === 'automation' && (
+            <Automation
+              products={products}
+              sales={sales}
+              expenses={expenses}
+              userEmail="abdulkadirkqn@gmail.com"
+              brandName={brandName}
+            />
+          )}
+
+          {currentTab === 'contact' && (
+            <Contact brandName={brandName} />
+          )}
+
+          {currentTab === 'marketer' && (
+            <Marketer brandName={brandName} />
+          )}
+
+        </main>
+
+      </div>
+
+      {/* Elegant Standard corporateFooter */}
+      <footer className="bg-slate-900 text-slate-400 border-t border-slate-800 py-6 mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-sans">
+          <div>
+            <p className="font-mono">{brandName} © 2026. Tüm kurumsal hakları saklıdır.</p>
+          </div>
+          <div className="flex items-center gap-6 text-[11px]">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+              Otomatik Envanter Düşüm Sistemi Aktif
+            </span>
+            <span className="text-slate-500">Güvenlik: Standart AES-256</span>
+          </div>
+        </div>
+      </footer>
+
+      {/* Brand Customization Modal overlay */}
+      {isBrandModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-fade-in text-slate-800">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-2xl overflow-hidden animate-scale-up">
+            <div className="p-5 bg-gradient-to-r from-slate-900 to-indigo-950 text-white flex items-center justify-between">
+              <div>
+                <h3 className="font-bold text-sm tracking-wide">Şirket & Marka Adını Özelleştir</h3>
+                <p className="text-[10px] text-indigo-200 font-mono mt-0.5">Sistemdeki tüm faturalandırma, fiş ve başlıkları güncelleyin</p>
+              </div>
+              <button
+                onClick={() => setIsBrandModalOpen(false)}
+                className="text-slate-400 hover:text-white transition-colors cursor-pointer text-sm"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              handleUpdateBrandName(tempBrandName);
+            }} className="p-6 space-y-4">
+              <div>
+                <label className="block text-slate-500 text-[11px] font-bold uppercase tracking-wider mb-2">
+                  Yeni Marka / Kuruluş İsmi
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={tempBrandName}
+                  onChange={(e) => setTempBrandName(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white text-slate-800 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none transition-all"
+                  placeholder="Örn: AKN Global Group Ltd"
+                  autoFocus
+                />
+              </div>
+
+              <div className="space-y-2">
+                <span className="block text-slate-400 text-[9px] font-mono uppercase tracking-widest">Hızlı Şablon Önerileri:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTempBrandName('AKN Global Group Ltd')}
+                    className="text-[10.5px] px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-semibold rounded-lg text-slate-700 transition"
+                  >
+                    AKN Global Group Ltd
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTempBrandName('AKN Kurumsal Lojistik')}
+                    className="text-[10.5px] px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-semibold rounded-lg text-slate-700 transition"
+                  >
+                    AKN Kurumsal Lojistik
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTempBrandName('AKN Global Holding Inc.')}
+                    className="text-[10.5px] px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 font-semibold rounded-lg text-slate-700 transition"
+                  >
+                    AKN Global Holding Inc.
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsBrandModalOpen(false)}
+                  className="px-4 py-2 text-slate-500 hover:bg-slate-100 text-xs font-semibold rounded-xl transition cursor-pointer"
+                >
+                  Kapat
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-xl shadow-sm transition cursor-pointer"
+                >
+                  Markayı Kaydet ve Uygula
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Ingress HMR and Port validation metrics */}
+    </div>
+  );
+}
