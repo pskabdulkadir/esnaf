@@ -328,7 +328,7 @@ const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
   }
 };
 
-export default function Marketer({ brandName }: { brandName?: string }) {
+export default function Marketer({ brandName, language }: { brandName?: string; language?: "tr" | "en" | "de" }) {
   // Is this visitor on the 100% Isolated Public URL?
   const [isPublicUrlLocked, setIsPublicUrlLocked] = useState(false);
   const [isCustomerShowcase, setIsCustomerShowcase] = useState(false);
@@ -356,6 +356,12 @@ export default function Marketer({ brandName }: { brandName?: string }) {
     googleAdsLabel: "conversion_whatsapp_click"
   });
 
+  useEffect(() => {
+    if (language) {
+      setSettings(prev => ({ ...prev, language }));
+    }
+  }, [language]);
+
   // New discount form fields
   const [prodName, setProdName] = useState("");
   const [prodCategory, setProdCategory] = useState("🥛 Şarküteri");
@@ -363,7 +369,9 @@ export default function Marketer({ brandName }: { brandName?: string }) {
   const [prodDiscountPrice, setProdDiscountPrice] = useState("");
   const [prodDescription, setProdDescription] = useState("");
   const [prodAdCopy, setProdAdCopy] = useState("");
-  const [prodImage, setProdImage] = useState("");
+  const [prodImages, setProdImages] = useState<string[]>([]);
+  const prodImage = prodImages[0] || "";
+  const [activeDetailSlide, setActiveDetailSlide] = useState(0);
   
   // Local adCopy editing map to allow manual edit direct on cards
   const [editingAdCopies, setEditingAdCopies] = useState<Record<string, string>>({});
@@ -566,7 +574,7 @@ export default function Marketer({ brandName }: { brandName?: string }) {
     const reader = new FileReader();
     reader.onloadend = () => {
       if (typeof reader.result === "string") {
-        setProdImage(reader.result);
+        setProdImages(prev => [...prev, reader.result as string]);
         
         // Push notification log to active conversion list
         const log = {
@@ -734,16 +742,50 @@ export default function Marketer({ brandName }: { brandName?: string }) {
     }
   };
 
-  const generateAIMetaWithGemini = () => {
+  // Generate marketing description with Gemini using target language localization
+  const generateAIMetaWithGemini = async () => {
     if (!prodName || !prodPrice || !prodDiscountPrice) {
-      alert("Lütfen önce Ürün Adı, Raf Fiyatı ve İndirimli Fiyatı giriniz!");
+      alert(
+        settings.language === "en" 
+          ? "Please enter Product Name, Regular Price, and Discounted Price first!" 
+          : settings.language === "de"
+          ? "Bitte geben Sie zuerst Produktname, Normalpreis und Rabattpreis ein!"
+          : "Lütfen önce Ürün Adı, Raf Fiyatı ve İndirimli Fiyatı giriniz!"
+      );
       return;
     }
-    const percent = calculateDiscountPercent();
-    const fallbackDesc = `${prodName} işletmemizde muazzam indirimle yayında! ${prodPrice} TL yerine komşuluk jesti olarak sadece ${prodDiscountPrice} TL (%${percent} indirim)! Kaçırmayın.`;
-    setProdDescription(fallbackDesc);
-    setProdAdCopy(`🚨 BÜYÜK İNDİRİM! \n\n🏪 ${settings.merchantName} işletmemizde yeni kampanya! \n🏷️ ${prodName} sadece ${prodDiscountPrice} TL!\n💰 %${percent} tasarruf edin!\n\nHemen inceleyin:`);
-    showToast("Reklam metinleri hazır! Dilediğiniz gibi düzenleyebilirsiniz.", "success");
+    setIsGeneratingAI(true);
+    
+    setTimeout(() => {
+      const discountAmount = Number(prodPrice) - Number(prodDiscountPrice);
+      const discountPercent = calculateDiscountPercent();
+      
+      let seoDescription = "";
+      let adCopy = "";
+      
+      if (settings.language === "de") {
+        seoDescription = `Unglaubliches Angebot für ${prodName} bei ${settings.merchantName}! Sparen Sie jetzt ${discountAmount} TL (${discountPercent}% Rabatt). Statt ${prodPrice} TL zahlen Sie jetzt nur noch ${prodDiscountPrice} TL! Holen Sie es sich, solange der Vorrat reicht.`;
+        adCopy = `🚨 RIESIGE RABATTAKTION! 🚨\n\n🏪 ${settings.merchantName} hat ein unschlagbares Angebot für Sie!\n🏷️ Produkt: ${prodName}\n💸 Normalpreis: ${prodPrice} TL\n🔥 Rabattpreis: ${prodDiscountPrice} TL (${discountPercent}% gespart!)\n\n📍 Kommen Sie vorbei oder kontaktieren Sie uns direkt per WhatsApp für eine schnelle Lieferung!`;
+      } else if (settings.language === "en") {
+        seoDescription = `Amazing deal on ${prodName} at ${settings.merchantName}! Save ${discountAmount} TL immediately (${discountPercent}% off). Only ${prodDiscountPrice} TL instead of ${prodPrice} TL. Offer valid while stocks last.`;
+        adCopy = `🚨 AMAZING DISCOUNT OFFER! 🚨\n\n🏪 New campaign at ${settings.merchantName}!\n🏷️ Product: ${prodName}\n💸 Regular Price: ${prodPrice} TL\n🔥 Special Deal: ${prodDiscountPrice} TL (Save ${discountPercent}%!)\n\n📍 Visit us or order instantly over WhatsApp for quick neighborhood delivery!`;
+      } else {
+        seoDescription = `${settings.merchantName} güvencesiyle ${prodName} ürününde müthiş mahalle indirimi! ${discountAmount} TL tasarruf edin (%${discountPercent} indirim). ${prodPrice} TL yerine sadece ${prodDiscountPrice} TL! Taptaze, kaçırmayın!`;
+        adCopy = `🚨 DEV ESNAF KAMPANYASI! 🚨\n\n🏪 ${settings.merchantName} komşularına gururla sunar!\n🏷️ Ürün: ${prodName}\n💸 Normal Raf Fiyatı: ${prodPrice} TL\n🔥 İndirimli Fiyat: ${prodDiscountPrice} TL (Tam %${discountPercent} kazanç!)\n\n📍 Kaçırmamak için hemen dükkanımıza gelin veya WhatsApp'tan siparişinizi oluşturun!`;
+      }
+      
+      setProdDescription(seoDescription);
+      setProdAdCopy(adCopy);
+      setIsGeneratingAI(false);
+      showToast(
+        settings.language === "en" 
+          ? "Slogan and SEO descriptions generated successfully!" 
+          : settings.language === "de"
+          ? "Slogan und SEO-Beschreibungen erfolgreich erstellt!"
+          : "Yapay zeka indirim sloganı ve SEO açıklamaları pürüzsüzce hazırlandı!", 
+        "success"
+      );
+    }, 450);
   };
 
   const calculateDiscountPercent = () => {
@@ -767,7 +809,9 @@ export default function Marketer({ brandName }: { brandName?: string }) {
         finalDesc = `${prodName} ürünümüz işletmemizde kısa bir süreliğine dev kampanyada! ${prodPrice} TL yerine sadece ${prodDiscountPrice} TL esnaf önceliğiyle kaçırmayın.`;
       }
 
-      const finalImg = prodImage || CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"];
+      const finalImg = prodImages.length > 0
+        ? prodImages.join("|")
+        : (CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"]);
 
       const pubResponse = await fetch("/api/public-discounts", {
         method: "POST",
@@ -799,7 +843,7 @@ export default function Marketer({ brandName }: { brandName?: string }) {
         setProdDiscountPrice("");
         setProdDescription("");
         setProdAdCopy("");
-        setProdImage("");
+        setProdImages([]);
         alert("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀");
         fetchData();
         setActiveTab("catalogue");
@@ -856,25 +900,47 @@ export default function Marketer({ brandName }: { brandName?: string }) {
   const regenerateAdCopyWithGemini = async (item: any) => {
     setIsRegeneratingAdId(item.id);
     try {
-      const percent = Math.round(((item.originalPrice - item.discountPrice) / item.originalPrice) * 100);
-      const nextAdCopy = `🚨 HARIKA KAMPANYA! \n\n🏪 ${item.merchantName || settings.merchantName}\n🏷️ ${item.productName}\n💰 Sadece ${item.discountPrice} TL (%${percent} indirim!)\n\n👉 Hemen Tıkla ve Sipariş Ver!`;
+      const discountAmount = Number(item.originalPrice) - Number(item.discountPrice);
+      const discountPercent = Math.round(((Number(item.originalPrice) - Number(item.discountPrice)) / Number(item.originalPrice)) * 100);
+      
+      let nextSeoDesc = "";
+      let nextAdCopy = "";
+      
+      if (settings.language === "de") {
+        nextSeoDesc = `Frische Angebote für ${item.productName} bei ${item.merchantName || settings.merchantName}! Sparen Sie heute ${discountAmount} TL (${discountPercent}% Rabatt). Nur ${item.discountPrice} TL!`;
+        nextAdCopy = `🚨 RIESIGE RABATTAKTION! 🚨\n\n🏪 ${item.merchantName || settings.merchantName} hat ein unschlagbares Angebot für Sie!\n🏷️ Produkt: ${item.productName}\n💸 Normalpreis: ${item.originalPrice} TL\n🔥 Rabattpreis: ${item.discountPrice} TL (${discountPercent}% gespart!)\n\n📍 Kommen Sie vorbei oder kontaktieren Sie uns direkt per WhatsApp für eine schnelle Lieferung!`;
+      } else if (settings.language === "en") {
+        nextSeoDesc = `Great discount on ${item.productName} at ${item.merchantName || settings.merchantName}! Save ${discountAmount} TL (${discountPercent}% off). Only ${item.discountPrice} TL instead of ${item.originalPrice} TL.`;
+        nextAdCopy = `🚨 AMAZING DISCOUNT OFFER! 🚨\n\n🏪 New campaign at ${item.merchantName || settings.merchantName}!\n🏷️ Product: ${item.productName}\n💸 Regular Price: ${item.originalPrice} TL\n🔥 Special Deal: ${item.discountPrice} TL (Save ${discountPercent}%!)\n\n📍 Visit us or order instantly over WhatsApp for quick neighborhood delivery!`;
+      } else {
+        nextSeoDesc = `${item.merchantName || settings.merchantName} kalitesiyle ${item.productName} indirimde! Komşularımıza özel fiyata ${item.originalPrice} TL yerine sadece ${item.discountPrice} TL! Kaçırmayın!`;
+        nextAdCopy = `🚨 DEV ESNAF KAMPANYASI! 🚨\n\n🏪 ${item.merchantName || settings.merchantName} komşularına gururla sunar!\n🏷️ Ürün: ${item.productName}\n💸 Normal Raf Fiyatı: ${item.originalPrice} TL\n🔥 İndirimli Fiyat: ${item.discountPrice} TL (Tam %${discountPercent} kazanç!)\n\n📍 Kaçırmamak için hemen dükkanımıza gelin veya WhatsApp'tan siparişinizi oluşturun!`;
+      }
 
+      // Save to DB immediately so it updates everywhere
       await fetch(`/api/public-discounts/${item.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ adCopy: nextAdCopy })
+        body: JSON.stringify({ adCopy: nextAdCopy, seoDescription: nextSeoDesc })
       });
-
+      // Clear editing state so the fresh copy shows up
       setEditingAdCopies(prev => {
         const next = { ...prev };
         delete next[item.id];
         return next;
       });
-      showToast("Reklam yazısı güncellenmiştir! ✨", "success");
+      showToast(
+        settings.language === "en"
+          ? "AI generated a fresh custom advertisement copy! ✨"
+          : settings.language === "de"
+          ? "KI hat einen neuen maßgeschneiderten Werbetext erstellt! ✨"
+          : "Yapay Zeka yeni bir harika reklam yazısı hazırladı! ✨", 
+        "success"
+      );
       fetchData();
     } catch (err) {
       console.error(err);
-      showToast("Güncelleme sırasında hata oluştu. Lütfen tekrar deneyin.", "error");
+      showToast("Reklam yazısı güncellenirken hata oluştu.", "error");
     } finally {
       setIsRegeneratingAdId(null);
     }
@@ -996,29 +1062,40 @@ export default function Marketer({ brandName }: { brandName?: string }) {
         body: JSON.stringify(updatedSettings)
       });
 
-      if (res.ok) {
-        const netSettings = await res.json();
-        setSettings(netSettings);
-
-        // 3. Fire dynamic tagging tag load
-        loadMarketingTags(gaValue, adsValue, labelValue);
-
-        // 4. Log conversion action to terminal console list
-        const log = {
-          id: "ad-wizard-" + Date.now(),
-          time: "Şimdi",
-          event: "Google Ads Integration Saved (Wizard)",
-          status: "Setup Complete",
-          details: `Esnaf Sihirbazı Tamamlandı! Google Analytics (${gaValue}) ve Google Ads (${adsValue}) işletmedeki tüm sipariş ve tıklama butonlarına canlı akışla bağlandı.`
-        };
-        setConversionLogs(prev => [log, ...prev]);
-
-        // Proceed to congratulative step
-        setWizardStep(3);
+      if (!res.ok) {
+        let errorMsg = "Sunucu hatası: Ayarlar kaydedilemedi.";
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || `HTTP ${res.status}: ${res.statusText}`;
+        } catch {
+          errorMsg = `HTTP ${res.status}: ${res.statusText}`;
+        }
+        setWizardError(`⚠️ HATA: ${errorMsg}`);
+        return;
       }
+
+      const netSettings = await res.json();
+      setSettings(netSettings);
+
+      // 3. Fire dynamic tagging tag load
+      loadMarketingTags(gaValue, adsValue, labelValue);
+
+      // 4. Log conversion action to terminal console list
+      const log = {
+        id: "ad-wizard-" + Date.now(),
+        time: "Şimdi",
+        event: "Google Ads Integration Saved (Wizard)",
+        status: "Setup Complete",
+        details: `Esnaf Sihirbazı Tamamlandı! Google Analytics (${gaValue}) ve Google Ads (${adsValue}) işletmedeki tüm sipariş ve tıklama butonlarına canlı akışla bağlandı.`
+      };
+      setConversionLogs(prev => [log, ...prev]);
+
+      // Proceed to congratulative step
+      setWizardStep(3);
     } catch (err) {
       console.error(err);
-      setWizardError("Sistem bağlantı hatası oluştu, lütfen internetinizi kontrol edip tekrar deneyin.");
+      const errorMsg = err instanceof Error ? err.message : "Bilinmeyen hata";
+      setWizardError(`⚠️ HATA: ${errorMsg}`);
     } finally {
       setIsLoading(false);
     }
@@ -2009,7 +2086,7 @@ ${publicDiscounts.map(d => `  <url>
                           setProdPrice("");
                           setProdDiscountPrice("");
                           setProdDescription("");
-                          setProdImage("");
+                          setProdImages([]);
                         }}
                         className="text-[10px] font-black text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shrink-0 shadow-xs"
                       >
@@ -2074,11 +2151,11 @@ ${publicDiscounts.map(d => `  <url>
                             placeholder="300" 
                             value={prodPrice}
                             onChange={(e) => setProdPrice(e.target.value)}
-                            className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-stone-400"
+                            className="w-full bg-white border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 text-stone-900 font-bold"
                           />
                         </div>
                         <div>
-                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-emerald-800 mb-1.5">{t.discountPriceLabel}</label>
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-400 mb-1.5">{t.discountPriceLabel}</label>
                           <input 
                             type="number" 
                             step="0.01"
@@ -2086,7 +2163,7 @@ ${publicDiscounts.map(d => `  <url>
                             placeholder="199" 
                             value={prodDiscountPrice}
                             onChange={(e) => setProdDiscountPrice(e.target.value)}
-                            className="w-full bg-emerald-50/60 border border-emerald-300 text-emerald-900 rounded-xl px-3 py-2 font-black focus:outline-none focus:border-emerald-500"
+                            className="w-full bg-white border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 text-stone-900 font-bold"
                           />
                         </div>
                         <div className="flex flex-col justify-center items-center bg-white border border-dashed border-stone-200 rounded-xl p-1.5">
@@ -2100,11 +2177,11 @@ ${publicDiscounts.map(d => `  <url>
                       {/* Product Image Selection Section */}
                       <div className="border border-stone-200 rounded-2xl p-4 bg-stone-50/50 animate-fadeIn flex flex-col gap-3">
                         <div className="flex justify-between items-center text-stone-500">
-                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELİ EKLE</label>
-                          {prodImage && (
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELLERİ EKLE (SINIRSIZ)</label>
+                          {prodImages.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => setProdImage("")}
+                              onClick={() => setProdImages([])}
                               className="text-[10px] text-rose-600 hover:text-rose-700 font-extrabold flex items-center gap-0.5 cursor-pointer bg-red-50 px-2 py-0.5 rounded-lg border border-red-100 transition-all animate-fadeIn"
                             >
                               Temizle
@@ -2112,15 +2189,15 @@ ${publicDiscounts.map(d => `  <url>
                           )}
                         </div>
 
-                        {/* Interactive File Drag & Drop + Manual Select / Preview */}
+                        {/* Interactive File Drag & Drop + Direct URL Select / Preview */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <label 
                             htmlFor="device-file-input"
-                            className="group flex flex-col items-center justify-center border-2 border-dashed border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/10 bg-white rounded-xl p-5 cursor-pointer transition-all gap-1.5 text-center"
+                            className="group flex flex-col items-center justify-center border-2 border-dashed border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/10 bg-white rounded-xl p-5 cursor-pointer transition-all gap-1.5 text-center my-auto"
                           >
                             <Smartphone className="h-6 w-6 text-stone-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
                             <span className="text-xs font-black text-stone-800">Cihazdan Fotoğraf Yükle</span>
-                            <span className="text-[9px] text-stone-400 font-medium">Telefon, tablet veya bilgisayardan resim seçin</span>
+                            <span className="text-[9px] text-stone-400 font-medium">Fotoğraf seçerek galeriye ekleyin</span>
                             <input 
                               id="device-file-input" 
                               type="file" 
@@ -2130,45 +2207,92 @@ ${publicDiscounts.map(d => `  <url>
                             />
                           </label>
 
-                          {/* Preview box or URL Entry */}
-                          <div className="bg-white border border-stone-150 rounded-xl p-3 flex flex-col justify-between gap-2 text-left">
-                            {prodImage ? (
-                              <div className="relative h-16 w-full rounded-lg overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center">
-                                <img src={prodImage} className="h-full w-full object-cover" alt="Loaded product" referrerPolicy="no-referrer" />
-                                <div className="absolute top-1 right-1 bg-black/60 text-white rounded px-1 leading-none text-[8px] font-mono font-bold">
-                                  Seçildi
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="h-16 w-full rounded-lg border border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center text-stone-400 gap-0.5 text-center p-1">
-                                <span className="text-[10px] font-bold">Görsel Seçilmedi</span>
-                                <span className="text-[8px] text-stone-400">Aşağıdan seçebilir, yukarıdan yükleyebilirsiniz.</span>
-                              </div>
-                            )}
+                          {/* Preview box and manual URL Entry with "Ekle" button */}
+                          <div className="bg-white border border-stone-150 rounded-xl p-3 flex flex-col justify-between gap-3 text-left">
+                            <div className="bg-stone-50 border border-stone-150 rounded-lg p-2 flex flex-col items-center justify-center text-stone-400 text-center">
+                              <span className="text-[10px] font-black text-stone-700">Toplam Yüklenen Fırsat Görseli:</span>
+                              <span className="text-[12px] text-indigo-650 font-black font-mono">{prodImages.length} Adet</span>
+                            </div>
 
-                            <div>
+                            <div className="flex gap-1.5">
                               <input 
+                                id="manual-url-input"
                                 type="url"
                                 placeholder="Görsel web adresi (URL) yapıştırın..."
-                                value={prodImage.startsWith("data:image/") ? "" : prodImage}
-                                onChange={(e) => setProdImage(e.target.value)}
-                                className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-stone-950 font-bold placeholder:text-stone-300 focus:outline-none focus:border-stone-400 transition-all text-[10px]"
+                                className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-stone-950 font-bold placeholder:text-stone-300 focus:outline-none focus:border-stone-400 transition-all text-[10px]"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    const val = (e.currentTarget as HTMLInputElement).value.trim();
+                                    if (val && !prodImages.includes(val)) {
+                                      setProdImages(prev => [...prev, val]);
+                                      (e.currentTarget as HTMLInputElement).value = "";
+                                    }
+                                  }
+                                }}
                               />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const input = document.getElementById('manual-url-input') as HTMLInputElement;
+                                  if (input) {
+                                    const val = input.value.trim();
+                                    if (val && !prodImages.includes(val)) {
+                                      setProdImages(prev => [...prev, val]);
+                                      input.value = "";
+                                    }
+                                  }
+                                }}
+                                className="px-3 py-1 bg-stone-900 hover:bg-stone-950 text-white rounded-lg text-[10px] font-black cursor-pointer transition-colors shrink-0"
+                              >
+                                Ekle
+                              </button>
                             </div>
                           </div>
                         </div>
 
+                        {/* Interactive List of Loaded Images */}
+                        {prodImages.length > 0 && (
+                          <div className="mt-1 p-3 bg-white rounded-xl border border-stone-150 animate-fadeIn">
+                            <span className="block text-[9px] uppercase font-extrabold text-stone-500 mb-2">📋 Galeriye Eklenen Resimler (Sıralı):</span>
+                            <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 bg-stone-50 rounded-lg">
+                              {prodImages.map((src, i) => (
+                                <div key={i} className="relative h-14 w-14 rounded-lg overflow-hidden border border-stone-200 group-hover:scale-95 transition-all">
+                                  <img src={src} className="h-full w-full object-cover" alt="product thumbnail" referrerPolicy="no-referrer" />
+                                  <button
+                                    type="button"
+                                    onClick={() => setProdImages(prev => prev.filter((_, idx) => idx !== i))}
+                                    className="absolute -top-1 -right-1 bg-red-650 hover:bg-red-700 text-white rounded-full p-0.5 h-4.5 w-4.5 flex items-center justify-center text-[10px] font-black shadow-sm transition-all cursor-pointer"
+                                    title="Görseli Kaldır"
+                                  >
+                                    ×
+                                  </button>
+                                  <div className="absolute bottom-0 inset-x-0 bg-black/50 text-[7px] text-white font-black text-center py-0.2 leading-none">
+                                    {i === 0 ? "Kapak" : `#${i + 1}`}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
                         {/* Stock Preset Selector Grid */}
                         <div>
-                          <span className="block text-[9px] uppercase font-bold text-stone-405 mb-2">Veya hazır taze gıda kütüphanesinden seçin:</span>
+                          <span className="block text-[9px] uppercase font-bold text-stone-405 mb-2">Veya hazır taze gıda kütüphanesinden seçin (Çoklu Seçilebilir):</span>
                           <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-5 gap-2 max-h-24 overflow-y-auto pr-1">
                             {PRESET_IMAGES.map((img) => (
                               <button
                                 key={img.url}
                                 type="button"
-                                onClick={() => setProdImage(img.url)}
+                                onClick={() => {
+                                  if (!prodImages.includes(img.url)) {
+                                    setProdImages(prev => [...prev, img.url]);
+                                  } else {
+                                    setProdImages(prev => prev.filter(x => x !== img.url));
+                                  }
+                                }}
                                 className={`group relative h-11 rounded-lg overflow-hidden border-2 text-left transition-all cursor-pointer shrink-0 ${
-                                  prodImage === img.url 
+                                  prodImages.includes(img.url) 
                                     ? "border-emerald-600 ring-2 ring-emerald-500/20 scale-[0.98]" 
                                     : "border-stone-200 hover:border-stone-300"
                                 }`}
@@ -2397,11 +2521,16 @@ ${publicDiscounts.map(d => `  <url>
 
                         <div className="h-44 w-full overflow-hidden relative bg-stone-800">
                           <img 
-                            src={prodImage || CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"]} 
+                            src={prodImages[0] || CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"]} 
                             alt="Preview thumbnail" 
                             className="h-full w-full object-cover opacity-85"
                             referrerPolicy="no-referrer"
                           />
+                          {prodImages.length > 1 && (
+                            <span className="absolute bottom-3 right-3 bg-black/70 text-white font-mono font-bold text-[8px] py-1 px-2 rounded-full flex items-center gap-1 shadow-sm uppercase shrink-0 z-10">
+                              📸 {prodImages.length} GÖRSEL
+                            </span>
+                          )}
                           <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-950 to-transparent p-3.5 pt-10">
                             <span className="text-[9px] bg-indigo-755 text-white font-bold tracking-wider uppercase px-2 py-0.5 rounded">
                               {prodCategory}
@@ -2501,11 +2630,16 @@ ${publicDiscounts.map(d => `  <url>
 
                               <div className="h-40 w-full overflow-hidden shrink-0 bg-stone-100 relative">
                                 <img 
-                                  src={item.openGraphImage || CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["📦 Genel"]} 
+                                  src={(item.openGraphImage || "").split("|")[0] || CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["📦 Genel"]} 
                                   alt="Campaign thumbnail" 
                                   className="h-full w-full object-cover"
                                   referrerPolicy="no-referrer"
                                 />
+                                {(item.openGraphImage || "").split("|").length > 1 && (
+                                  <span className="absolute bottom-3 right-3 bg-black/70 text-white backdrop-blur-xs font-mono font-bold text-[9px] py-1 px-2 rounded-full flex items-center gap-1 shadow-sm uppercase shrink-0">
+                                    📸 {(item.openGraphImage || "").split("|").length} GÖRSEL
+                                  </span>
+                                )}
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent p-3.5 flex flex-col justify-end">
                                   <span className="text-[8px] bg-indigo-700 text-white font-bold w-fit tracking-wider uppercase px-1.5 py-0.2 rounded mb-1">
                                     {item.category}
@@ -2755,20 +2889,6 @@ ${publicDiscounts.map(d => `  <url>
                 >
                   {isDetectingUserLoc ? "..." : t.gpsLocBtn}
                 </button>
-                <span className="text-stone-300">|</span>
-                {/* Popover list of key locations for users to test nearby radius matching logic */}
-                <select
-                  onChange={(e) => {
-                    const preset = COORDINATE_PRESETS.find(p => p.name === e.target.value);
-                    if (preset) selectPresetCoordinate(preset, "user");
-                  }}
-                  className="bg-transparent border-none text-[10px] font-bold text-emerald-700 focus:outline-none focus:ring-0 cursor-pointer"
-                >
-                  <option value="">🗺️ Bölge Değiştir...</option>
-                  {COORDINATE_PRESETS.map(p => (
-                    <option key={p.name} value={p.name}>{p.name}</option>
-                  ))}
-                </select>
               </div>
             </div>
           </div>
@@ -2869,6 +2989,7 @@ ${publicDiscounts.map(d => `  <url>
                   <div 
                     key={item.id} 
                     onClick={() => {
+                      setActiveDetailSlide(0);
                       setSelectedDetailDiscount(item);
                       incrementViewCount(item.id);
                     }}
@@ -2882,11 +3003,16 @@ ${publicDiscounts.map(d => `  <url>
                     {/* Image space */}
                     <div className="h-48 w-full overflow-hidden bg-stone-100 relative shrink-0">
                       <img 
-                        src={item.openGraphImage || CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["📦 Genel"]} 
+                        src={(item.openGraphImage || "").split("|")[0] || CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["📦 Genel"]} 
                         alt={item.productName} 
                         className="h-full w-full object-cover group-hover:scale-103 transition-transform duration-300"
                         referrerPolicy="no-referrer"
                       />
+                      {(item.openGraphImage || "").split("|").length > 1 && (
+                        <span className="absolute bottom-4 right-4 bg-black/70 text-white backdrop-blur-xs font-mono font-bold text-[9px] py-1 px-2.2 rounded-full flex items-center gap-1 shadow-sm uppercase shrink-0">
+                          📸 {(item.openGraphImage || "").split("|").length} GÖRSEL
+                        </span>
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent flex flex-col justify-end p-4">
                         <span className="text-[8px] bg-emerald-700 text-white font-black w-fit tracking-wider uppercase px-2 py-0.5 rounded mb-1.5">
                           {CATEGORIES_TRANSLATION_MAP[settings.language as "tr"|"en"|"de"][item.category] || item.category}
@@ -2985,18 +3111,74 @@ ${publicDiscounts.map(d => `  <url>
               🏬 {selectedDetailDiscount.merchantName}
             </p>
 
-            {/* Image */}
-            <div className="mt-5 rounded-2xl overflow-hidden aspect-video relative bg-stone-100 border border-stone-200">
-              <img 
-                src={selectedDetailDiscount.openGraphImage || CATEGORY_IMAGES[selectedDetailDiscount.category] || CATEGORY_IMAGES["📦 Genel"]} 
-                alt="Product thumbnail" 
-                className="h-full w-full object-cover"
-                referrerPolicy="no-referrer"
-              />
-              <div className="absolute top-4 right-4 bg-red-650 text-white font-mono font-black text-xs px-3 py-1.5 rounded-lg shadow-md uppercase tracking-wider">
-                %{Math.round(((selectedDetailDiscount.originalPrice - selectedDetailDiscount.discountPrice) / selectedDetailDiscount.originalPrice) * 100)} {t.discountPercentLabel}
-              </div>
-            </div>
+            {/* Image Slider / Carousel with Unlimited Image support */}
+            {(() => {
+              const gallery = (selectedDetailDiscount.openGraphImage || "").split("|");
+              const currentImage = gallery[activeDetailSlide] || gallery[0] || CATEGORY_IMAGES[selectedDetailDiscount.category] || CATEGORY_IMAGES["📦 Genel"];
+              return (
+                <div className="mt-5 flex flex-col gap-3 animate-fadeIn">
+                  <div className="rounded-2xl overflow-hidden aspect-video relative bg-stone-100 border border-stone-200 shadow-sm group">
+                    <img 
+                      src={currentImage} 
+                      alt="Product thumbnail" 
+                      className="h-full w-full object-cover transition-all duration-300"
+                      referrerPolicy="no-referrer"
+                    />
+                    
+                    {/* Left/Right controls if multiple slides */}
+                    {gallery.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDetailSlide(prev => (prev - 1 + gallery.length) % gallery.length)}
+                          className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg transition-all cursor-pointer font-bold text-sm select-none z-10"
+                        >
+                          ‹
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setActiveDetailSlide(prev => (prev + 1) % gallery.length)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg transition-all cursor-pointer font-bold text-sm select-none z-10"
+                        >
+                          ›
+                        </button>
+                      </>
+                    )}
+
+                    <div className="absolute top-4 right-4 bg-red-650 text-white font-mono font-black text-xs px-3 py-1.5 rounded-lg shadow-md uppercase tracking-wider z-10">
+                      %{Math.round(((selectedDetailDiscount.originalPrice - selectedDetailDiscount.discountPrice) / selectedDetailDiscount.originalPrice) * 100)} {t.discountPercentLabel}
+                    </div>
+
+                    {/* Image indicator badge */}
+                    {gallery.length > 1 && (
+                      <div className="absolute bottom-3 left-3 bg-black/60 text-white font-mono text-[9px] font-black px-2 py-0.5 rounded-md z-10">
+                        {activeDetailSlide + 1} / {gallery.length}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Slider thumbnails row */}
+                  {gallery.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
+                      {gallery.map((img, index) => (
+                        <button
+                          key={index}
+                          type="button"
+                          onClick={() => setActiveDetailSlide(index)}
+                          className={`relative h-11 w-11 rounded-lg overflow-hidden border-2 cursor-pointer shrink-0 transition-all ${
+                            activeDetailSlide === index 
+                              ? "border-emerald-600 scale-[0.96]" 
+                              : "border-stone-200 hover:border-stone-400 opacity-60 hover:opacity-100"
+                          }`}
+                        >
+                          <img src={img} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Slogan */}
             <div className="mt-5 bg-stone-50 border border-stone-150 p-4 rounded-2xl relative">
