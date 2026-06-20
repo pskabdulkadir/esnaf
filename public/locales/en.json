@@ -1,0 +1,129 @@
+{
+  "common": {
+    "welcome": "Welcome",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "back": "Back",
+    "next": "Next",
+    "close": "Close",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info"
+  },
+  "navigation": {
+    "dashboard": "Management Dashboard",
+    "sales": "Point of Sale",
+    "inventory": "Inventory Management",
+    "expenses": "Expenses & Costs",
+    "lookup": "Quick Barcode Lookup",
+    "automation": "Automation & Bots",
+    "contact": "Contact Center",
+    "marketer": "Marketer",
+    "tutorial": "How to Use?"
+  },
+  "dashboard": {
+    "title": "Management Dashboard",
+    "totalProducts": "Total Products",
+    "totalSales": "Total Sales",
+    "totalExpenses": "Total Expenses",
+    "lowStock": "Low Stock Alerts",
+    "recentSales": "Recent Sales",
+    "monthlyRevenue": "Monthly Revenue"
+  },
+  "inventory": {
+    "title": "Inventory Management",
+    "productName": "Product Name",
+    "barcode": "Barcode",
+    "purchasePrice": "Purchase Price",
+    "salePrice": "Sale Price",
+    "currentStock": "Current Stock",
+    "lowStockThreshold": "Low Stock Threshold",
+    "category": "Category",
+    "addProduct": "Add Product",
+    "editProduct": "Edit Product",
+    "deleteProduct": "Delete Product",
+    "productAdded": "Product added successfully",
+    "productUpdated": "Product updated successfully",
+    "productDeleted": "Product deleted successfully"
+  },
+  "sales": {
+    "title": "Sales Record",
+    "selectProduct": "Select Product",
+    "quantity": "Quantity",
+    "totalAmount": "Total Amount",
+    "addSale": "Record Sale",
+    "saleAdded": "Sale recorded successfully",
+    "paymentMethod": "Payment Method",
+    "cash": "Cash",
+    "card": "Card",
+    "transfer": "Transfer"
+  },
+  "expenses": {
+    "title": "Expense Record",
+    "description": "Description",
+    "amount": "Amount",
+    "category": "Category",
+    "date": "Date",
+    "addExpense": "Add Expense",
+    "expenseAdded": "Expense added successfully",
+    "expenseDeleted": "Expense deleted successfully"
+  },
+  "marketer": {
+    "title": "Marketer Module",
+    "createDiscount": "Create Discount Advertisement",
+    "uploadImages": "Upload Images",
+    "productDescription": "Product Description",
+    "discountPercentage": "Discount Percentage",
+    "validUntil": "Valid Until",
+    "publishToGoogle": "Publish to Google Ads",
+    "publishToSocial": "Publish to Social Media",
+    "imageGallery": "Image Gallery",
+    "addMoreImages": "Add More Images"
+  },
+  "tutorial": {
+    "title": "How to Use?",
+    "introduction": {
+      "title": "Introduction",
+      "content": "AKN Global system is a professional SaaS platform. You can manage products, record sales, handle marketing, and analyze data."
+    },
+    "storeSetup": {
+      "title": "Store Setup",
+      "content": "To get started: 1) Enter your company name in the Profile section. 2) Fill in your store information. 3) Customize your logo and design."
+    },
+    "productManagement": {
+      "title": "Product Management",
+      "content": "From the Inventory section: 1) Click 'Add Product' button. 2) Enter product name, barcode, and prices. 3) Upload images (unlimited). 4) Save."
+    },
+    "marketing": {
+      "title": "Marketing & Advertising",
+      "content": "From Marketer section: 1) Select 'Create Discount Advertisement'. 2) Choose a product. 3) Set discount percentage. 4) Upload images. 5) Use 'Auto Publish' to publish to Google Ads and Social Media."
+    },
+    "whatsapp": {
+      "title": "WhatsApp Integration",
+      "content": "In Contact Center: 1) Connect your WhatsApp account. 2) Manage incoming customer messages. 3) Set up automatic responses."
+    },
+    "analytics": {
+      "title": "Analytics & Reports",
+      "content": "From Dashboard: 1) View daily/monthly sales reports. 2) Track expense analytics. 3) Perform inventory cycle analysis."
+    }
+  },
+  "voiceAssistant": {
+    "speakButton": "Read Aloud",
+    "muteButton": "Mute",
+    "speaking": "Speaking...",
+    "speechNotSupported": "Your browser does not support voice reading"
+  },
+  "settings": {
+    "language": "Language",
+    "theme": "Theme",
+    "notifications": "Notifications",
+    "backup": "Backup",
+    "downloadBackup": "Download Data",
+    "restoreBackup": "Restore Data"
+  }
+}

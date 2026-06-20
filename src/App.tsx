@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Product, Sale, Expense, UserRole } from './types';
 import { INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES } from './data';
 import Dashboard from './components/Dashboard';
@@ -9,6 +10,8 @@ import QuickLookup from './components/QuickLookup';
 import Automation from './components/Automation';
 import Contact from './components/Contact';
 import Marketer from './components/Marketer';
+import Tutorial from './components/Tutorial';
+import { useLanguage } from './context/LanguageContext';
 import { sqliteDb } from './lib/sqlite';
 import {
   runSovereigntyAuthCheck,
@@ -19,15 +22,15 @@ import {
   restoreDataFromFirestore,
   type SecurityStatus
 } from './lib/firebase';
-import { 
-  Building2, 
-  LayoutDashboard, 
-  Package, 
-  ShoppingCart, 
-  FileText, 
-  User, 
-  ShieldCheck, 
-  RotateCcw, 
+import {
+  Building2,
+  LayoutDashboard,
+  Package,
+  ShoppingCart,
+  FileText,
+  User,
+  ShieldCheck,
+  RotateCcw,
   Database,
   Eye,
   Cpu,
@@ -38,12 +41,18 @@ import {
   Lock,
   WifiOff,
   Phone,
-  Megaphone
+  Megaphone,
+  HelpCircle,
+  Globe
 } from 'lucide-react';
 
 export default function App() {
+  const { t } = useTranslation();
+  const { currentLanguage, setLanguage, languages } = useLanguage();
+
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
 
   // Permission / Security Mode State (Yonetici is default Admin)
   const [userRole, setUserRole] = useState<UserRole>('Yonetici');
@@ -701,7 +710,35 @@ export default function App() {
 
           {/* Right Header Navigation Controllers */}
           <div className="flex items-center gap-3">
-            
+
+            {/* Language Selector Button */}
+            <div className="flex items-center border border-slate-700 rounded-xl overflow-hidden">
+              {languages.map((lang) => (
+                <button
+                  key={lang.code}
+                  onClick={() => setLanguage(lang.code)}
+                  className={`px-2.5 py-1.5 text-xs font-bold transition-all cursor-pointer ${
+                    currentLanguage === lang.code
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:text-white'
+                  }`}
+                  title={`${lang.name} seçin`}
+                >
+                  {lang.code.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            {/* Tutorial Button */}
+            <button
+              onClick={() => setIsTutorialOpen(true)}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-green-500/25 to-emerald-600/25 hover:from-green-500/40 hover:to-emerald-600/40 text-green-300 border border-green-500/30 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs font-bold"
+              title="Nasıl Kullanılır Rehberi"
+            >
+              <HelpCircle className="h-4 w-4" />
+              {t('navigation.tutorial')}
+            </button>
+
             {/* Brand Modifier Button */}
             <button
               onClick={() => {
@@ -713,7 +750,7 @@ export default function App() {
             >
               ✍️ Şirket Adı Ekle/Değiştir
             </button>
-            
+
             {/* Quick Switch Switcher for user role permissions */}
             <button
               onClick={toggleRole}
@@ -1086,7 +1123,7 @@ export default function App() {
                 ✕
               </button>
             </div>
-            
+
             <form onSubmit={(e) => {
               e.preventDefault();
               handleUpdateBrandName(tempBrandName);
@@ -1152,6 +1189,9 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Tutorial Modal */}
+      <Tutorial isOpen={isTutorialOpen} onClose={() => setIsTutorialOpen(false)} />
 
       {/* Ingress HMR and Port validation metrics */}
     </div>

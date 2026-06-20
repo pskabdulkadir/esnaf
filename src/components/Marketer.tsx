@@ -734,44 +734,16 @@ export default function Marketer({ brandName }: { brandName?: string }) {
     }
   };
 
-  // Generate marketing description with Gemini using target language localization
-  const generateAIMetaWithGemini = async () => {
+  const generateAIMetaWithGemini = () => {
     if (!prodName || !prodPrice || !prodDiscountPrice) {
       alert("Lütfen önce Ürün Adı, Raf Fiyatı ve İndirimli Fiyatı giriniz!");
       return;
     }
-    setIsGeneratingAI(true);
-    try {
-      const response = await fetch("/api/generate-seo-meta", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productName: prodName,
-          price: Number(prodPrice),
-          discountPrice: Number(prodDiscountPrice),
-          category: prodCategory,
-          merchantName: settings.merchantName,
-          targetLanguage: settings.language
-        })
-      });
-      if (response.ok) {
-        const data = await response.json();
-        setProdDescription(data.seoDescription || "");
-        setProdAdCopy(data.adCopy || "");
-        showToast("Yapay zeka reklam metnini ve SEO açıklamalarını başarıyla oluşturdu!", "success");
-      } else {
-        const fallbackDesc = `${prodName} işletmemizde muazzam indirimle yayında! ${prodPrice} TL yerine komşuluk jesti olarak sadece ${prodDiscountPrice} TL! Kaçırmayın.`;
-        setProdDescription(fallbackDesc);
-        setProdAdCopy(`🚨 BÜYÜK İNDİRİM! \n\n🏪 ${settings.merchantName} işletmemizde yeni kampanya! \n🏷️ ${prodName} sadece ${prodDiscountPrice} TL!\n\nHemen inceleyin:`);
-      }
-    } catch (err) {
-      console.error(err);
-      const fallbackDesc = `${prodName} işletmemizde muazzam indirimle yayında! ${prodPrice} TL yerine komşuluk jesti olarak sadece ${prodDiscountPrice} TL! Kaçırmayın.`;
-      setProdDescription(fallbackDesc);
-      setProdAdCopy(`🚨 BÜYÜK İNDİRİM! \n\n🏪 ${settings.merchantName} işletmemizde yeni kampanya! \n🏷️ ${prodName} sadece ${prodDiscountPrice} TL!\n\nHemen inceleyin:`);
-    } finally {
-      setIsGeneratingAI(false);
-    }
+    const percent = calculateDiscountPercent();
+    const fallbackDesc = `${prodName} işletmemizde muazzam indirimle yayında! ${prodPrice} TL yerine komşuluk jesti olarak sadece ${prodDiscountPrice} TL (%${percent} indirim)! Kaçırmayın.`;
+    setProdDescription(fallbackDesc);
+    setProdAdCopy(`🚨 BÜYÜK İNDİRİM! \n\n🏪 ${settings.merchantName} işletmemizde yeni kampanya! \n🏷️ ${prodName} sadece ${prodDiscountPrice} TL!\n💰 %${percent} tasarruf edin!\n\nHemen inceleyin:`);
+    showToast("Reklam metinleri hazır! Dilediğiniz gibi düzenleyebilirsiniz.", "success");
   };
 
   const calculateDiscountPercent = () => {
@@ -884,41 +856,25 @@ export default function Marketer({ brandName }: { brandName?: string }) {
   const regenerateAdCopyWithGemini = async (item: any) => {
     setIsRegeneratingAdId(item.id);
     try {
-      const response = await fetch("/api/generate-seo-meta", {
-        method: "POST",
+      const percent = Math.round(((item.originalPrice - item.discountPrice) / item.originalPrice) * 100);
+      const nextAdCopy = `🚨 HARIKA KAMPANYA! \n\n🏪 ${item.merchantName || settings.merchantName}\n🏷️ ${item.productName}\n💰 Sadece ${item.discountPrice} TL (%${percent} indirim!)\n\n👉 Hemen Tıkla ve Sipariş Ver!`;
+
+      await fetch(`/api/public-discounts/${item.id}`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          productName: item.productName,
-          price: Number(item.originalPrice),
-          discountPrice: Number(item.discountPrice),
-          category: item.category,
-          merchantName: item.merchantName || settings.merchantName,
-          targetLanguage: settings.language
-        })
+        body: JSON.stringify({ adCopy: nextAdCopy })
       });
-      if (response.ok) {
-        const data = await response.json();
-        const nextAdCopy = data.adCopy || "";
-        // Save to DB immediately so it updates everywhere
-        await fetch(`/api/public-discounts/${item.id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ adCopy: nextAdCopy, seoDescription: data.seoDescription })
-        });
-        // Clear editing state so the fresh copy shows up
-        setEditingAdCopies(prev => {
-          const next = { ...prev };
-          delete next[item.id];
-          return next;
-        });
-        showToast("Yapay Zeka yeni bir harika reklam yazısı hazırladı! ✨", "success");
-        fetchData();
-      } else {
-        throw new Error("Yapay zeka yanıt vermedi.");
-      }
+
+      setEditingAdCopies(prev => {
+        const next = { ...prev };
+        delete next[item.id];
+        return next;
+      });
+      showToast("Reklam yazısı güncellenmiştir! ✨", "success");
+      fetchData();
     } catch (err) {
       console.error(err);
-      showToast("Yapay zekadan yanıt alınamadı. Lütfen tekrar deneyin.", "error");
+      showToast("Güncelleme sırasında hata oluştu. Lütfen tekrar deneyin.", "error");
     } finally {
       setIsRegeneratingAdId(null);
     }
