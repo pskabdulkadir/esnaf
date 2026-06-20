@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Product } from '../types';
 import CameraBarcodeScanner from './CameraBarcodeScanner';
+import { TRANSLATIONS } from '../lib/translations';
 import { 
   Search, 
   Settings, 
@@ -20,9 +21,11 @@ import {
 interface QuickLookupProps {
   products: Product[];
   brandName?: string;
+  language?: 'tr' | 'en' | 'de';
 }
 
-export default function QuickLookup({ products, brandName = 'AKN Global Group' }: QuickLookupProps) {
+export default function QuickLookup({ products, brandName = 'AKN Global Group', language = 'tr' }: QuickLookupProps) {
+  const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // User settings state simulator matching USERSETTINGS("ScanInput")
   const [scanInput, setScanInput] = useState<string>(() => {
     // default to first product for clean initial display
@@ -61,10 +64,10 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
           <span className="text-xs font-mono font-bold tracking-widest uppercase">UX VIEW: QUICK LOOKUP</span>
         </div>
         <h1 className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">
-          Barkod ile Hızlı Ürün Bilgi Sorgulama
+          {t.lookupHeaderTitle}
         </h1>
         <p className="text-xs text-slate-500 mt-1">
-          AppSheet <code className="bg-slate-100 text-slate-700 px-1 py-0.5 rounded text-[10px] font-mono">ProductLookup</code> dilimi (Slice) formülü ve kullanıcı ayarları (UserSettings) simülasyonu.
+          {t.lookupHeaderSubtitle}
         </p>
       </div>
 
@@ -76,24 +79,24 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
             <div className="flex items-center gap-2 pb-3 border-b border-slate-100 mb-4">
               <Settings className="h-4.5 w-4.5 text-slate-600" />
-              <h3 className="font-bold text-slate-800 text-sm">USER SETTINGS (Kullanıcı Ayarları)</h3>
+              <h3 className="font-bold text-slate-800 text-sm">USER SETTINGS ({language === 'tr' ? 'Kullanıcı Ayarları' : language === 'de' ? 'Benutzereinstellungen' : 'User Settings'})</h3>
             </div>
 
             <p className="text-xs text-slate-500 leading-relaxed mb-4">
-              Uygulama genelinde kullanılmak üzere barkod bilgisini <code className="bg-slate-100 px-1 rounded text-red-650 font-mono text-[10px]">USERSETTINGS("ScanInput")</code> alanında saklayın.
+              {language === 'tr' ? 'Uygulama genelinde kullanılmak üzere barkod bilgisini USERSETTINGS("ScanInput") alanında saklayın.' : language === 'de' ? 'Speichern Sie Barcode-Daten in USERSETTINGS("ScanInput"), um sie in der gesamten Anwendung zu verwenden.' : 'Store barcode data in USERSETTINGS("ScanInput") for application-wide context.'}
             </p>
 
             <form onSubmit={handleApplySettings} className="space-y-4">
               <div>
                 <label className="block text-slate-450 font-bold uppercase text-[10px] tracking-wider font-mono mb-1.5">
-                  ScanInput (Sorgulanan Barkod)
+                  ScanInput ({language === 'tr' ? 'Sorgulanan Barkod' : language === 'de' ? 'Gesuchter Barcode' : 'Queried Barcode'})
                 </label>
                 <div className="relative">
                   <Barcode className="absolute left-3.5 top-3 h-4 w-4 text-slate-400" />
                   <input
                     type="text"
                     required
-                    placeholder="Örn: 840134789012"
+                    placeholder={t.barcodeSearchPlaceholder || "Örn: 840134789012"}
                     className="w-full text-xs pl-10 pr-3 py-2.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-500 bg-slate-50/55"
                     value={settingsScanInput}
                     onChange={(e) => setSettingsScanInput(e.target.value)}
@@ -107,13 +110,13 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                   onClick={() => setIsCameraOpen(true)}
                   className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-emerald-100"
                 >
-                  <Camera className="h-4 w-4" /> KAMERA İLE TARA
+                  <Camera className="h-4 w-4" /> {t.scanCameraLabel || 'KAMERA İLE TARA'}
                 </button>
                 <button
                   type="submit"
                   className="bg-slate-900 hover:bg-slate-800 text-amber-500 font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-amber-500/10 font-mono font-bold"
                 >
-                  SORGULA
+                  {language === 'tr' ? 'SORGULA' : language === 'de' ? 'ABFRAGEN' : 'QUERY'}
                 </button>
               </div>
             </form>
@@ -122,7 +125,7 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
           {/* Quick-test Barkod Selector */}
           <div className="bg-slate-50 rounded-2xl border border-slate-200/60 p-5">
             <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-3 block">
-              Mevcut Ürün Barkodları (Hızlı Test için Tıklayın)
+              {language === 'tr' ? 'Mevcut Ürün Barkodları (Hızlı Test)' : language === 'de' ? 'Verfügbare Barcodes (Schnelltest)' : 'Available Barcodes (Quick Test)'}
             </h4>
             <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
               {products.map((p) => (
@@ -140,7 +143,7 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                 >
                   <div className="min-w-0 pr-2">
                     <p className={`font-bold truncate ${scanInput === p.barcode ? 'text-indigo-700' : 'text-slate-700'}`}>{p.name}</p>
-                    <p className="font-mono text-[9px] text-slate-400 mt-0.5">Barkod: {p.barcode}</p>
+                    <p className="font-mono text-[9px] text-slate-400 mt-0.5">{language === 'tr' ? 'Barkod' : 'Barcode'}: {p.barcode}</p>
                   </div>
                   <ChevronRight className={`h-4 w-4 ${scanInput === p.barcode ? 'text-indigo-500' : 'text-slate-300'}`} />
                 </button>
@@ -162,7 +165,7 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                 <span className="text-xs font-bold tracking-wider text-slate-200">ProductLookup</span>
               </div>
               <span className="text-[10px] font-mono text-slate-400">
-                Filtre: [Barcode] = {scanInput ? `"${scanInput}"` : 'BOŞ'}
+                {language === 'tr' ? 'Süzgeç' : 'Filter'}: [Barcode] = {scanInput ? `"${scanInput}"` : 'BOŞ'}
               </span>
             </div>
 
@@ -186,7 +189,7 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                       </h2>
                     </div>
                     <div className="flex-shrink-0 bg-emerald-50 text-emerald-700 p-3 rounded-2xl border border-emerald-100 flex flex-col items-center justify-center font-mono font-bold text-center">
-                      <span className="text-[9px] text-emerald-600 font-sans uppercase">MEVCUT STOK</span>
+                      <span className="text-[9px] text-emerald-600 font-sans uppercase">{language === 'tr' ? 'MEVCUT STOK' : language === 'de' ? 'CURRENT BESTAND' : 'CURRENT STOCK'}</span>
                       <span className="text-xl mt-0.5">{lookupProduct.currentStock}</span>
                     </div>
                   </div>
@@ -197,7 +200,7 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                     {/* Detail 1: Sale Price */}
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60 text-center">
                       <span className="text-[9px] font-mono font-bold tracking-widest text-slate-400 uppercase">
-                        SATIŞ FİYATI
+                        {language === 'tr' ? 'SATIŞ FİYATI' : language === 'de' ? 'VERKAUFSPREIS' : 'SALE PRICE'}
                       </span>
                       <p className="text-lg font-bold font-mono text-indigo-600 mt-1">
                         ₺{lookupProduct.salePrice.toFixed(2)}
@@ -207,21 +210,23 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                     {/* Detail 2: Current Stock Indicator */}
                     <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/60 text-center">
                       <span className="text-[9px] font-mono font-bold tracking-widest text-slate-400 uppercase">
-                        GÜNCEL STOK DURUMU
+                        {language === 'tr' ? 'GÜNCEL STOK DURUMU' : language === 'de' ? 'BESTANDSSTATUS' : 'STOCK STATUS'}
                       </span>
                       <p className={`text-base font-bold mt-1.5 ${
                         lookupProduct.currentStock < lookupProduct.lowStockThreshold 
                           ? 'text-red-500' 
                           : 'text-slate-800'
                       }`}>
-                        {lookupProduct.currentStock < lookupProduct.lowStockThreshold ? '⚠️ Kritik Seviye' : '🟢 Yeterli Stok'}
+                        {lookupProduct.currentStock < lookupProduct.lowStockThreshold 
+                          ? (language === 'tr' ? '⚠️ Kritik Limit' : '⚠️ Critical Level') 
+                          : (language === 'tr' ? '🟢 Yeterli Stok' : '🟢 Adequate Stock')}
                       </p>
                     </div>
 
                     {/* Detail 3: Profit Margin (Virtual Column) */}
                     <div className="p-4 rounded-xl bg-indigo-50/40 border border-indigo-150 text-center relative overflow-hidden">
                       <span className="text-[9px] font-mono font-extrabold tracking-widest text-indigo-500 uppercase block">
-                        KÂR MARJI (Sanal)
+                        {language === 'tr' ? 'KÂR MARJI (Sanal)' : language === 'de' ? 'MARGE (Virtuell)' : 'PROFIT MARGIN (Virtual)'}
                       </span>
                       <p className="text-lg font-bold font-mono text-indigo-700 mt-1">
                         ₺{profitMargin.toFixed(2)}
@@ -242,18 +247,17 @@ export default function QuickLookup({ products, brandName = 'AKN Global Group' }
                     <code className="block bg-slate-100 p-2 rounded text-slate-600 font-mono text-[10px] break-all leading-relaxed">
                       ROW_FILTER: [Barcode] = LOOKUP(USERSETTINGS("ScanInput"), "Products", "Barcode", "Barcode")
                     </code>
-                    <p className="text-[10px] text-slate-400">
-                      * Bu detay görünümü sadece "ProductLookup" dilim süzgecinden süzülmüş olan ilgili benzersiz satırı listelemektedir.
-                    </p>
                   </div>
 
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col items-center justify-center py-10 text-center">
                   <Barcode className="h-12 w-12 text-slate-300 stroke-[1.5] mb-2 animate-pulse" />
-                  <p className="text-slate-700 text-xs font-bold">Eşleşen Ürün Bulunamadı</p>
+                  <p className="text-slate-700 text-xs font-bold">{t.lookupNotFound || 'Ürün Bulunamadı'}</p>
                   <p className="text-slate-400 text-[11px] max-w-sm mt-1">
-                    USERSETTINGS("ScanInput") değeri olan <code className="bg-slate-100 px-1 py-0.5 rounded font-mono text-[10px] text-red-650">"{scanInput}"</code> ile eşleşen bir ürün barkodu envanterde yer almıyor.
+                    {language === 'tr' 
+                      ? `USERSETTINGS("ScanInput") değeri olan "${scanInput}" barkodu envanterde yer almıyor.` 
+                      : `The barcode "${scanInput}" stored in USERSETTINGS("ScanInput") does not exist in inventory.`}
                   </p>
                 </div>
               )}

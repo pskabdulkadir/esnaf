@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Sale, Currency } from '../types';
 import CameraBarcodeScanner from './CameraBarcodeScanner';
+import { TRANSLATIONS } from '../lib/translations';
 import { 
   Barcode, 
   ShoppingCart, 
@@ -26,6 +27,7 @@ interface SalesEntryProps {
   onAddSale: (sale: Sale) => void;
   onNavigateToInventory: () => void;
   brandName?: string;
+  language?: 'tr' | 'en' | 'de';
 }
 
 interface CartItem {
@@ -43,7 +45,8 @@ const getCurrencySymbol = (currency: Currency): string => {
   }
 };
 
-export default function SalesEntry({ products, sales, onAddSale, onNavigateToInventory, brandName = 'AKN Global Group' }: SalesEntryProps) {
+export default function SalesEntry({ products, sales, onAddSale, onNavigateToInventory, brandName = 'AKN Global Group', language = 'tr' }: SalesEntryProps) {
+  const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // Point of Sale states
   const [selectedProductId, setSelectedProductId] = useState('');
   const [saleQuantity, setSaleQuantity] = useState<number>(1);
@@ -172,9 +175,9 @@ export default function SalesEntry({ products, sales, onAddSale, onNavigateToInv
       {/* View Header with AKN logo */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-5">
         <div>
-          <h1 className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">{brandName} Kurumsal Satış ve Kasa Paneli</h1>
+          <h1 className="text-xl font-bold tracking-tight text-slate-800 sm:text-2xl">{brandName} {t.cashSalesPoint}</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Sevk irasaliyelerini düzenleyin, kasa satışlarını kaydedin ve küresel envanter miktarını gerçek zamanlı düşürün.
+            {t.salesPointSubtitle}
           </p>
         </div>
 
@@ -187,7 +190,7 @@ export default function SalesEntry({ products, sales, onAddSale, onNavigateToInv
             <Camera className="h-4 w-4 text-amber-500 animate-pulse" />
             <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-emerald-500" />
           </div>
-          <span>CANLI KAMERA BARKOD OKUYUCU</span>
+          <span>{t.scanBarcodeBtn || 'CANLI KAMERA BARKOD OKUYUCU'}</span>
           <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] px-2 py-0.5 rounded-md group-hover:scale-105 transition-transform">
             ALT + S
           </span>

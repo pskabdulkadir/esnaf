@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { Product, UserRole, Currency } from '../types';
 import CameraBarcodeScanner from './CameraBarcodeScanner';
 import { jsPDF } from 'jspdf';
+import { TRANSLATIONS } from '../lib/translations';
 import {
   Package,
   Plus,
@@ -27,6 +28,7 @@ interface InventoryProps {
   onDeleteProduct: (id: string) => void;
   userRole: UserRole;
   brandName?: string;
+  language?: 'tr' | 'en' | 'de';
 }
 
 // Helper function to get currency symbol
@@ -39,7 +41,8 @@ const getCurrencySymbol = (currency: Currency): string => {
   }
 };
 
-export default function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct, userRole, brandName = 'AKN Global Group' }: InventoryProps) {
+export default function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct, userRole, brandName = 'AKN Global Group', language = 'tr' }: InventoryProps) {
+  const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tümü');

@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Expense } from '../types';
+import { TRANSLATIONS } from '../lib/translations';
 import { 
   FileText, 
   Plus, 
@@ -17,9 +18,11 @@ interface ExpensesProps {
   onAddExpense: (expense: Expense) => void;
   onDeleteExpense: (id: string) => void;
   brandName?: string;
+  language?: 'tr' | 'en' | 'de';
 }
 
-export default function Expenses({ expenses, onAddExpense, onDeleteExpense, brandName = 'AKN' }: ExpensesProps) {
+export default function Expenses({ expenses, onAddExpense, onDeleteExpense, brandName = 'AKN', language = 'tr' }: ExpensesProps) {
+  const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tümü');
