@@ -414,12 +414,20 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
     }, 4500);
   };
 
-  // 3-Step Google Ads wizard states
-  const [wizardStep, setWizardStep] = useState<number>(1);
+  // 3-Step Google Ads wizard states with localStorage persistence
+  const [wizardStep, setWizardStep] = useState<number>(() => {
+    const saved = localStorage.getItem('wizardStep');
+    return saved ? parseInt(saved, 10) : 1;
+  });
   const [wizardAnalyticsId, setWizardAnalyticsId] = useState<string>("");
   const [wizardAdsId, setWizardAdsId] = useState<string>("");
   const [wizardAdsLabel, setWizardAdsLabel] = useState<string>("");
   const [wizardError, setWizardError] = useState<string>("");
+
+  // Persist wizard step to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('wizardStep', wizardStep.toString());
+  }, [wizardStep]);
 
   // Sync wizard values with loaded settings once they are ready
   useEffect(() => {
