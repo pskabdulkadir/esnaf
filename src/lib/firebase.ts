@@ -254,6 +254,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
         lastOnlineTime: serverTimestamp()
       });
 
+      console.log('[AUTH_CHECK] Yeni cihaz Firestore\'da kaydedildi:', deviceId);
       isAccessAllowed = true;
     }
 
