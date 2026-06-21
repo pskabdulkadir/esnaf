@@ -14,6 +14,32 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
   const [validationMessage, setValidationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Sayfa yüklendiğinde localStorage'dan lisansı kontrol et
+  React.useEffect(() => {
+    try {
+      const storedLicense = localStorage.getItem('isLicenseValid');
+      if (storedLicense === 'true') {
+        // Lisans geçerli mi diye double-check et
+        const licenseDataStr = localStorage.getItem('license_data');
+        if (licenseDataStr) {
+          const licenseData = JSON.parse(licenseDataStr);
+          const expiryDate = new Date(licenseData.exp);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          expiryDate.setHours(0, 0, 0, 0);
+
+          // Eğer lisans geçerliyse, kullanıcıyı uygulamaya yönlendir
+          if (expiryDate >= today) {
+            onLicenseValid();
+            return;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('LocalStorage lisans kontrol hatası:', e);
+    }
+  }, [onLicenseValid]);
+
   const translations = {
     tr: {
       title: 'LİSANS VERİFİKASYON',

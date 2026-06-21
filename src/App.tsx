@@ -73,6 +73,29 @@ export default function App() {
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
 
+  // License validity check on mount
+  useEffect(() => {
+    try {
+      const licenseDataStr = localStorage.getItem('license_data');
+      if (licenseDataStr) {
+        const licenseData = JSON.parse(licenseDataStr);
+        const expiryDate = new Date(licenseData.exp);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        expiryDate.setHours(0, 0, 0, 0);
+
+        // Lisans süresi dolmuşsa, geçersiz yap
+        if (expiryDate < today) {
+          console.warn('Lisans süresi dolmuş, geçersiz yapılıyor');
+          setIsLicenseValid(false);
+          localStorage.setItem('isLicenseValid', 'false');
+        }
+      }
+    } catch (e) {
+      console.error('Lisans kontrolü hatası:', e);
+    }
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('akn_language', language);
