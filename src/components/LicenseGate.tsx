@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, CheckCircle } from 'lucide-react';
 import { getOrCreateMachineId } from '../lib/machine-id';
-import { ensureLicensePersistency } from '../lib/license-manager';
+import { ensureLicensePersistency, restoreFromBackup, validateLicenseFormat, isLicenseExpired } from '../lib/license-manager';
 
 interface LicenseGateProps {
   onLicenseValid: () => void;
@@ -15,29 +15,54 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
   const [validationMessage, setValidationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Sayfa yüklendiğinde localStorage'dan lisansı kontrol et
+  // Sayfa yüklendiğinde tüm seviyelerde lisansı kontrol et
   React.useEffect(() => {
     try {
+      // SEVIYE 1: localStorage kontrol
       const storedLicense = localStorage.getItem('isLicenseValid');
       if (storedLicense === 'true') {
-        // Lisans geçerli mi diye double-check et
         const licenseDataStr = localStorage.getItem('license_data');
         if (licenseDataStr) {
           const licenseData = JSON.parse(licenseDataStr);
-          const expiryDate = new Date(licenseData.exp);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          expiryDate.setHours(0, 0, 0, 0);
-
-          // Eğer lisans geçerliyse, kullanıcıyı uygulamaya yönlendir
-          if (expiryDate >= today) {
+          if (validateLicenseFormat(licenseData) && !isLicenseExpired(licenseData.exp)) {
+            console.log('✅ LicenseGate: localStorage\'dan lisans bulundu');
             onLicenseValid();
             return;
           }
         }
       }
+
+      // SEVIYE 2: sessionStorage kontrol
+      try {
+        const sessionLicense = sessionStorage.getItem('license_data_session');
+        if (sessionLicense) {
+          const licenseData = JSON.parse(sessionLicense);
+          if (validateLicenseFormat(licenseData) && !isLicenseExpired(licenseData.exp)) {
+            console.log('✅ LicenseGate: sessionStorage\'dan lisans bulundu');
+            // localStorage'a da yaz
+            localStorage.setItem('license_data', sessionLicense);
+            localStorage.setItem('isLicenseValid', 'true');
+            onLicenseValid();
+            return;
+          }
+        }
+      } catch (e2) {
+        console.warn('sessionStorage kontrol hatası:', e2);
+      }
+
+      // SEVIYE 3: Backup'tan geri yükle
+      const backupData = restoreFromBackup();
+      if (backupData && validateLicenseFormat(backupData) && !isLicenseExpired(backupData.exp)) {
+        console.log('✅ LicenseGate: Backup\'tan lisans geri yüklendi');
+        localStorage.setItem('isLicenseValid', 'true');
+        sessionStorage.setItem('license_data_session', JSON.stringify(backupData));
+        onLicenseValid();
+        return;
+      }
+
+      console.warn('❌ LicenseGate: Hiçbir seviyede geçerli lisans bulunamadı');
     } catch (e) {
-      console.warn('LocalStorage lisans kontrol hatası:', e);
+      console.warn('LicenseGate lisans kontrol hatası:', e);
     }
   }, [onLicenseValid]);
 
