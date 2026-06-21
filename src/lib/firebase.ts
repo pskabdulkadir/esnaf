@@ -24,7 +24,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
-const isFirebaseConfigValid = Object.values(firebaseConfig).every(val => val && val.trim && val.trim());
+const isFirebaseConfigValid = Object.values(firebaseConfig).every(val =>
+  val && typeof val === 'string' && val.trim() && !val.includes('Dummy') && !val.includes('your-')
+);
 
 // Initialize Firebase App
 export let app: any = null;
