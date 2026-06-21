@@ -97,197 +97,82 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   const deviceId = getOrCreateDeviceId();
   console.log('[AUTH_CHECK] Başlangıç - Device ID:', deviceId, 'DB var mı:', !!db);
 
-  // Storage fallback keys
-  const LAST_AUTH_CHECK = 'akn_last_auth_success_time';
-  const SEC_STATUS_KEY = 'akn_cached_auth_state'; // "true" or "false"
-  const SEC_VERSION_KEY = 'akn_cached_required_version';
-  const USER_ACCESS_KEY = 'akn_cached_user_access';
-
   const now = Date.now();
-  const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
 
-  // Helper local reader for grace calculation
-  const getCachedState = (): SecurityStatus => {
-    const lastCheck = localStorage.getItem(LAST_AUTH_CHECK);
-    const cachedAuth = localStorage.getItem(SEC_STATUS_KEY);
-    const cachedUserAccess = localStorage.getItem(USER_ACCESS_KEY) !== 'false'; // Default true if not set
-    const cachedReqVersion = localStorage.getItem(SEC_VERSION_KEY) || APP_CURRENT_VERSION;
-
-    // Check if user access is denied (isAccessAllowed = false)
-    if (cachedAuth === 'true' && !cachedUserAccess) {
-      return {
-        isLocked: true,
-        lockType: 'unauthorized',
-        errorMessage: 'Erişiminiz geçici olarak durdurulmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
-        offlineGraceActive: false
-      };
-    }
-
-    // Set fallback access allowed if first time initializing offline/sandbox
-    if (!lastCheck && !cachedAuth) {
-      localStorage.setItem(LAST_AUTH_CHECK, now.toString());
-      localStorage.setItem(SEC_STATUS_KEY, 'true');
-      localStorage.setItem(USER_ACCESS_KEY, 'true');
-      console.log('[AUTH_CHECK] Çevrimdışı mod: İlk erişim izni verildi');
-      return {
-        isLocked: false,
-        lockType: 'none',
-        offlineGraceActive: true,
-        daysRemainingInGrace: 3
-      };
-    }
-
-    if (cachedAuth === 'true' && lastCheck && cachedUserAccess) {
-      const lastCheckTime = parseInt(lastCheck, 10);
-      if (isNaN(lastCheckTime)) {
-        localStorage.removeItem(LAST_AUTH_CHECK);
-        return {
-          isLocked: true,
-          lockType: 'unauthorized',
-          errorMessage: 'Erişim doğrulama için internet bağlantısı gereklidir. Lütfen bağlantı sağlayarak devam etmeyi deneyin.',
-          offlineGraceActive: false
-        };
-      }
-      const diff = now - lastCheckTime;
-
-      if (diff < threeDaysMs) {
-        // Safe inside the 3-day grace period
-        const daysLeft = Math.max(0, parseFloat(((threeDaysMs - diff) / (24 * 60 * 60 * 1000)).toFixed(1)));
-
-        // Let's verify remote update cached as well
-        if (isVersionHigher(cachedReqVersion, APP_CURRENT_VERSION)) {
-          return {
-            isLocked: true,
-            lockType: 'update_required',
-            requiredVersion: cachedReqVersion,
-            offlineGraceActive: true,
-            daysRemainingInGrace: daysLeft
-          };
-        }
-
-        return {
-          isLocked: false,
-          lockType: 'none',
-          offlineGraceActive: true,
-          daysRemainingInGrace: daysLeft
-        };
-      }
-    }
-
-    // Offline mode: allow access with grace period
-    console.log('[AUTH_CHECK] Çevrimdışı mod: Erişim izni verildi');
+  // Always default to ALLOW - kritik hata için offline mode
+  const allowByDefault = (): SecurityStatus => {
+    console.log('[AUTH_CHECK] ✓ Varsayılan izin: Sistem açık (çevrimdışı mod)');
     return {
       isLocked: false,
       lockType: 'none',
       offlineGraceActive: true,
-      daysRemainingInGrace: 3
+      daysRemainingInGrace: 999
     };
   };
 
-  // If developer tool or host is loaded completely offline without Firestore db instantiation
+  // Firestore connection yoksa - offline mode, erişime izin
   if (!db) {
-    console.log('[AUTH_CHECK] Firebase DB yoktur, çevrimdışı mod başlatılıyor...');
-    return getCachedState();
+    console.log('[AUTH_CHECK] Firebase DB yoktur, çevrimdışı mod - erişime izin verildi');
+    return allowByDefault();
   }
 
   try {
-    console.log('[AUTH_CHECK] Firebase bağlantısı başarılı, Config okunuyor...');
-    // 1. Fetch system-wide config for required version comparison
-    const systemConfigRef = doc(db, 'Config', 'system');
-    let requiredVersion = APP_CURRENT_VERSION;
-
-    try {
-      const configSnap = await getDoc(systemConfigRef);
-      console.log('[AUTH_CHECK] Config kontrol edildi');
-      if (configSnap.exists()) {
-        const data = configSnap.data();
-        if (data && data.requiredVersion) {
-          requiredVersion = data.requiredVersion;
-          localStorage.setItem(SEC_VERSION_KEY, requiredVersion);
-        }
-      } else {
-        // Seed initial system config if not exist for user convenience
-        await setDoc(systemConfigRef, {
-          requiredVersion: APP_CURRENT_VERSION,
-          lastUpdated: serverTimestamp()
-        }, { merge: true });
-      }
-    } catch (err) {
-      console.warn("Sistem yapılandırması alınamadı, yedek sürüm kullanılıyor", err);
-    }
-
-    // 2. Check update requirement
-    if (isVersionHigher(requiredVersion, APP_CURRENT_VERSION)) {
-      return {
-        isLocked: true,
-        lockType: 'update_required',
-        requiredVersion,
-        offlineGraceActive: false
-      };
-    }
-
-    // 3. Fetch user doc from Users collection
-    console.log('[AUTH_CHECK] Devices koleksiyonundan cihaz okunuyor...');
+    console.log('[AUTH_CHECK] Firestore\'a bağlanılıyor...');
     const deviceRef = doc(db, 'Devices', deviceId);
-    let isAccessAllowed = true;
-
     const deviceSnap = await getDoc(deviceRef);
-    console.log('[AUTH_CHECK] Cihaz belge var mı:', deviceSnap.exists(), 'Data:', deviceSnap.data());
+
     if (deviceSnap.exists()) {
       const data = deviceSnap.data();
-      isAccessAllowed = data?.isAccessAllowed !== false;
-      console.log('[AUTH_CHECK] Device data:', data, 'isAccessAllowed:', isAccessAllowed);
+      console.log('[AUTH_CHECK] Cihaz Firestore\'da bulundu:', data);
 
-      // Update metadata on server asynchronously
+      // ONLY block if explicitly set to false
+      const isAccessAllowed = data?.isAccessAllowed !== false;
+
+      if (!isAccessAllowed) {
+        console.log('[AUTH_CHECK] ❌ Cihaz erişimi KAPATILDI (isAccessAllowed: false)');
+        return {
+          isLocked: true,
+          lockType: 'unauthorized',
+          errorMessage: 'Erişiminiz yönetici tarafından durdurulmuştur. Lütfen iletişime geçiniz.',
+          offlineGraceActive: false
+        };
+      }
+
+      console.log('[AUTH_CHECK] ✓ Cihaz erişimi açık');
+
+      // Async metadata update (non-blocking)
       setDoc(deviceRef, {
         currentVersion: APP_CURRENT_VERSION,
         lastOnlineTime: serverTimestamp(),
         platform: "Web Portal"
-      }, { merge: true }).catch(e => console.warn("Kullanıcı telemetrisi güncellenemedi", e));
+      }, { merge: true }).catch(e => console.warn("Metadata güncellemesi hatası:", e));
 
+      return allowByDefault();
     } else {
-      // İlk kez kaydedilen cihaz - varsayılan olarak erişim izni verilir
-      await setDoc(deviceRef, {
-        deviceId,
-        isAccessAllowed: true,
-        currentVersion: APP_CURRENT_VERSION,
-        platform: "Web Portal",
-        createdAt: serverTimestamp(),
-        lastOnlineTime: serverTimestamp()
-      });
+      // OTOMATIK KAYIT: Device yoksa, hemen oluştur
+      console.log('[AUTH_CHECK] Yeni cihaz - otomatik kayıt yapılıyor...');
+      try {
+        await setDoc(deviceRef, {
+          deviceId,
+          isAccessAllowed: true,
+          currentVersion: APP_CURRENT_VERSION,
+          platform: "Web Portal",
+          createdAt: serverTimestamp(),
+          lastOnlineTime: serverTimestamp()
+        });
 
-      console.log('[AUTH_CHECK] Yeni cihaz Firestore\'da kaydedildi:', deviceId);
-      isAccessAllowed = true;
-    }
+        console.log('[AUTH_CHECK] ✓ Yeni cihaz kaydedildi:', deviceId);
+      } catch (createErr) {
+        console.warn('[AUTH_CHECK] Cihaz kaydı başarısız, çevrimdışı mod devam ediyor:', createErr);
+      }
 
-    // 4. Record local verification status for offline grace validation
-    if (isAccessAllowed) {
-      localStorage.setItem(LAST_AUTH_CHECK, now.toString());
-      localStorage.setItem(SEC_STATUS_KEY, 'true');
-      localStorage.setItem(USER_ACCESS_KEY, 'true');
-
-      return {
-        isLocked: false,
-        lockType: 'none',
-        offlineGraceActive: true,
-        daysRemainingInGrace: 3
-      };
-    } else {
-      localStorage.setItem(LAST_AUTH_CHECK, now.toString()); // Set timestamp for offline denial check
-      localStorage.setItem(SEC_STATUS_KEY, 'true'); // Connection was successful
-      localStorage.setItem(USER_ACCESS_KEY, 'false'); // But access is denied
-
-      return {
-        isLocked: true,
-        lockType: 'unauthorized',
-        errorMessage: 'Erişiminiz geçici olarak durdurulmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
-        offlineGraceActive: false
-      };
+      return allowByDefault();
     }
   } catch (err: any) {
-    console.error("[AUTH_CHECK] HATA!", err.code, err.message);
-    console.warn("Erişim sorgulaması başarısız. Çevrimdışı güvenlik stratejisi başlatılıyor", err);
-    return getCachedState();
+    // KRITIK HATA YÖNETİMİ: Firestore hatası → offline mode, erişime izin
+    console.error("[AUTH_CHECK] Firestore hatası, çevrimdışı mod aktivasyonu:", err.code, err.message);
+    console.log('[AUTH_CHECK] Sistem çevrimdışı modda çalışacak - erişime izin verildi');
+    return allowByDefault();
   }
 }
 
