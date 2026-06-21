@@ -24,13 +24,19 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+const isFirebaseConfigValid = Object.values(firebaseConfig).every(val => val && val.trim && val.trim());
+
 // Initialize Firebase App
 export let app: any = null;
 export let db: Firestore | null = null;
 
 try {
-  app = initializeApp(firebaseConfig);
-  db = getFirestore(app);
+  if (!isFirebaseConfigValid) {
+    console.warn('Firebase configuration incomplete. Set env variables in .env file');
+  } else {
+    app = initializeApp(firebaseConfig);
+    db = getFirestore(app);
+  }
 
   // Enable offline persistence for better UX on slow/unstable networks
   enableIndexedDbPersistence(db)
