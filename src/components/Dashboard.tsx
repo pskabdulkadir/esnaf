@@ -1,6 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Product, Sale, Expense, Currency } from '../types';
 import { TRANSLATIONS } from '../lib/translations';
+import LicensePanel from './LicensePanel';
 import {
   TrendingUp,
   TrendingDown,
@@ -40,6 +41,12 @@ const getCurrencySymbol = (currency: Currency): string => {
 
 export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd', language = 'tr', onDownloadBackup }: DashboardProps) {
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
+  const [, setLicenseUpdated] = useState(0);
+
+  const handleLicenseUpdated = () => {
+    setLicenseUpdated(prev => prev + 1);
+  };
+
   // Calculations
   const totalSalesAmount = useMemo(() => {
     return sales.reduce((acc, sale) => acc + sale.totalAmount, 0);
@@ -121,6 +128,9 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
 
   return (
     <div className="space-y-8 animate-fade-in">
+      {/* License Information Panel */}
+      <LicensePanel language={language} onLicenseUpdated={handleLicenseUpdated} />
+
       {/* Welcome Title */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>

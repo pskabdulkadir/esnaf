@@ -26,6 +26,10 @@ import {
   restoreDataFromFirestore,
   type SecurityStatus
 } from './lib/firebase';
+import {
+  checkAndRestoreLicenseValidity,
+  restoreFromBackup
+} from './lib/license-manager';
 import { 
   Building2, 
   LayoutDashboard, 
@@ -74,25 +78,34 @@ export default function App() {
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
 
   // License validity check on mount
+  // ⭐ ÖZEL: Tarayıcı sıfırlandığında bile lisans bilgilerini geri yükle
   useEffect(() => {
     try {
-      const licenseDataStr = localStorage.getItem('license_data');
-      if (licenseDataStr) {
-        const licenseData = JSON.parse(licenseDataStr);
-        const expiryDate = new Date(licenseData.exp);
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        expiryDate.setHours(0, 0, 0, 0);
+      // Adım 1: localStorage'dan lisans bilgisini kontrol et ve geri yükle
+      const isValid = checkAndRestoreLicenseValidity();
 
-        // Lisans süresi dolmuşsa, geçersiz yap
-        if (expiryDate < today) {
-          console.warn('Lisans süresi dolmuş, geçersiz yapılıyor');
+      if (isValid) {
+        // Lisans geçerli
+        setIsLicenseValid(true);
+        console.log('✅ Lisans başarıyla geri yüklendi');
+      } else {
+        // Lisans geçersiz, backup'tan geri yüklemeyi dene
+        console.warn('⚠️ Ana lisans verisi geçersiz, backup\'tan geri yüklenmeye çalışılıyor...');
+        const backupData = restoreFromBackup();
+
+        if (backupData) {
+          // Backup'tan geri yüklenmiş
+          setIsLicenseValid(true);
+          console.log('✅ Lisans backup\'tan geri yüklendi');
+        } else {
+          // Backup da yoksa, lisans yok
           setIsLicenseValid(false);
-          localStorage.setItem('isLicenseValid', 'false');
+          console.warn('❌ Lisans bilgisi bulunamadı');
         }
       }
     } catch (e) {
       console.error('Lisans kontrolü hatası:', e);
+      setIsLicenseValid(false);
     }
   }, []);
 

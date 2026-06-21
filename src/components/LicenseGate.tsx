@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Copy, CheckCircle } from 'lucide-react';
 import { getOrCreateMachineId } from '../lib/machine-id';
+import { ensureLicensePersistency } from '../lib/license-manager';
 
 interface LicenseGateProps {
   onLicenseValid: () => void;
@@ -177,6 +178,9 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
         localStorage.setItem('license_key_submitted', licenseKey);
         localStorage.setItem('license_data', JSON.stringify(licenseData));
         localStorage.setItem('isLicenseValid', 'true');
+
+        // ⭐ ÖZEL: Lisans kalıcılığını sağla (tarayıcı sıfırlanırsa da saklanır)
+        ensureLicensePersistency(licenseData);
 
         setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
 
