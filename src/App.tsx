@@ -706,7 +706,16 @@ export default function App() {
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const isShowcaseUrl = urlParams.get('view') === 'showcase' || urlParams.has('slug') || urlParams.has('discountId');
 
-  // Lisans kontrolü
+  // Showcase/Reklam linklerine lisans kontrolü yapma - Herkes görebilir
+  if (isShowcaseUrl) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-text antialiased">
+        <Marketer brandName={brandName} />
+      </div>
+    );
+  }
+
+  // Lisans kontrolü - Sadece admin paneline girerken
   if (!isLicenseValid) {
     return (
       <LicenseGate
@@ -716,14 +725,6 @@ export default function App() {
         }}
         language={language}
       />
-    );
-  }
-
-  if (isShowcaseUrl) {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col font-sans select-text antialiased">
-        <Marketer brandName={brandName} />
-      </div>
     );
   }
 
