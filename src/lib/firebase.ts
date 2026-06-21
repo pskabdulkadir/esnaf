@@ -150,20 +150,28 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
       return allowByDefault();
     } else {
       // OTOMATIK KAYIT: Device yoksa, hemen oluştur
-      console.log('[AUTH_CHECK] Yeni cihaz - otomatik kayıt yapılıyor...');
+      console.log('[AUTH_CHECK] Firestore\'da cihaz belgesi yok - otomatik kayıt yapılıyor...', { path: `Devices/${deviceId}` });
       try {
-        await setDoc(deviceRef, {
+        const deviceData = {
           deviceId,
           isAccessAllowed: true,
           currentVersion: APP_CURRENT_VERSION,
           platform: "Web Portal",
           createdAt: serverTimestamp(),
           lastOnlineTime: serverTimestamp()
-        });
+        };
 
-        console.log('[AUTH_CHECK] ✓ Yeni cihaz kaydedildi:', deviceId);
-      } catch (createErr) {
-        console.warn('[AUTH_CHECK] Cihaz kaydı başarısız, çevrimdışı mod devam ediyor:', createErr);
+        console.log('[AUTH_CHECK] Yazılacak veri:', deviceData);
+        await setDoc(deviceRef, deviceData);
+
+        console.log('[AUTH_CHECK] ✓ Yeni cihaz başarıyla kaydedildi:', deviceId);
+      } catch (createErr: any) {
+        console.error('[AUTH_CHECK] ❌ Cihaz kaydı hatası:', {
+          code: createErr?.code,
+          message: createErr?.message,
+          fullError: createErr
+        });
+        console.log('[AUTH_CHECK] Çevrimdışı mod devam ediyor - sistem açık kalacak');
       }
 
       return allowByDefault();
