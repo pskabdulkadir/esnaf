@@ -34,10 +34,20 @@ export let db: Firestore | null = null;
 
 try {
   if (!isFirebaseConfigValid) {
-    console.warn('Firebase configuration incomplete. Set env variables in .env file');
+    console.warn('⚠️ Firebase configuration incomplete. Set env variables in .env file');
   } else {
+    console.log('🔥 Firebase başlatılıyor...');
+    console.log('📝 Config:', {
+      projectId: firebaseConfig.projectId,
+      authDomain: firebaseConfig.authDomain,
+      apiKey: firebaseConfig.apiKey ? '***SET***' : 'NOT SET'
+    });
+
     app = initializeApp(firebaseConfig);
     db = getFirestore(app);
+
+    console.log('✅ Firebase başarıyla başlatıldı!');
+    console.log('🗄️ Firestore DB ready:', !!db);
   }
 
   // Enable offline persistence for better UX on slow/unstable networks
@@ -188,7 +198,11 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
 
     } else {
       // OTOMATIK KAYIT: firstConnectionDate ile
-      console.log('[AUTH_CHECK] Yeni cihaz - otomatik kayıt...');
+      console.log('[AUTH_CHECK] ========================================');
+      console.log('[AUTH_CHECK] YENİ CİHAZ KAYDEDILIYOR');
+      console.log('[AUTH_CHECK] Path:', `Devices/${deviceId}`);
+      console.log('[AUTH_CHECK] ========================================');
+
       try {
         const deviceData = {
           deviceId,
@@ -200,11 +214,20 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
           lastOnlineTime: serverTimestamp()
         };
 
-        console.log('[AUTH_CHECK] Yazılacak veri:', deviceData);
+        console.log('[AUTH_CHECK] Yazılacak veri:', JSON.stringify(deviceData, null, 2));
+        console.log('[AUTH_CHECK] DB nesnesi:', !!db, 'Tipi:', typeof db);
+
         await setDoc(deviceRef, deviceData);
-        console.log('[AUTH_CHECK] ✓ Yeni cihaz kaydedildi:', deviceId);
+        console.log('[AUTH_CHECK] ✅ ✅ ✅ YENİ CİHAZ BAŞARILI KAYDEDILDI ✅ ✅ ✅');
+        console.log('[AUTH_CHECK] Device ID:', deviceId);
+        console.log('[AUTH_CHECK] Firestore path: Devices/', deviceId);
       } catch (createErr: any) {
-        console.error('[AUTH_CHECK] ❌ Kaydı hatası:', createErr?.code, createErr?.message);
+        console.error('[AUTH_CHECK] ========================================');
+        console.error('[AUTH_CHECK] ❌ CİHAZ KAYDI HATASI');
+        console.error('[AUTH_CHECK] Error Code:', createErr?.code);
+        console.error('[AUTH_CHECK] Error Message:', createErr?.message);
+        console.error('[AUTH_CHECK] Full Error:', createErr);
+        console.error('[AUTH_CHECK] ========================================');
       }
 
       return createStatus(false, 'none', true, true, TRIAL_DAYS);
