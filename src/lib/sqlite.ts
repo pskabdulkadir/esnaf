@@ -221,6 +221,16 @@ class SQLiteDatabase {
   }
 
   /**
+   * Import backup records unconditionally, overwriting any current values.
+   */
+  public importBackup(products: any[], sales: any[], expenses: any[]) {
+    this.tables.Products = Array.isArray(products) ? [...products] : [];
+    this.tables.Sales = Array.isArray(sales) ? [...sales] : [];
+    this.tables.Expenses = Array.isArray(expenses) ? [...expenses] : [];
+    this.saveToStorage();
+  }
+
+  /**
    * Export the SQLite records as standard SQL query string dump (CREATE + INSERT statements)
    */
   public exportToSQLDump(): string {

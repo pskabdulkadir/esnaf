@@ -3,7 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Product, Sale, Expense, UserRole } from './types';
 import { INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES } from './data';
 import Dashboard from './components/Dashboard';
-import { SkeletonLoader } from './components/SkeletonLoader';
+import LicenseGate from './components/LicenseGate';
 
 // Lazy load heavy components for faster initial load
 const Inventory = lazy(() => import('./components/Inventory'));
@@ -50,6 +50,15 @@ import {
 } from 'lucide-react';
 
 export default function App() {
+  // License State
+  const [isLicenseValid, setIsLicenseValid] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('isLicenseValid') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
 
@@ -515,7 +524,20 @@ export default function App() {
         docSettings: localStorage.getItem('automation_doc_settings') ? JSON.parse(localStorage.getItem('automation_doc_settings')!) : {},
         publicDiscounts: publicDiscountsList,
         settings: storeSettings,
-        campaigns: campaignsList
+        campaigns: campaignsList,
+        localConfigs: {
+          akn_brand_name: localStorage.getItem('akn_brand_name') || '',
+          akn_language: localStorage.getItem('akn_language') || '',
+          akn_role: localStorage.getItem('akn_role') || '',
+          akn_first_access_time: localStorage.getItem('akn_first_access_time') || '',
+          akn_scanner_sound: localStorage.getItem('akn_scanner_sound') || '',
+          akn_guide_muted: localStorage.getItem('akn_guide_muted') || '',
+          wizardStep: localStorage.getItem('wizardStep') || '',
+          googleAnalyticsId: localStorage.getItem('googleAnalyticsId') || '',
+          adsConversionId: localStorage.getItem('adsConversionId') || '',
+          adsLabel: localStorage.getItem('adsLabel') || '',
+          ad_settings: localStorage.getItem('ad_settings') || ''
+        }
       };
 
       const jsonString = JSON.stringify(backupData, null, 2);
@@ -561,17 +583,53 @@ export default function App() {
         // Clear and restore data
         showToast("Veriler yükleniyor...", "info");
 
-        // Clear old data
-        sqliteDb.resetToDefaults([], [], []);
-
-        // Insert restored data
-        if (backupData.products && backupData.products.length > 0) {
-          sqliteDb.initializeDefaults(backupData.products, backupData.sales || [], backupData.expenses || []);
-        }
+        // Use direct robust import instead of length-dependent default initialization
+        sqliteDb.importBackup(backupData.products, backupData.sales || [], backupData.expenses || []);
 
         // Restore doc settings
         if (backupData.docSettings) {
           localStorage.setItem('automation_doc_settings', JSON.stringify(backupData.docSettings));
+        }
+
+        // Restore local configuration parameters for other devices
+        if (backupData.localConfigs) {
+          const cfg = backupData.localConfigs;
+          if (cfg.akn_brand_name) {
+            localStorage.setItem('akn_brand_name', cfg.akn_brand_name);
+            setBrandName(cfg.akn_brand_name);
+          }
+          if (cfg.akn_language) {
+            localStorage.setItem('akn_language', cfg.akn_language);
+            setLanguage(cfg.akn_language as 'tr' | 'en' | 'de');
+          }
+          if (cfg.akn_role) {
+            localStorage.setItem('akn_role', cfg.akn_role);
+            setUserRole(cfg.akn_role as UserRole);
+          }
+          if (cfg.akn_first_access_time) {
+            localStorage.setItem('akn_first_access_time', cfg.akn_first_access_time);
+          }
+          if (cfg.akn_scanner_sound) {
+            localStorage.setItem('akn_scanner_sound', cfg.akn_scanner_sound);
+          }
+          if (cfg.akn_guide_muted) {
+            localStorage.setItem('akn_guide_muted', cfg.akn_guide_muted);
+          }
+          if (cfg.wizardStep) {
+            localStorage.setItem('wizardStep', cfg.wizardStep);
+          }
+          if (cfg.googleAnalyticsId) {
+            localStorage.setItem('googleAnalyticsId', cfg.googleAnalyticsId);
+          }
+          if (cfg.adsConversionId) {
+            localStorage.setItem('adsConversionId', cfg.adsConversionId);
+          }
+          if (cfg.adsLabel) {
+            localStorage.setItem('adsLabel', cfg.adsLabel);
+          }
+          if (cfg.ad_settings) {
+            localStorage.setItem('ad_settings', cfg.ad_settings);
+          }
         }
 
         // Bulk restore server marketing data, settings, and campaigns
@@ -592,7 +650,7 @@ export default function App() {
           }
         }
 
-        // Reload from SQLite
+        // Reload state elements directly from the restored SQLite database
         await reloadDataFromSQLite();
         showToast("✅ Tüm verileriniz başarıyla yüklendi ve eşitlendi!", "success");
       } catch (e) {
@@ -624,6 +682,19 @@ export default function App() {
 
   const urlParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '');
   const isShowcaseUrl = urlParams.get('view') === 'showcase' || urlParams.has('slug') || urlParams.has('discountId');
+
+  // Lisans kontrolü
+  if (!isLicenseValid) {
+    return (
+      <LicenseGate
+        onLicenseValid={() => {
+          setIsLicenseValid(true);
+          localStorage.setItem('isLicenseValid', 'true');
+        }}
+        language={language}
+      />
+    );
+  }
 
   if (isShowcaseUrl) {
     return (
@@ -871,6 +942,31 @@ export default function App() {
         </div>
       </header>
 
+      {/* Safe Storage Status Banner */}
+      <div className="bg-amber-500/10 border-b border-amber-500/15 text-slate-800 py-2.5 px-4 shadow-xs">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <p className="font-semibold text-[11px] text-amber-900 leading-normal">
+              {language === 'tr' 
+                ? "Güvenlik Uyarısı: Bu sistem tarayıcınızın kendi güvenli belleğinde çalışıyor. Tarayıcınızı sıfırlamadan veya çerezleri temizlemeden önce mutlaka 'Günlük Yedek Al' butonuna tıklayarak verilerinizi indirin."
+                : "Security Warning: This system runs in your browser's own secure database storage. Please download a backup before resetting the browser."
+              }
+            </p>
+          </div>
+          <button
+            onClick={handleDownloadBackup}
+            className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-700 text-white font-black text-[10px] px-3.5 py-1.5 rounded-lg transition-all shadow-sm active:scale-95 cursor-pointer uppercase tracking-wider"
+          >
+            <Download className="h-3.5 w-3.5" />
+            {language === 'tr' ? 'Günlük Yedek Al' : 'Take Daily Backup'}
+          </button>
+        </div>
+      </div>
+
       {/* Main Container Workspace */}
       <div className="flex-1 flex flex-col md:flex-row max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 gap-8">
         
@@ -1045,33 +1141,78 @@ export default function App() {
             </div>
           </div>
 
-          {/* SQLite Sovereignty & Cloud Security Control Center */}
+          {/* License Information Panel */}
           <div className="mt-4 bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 space-y-3 shadow-lg shadow-slate-900/20">
             <p className="font-bold text-slate-200 flex items-center gap-1.5 text-[11px] uppercase tracking-wider font-mono">
               <Server className="h-4 w-4 text-emerald-400" />
-              {t.sqliteSovereignty}
+              {language === 'tr' ? 'Lisans Bilgisi' : language === 'de' ? 'Lizenzinformation' : 'License Information'}
             </p>
-            
+
             <div className="space-y-1 font-mono text-[9px] text-slate-350">
-              <div className="flex justify-between border-b border-slate-800/60 pb-1">
-                <span>{t.deviceIdentity}</span>
-                <span className="font-bold text-amber-400">{getOrCreateDeviceId()}</span>
-              </div>
-              <div className="flex justify-between border-b border-slate-800/60 pb-1">
-                <span>{t.portalVersion}</span>
-                <span className="font-bold text-indigo-300">v{APP_CURRENT_VERSION}</span>
-              </div>
-              
-              {securityStatus.offlineGraceActive ? (
-                <div className="bg-emerald-950/40 text-emerald-455 p-1.5 rounded border border-emerald-900/30 font-semibold leading-normal mt-1 text-center">
-                  ⚡ {t.offlineGrace}: {securityStatus.daysRemainingInGrace} {language === 'tr' ? 'gün kaldı' : language === 'de' ? 'Tage übrig' : 'days left'}
-                </div>
-              ) : (
-                <div className="flex justify-between text-[8px] text-emerald-400">
-                  <span>{t.cloudLicenseStatus}</span>
-                  <span className="font-bold">AKTİF & DOĞRULANDI</span>
-                </div>
-              )}
+              {(() => {
+                try {
+                  const licenseDataStr = localStorage.getItem('license_data');
+                  if (!licenseDataStr) {
+                    return (
+                      <div className="text-amber-400 text-center py-2">
+                        {language === 'tr' ? 'Lisans Bilgisi Yüklenmedi' : language === 'de' ? 'Lizenzinformation nicht geladen' : 'License Info Not Loaded'}
+                      </div>
+                    );
+                  }
+
+                  const licenseData = JSON.parse(licenseDataStr);
+                  const expiryDate = new Date(licenseData.exp);
+                  const today = new Date();
+                  today.setHours(0, 0, 0, 0);
+                  expiryDate.setHours(0, 0, 0, 0);
+
+                  const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                  const isExpired = daysLeft <= 0;
+                  const isWarning = daysLeft > 0 && daysLeft <= 7;
+
+                  return (
+                    <>
+                      <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                        <span>{language === 'tr' ? 'Lisans Türü' : language === 'de' ? 'Lizenztyp' : 'License Type'}</span>
+                        <span className="font-bold text-indigo-400 capitalize">{licenseData.type}</span>
+                      </div>
+                      <div className="flex justify-between border-b border-slate-800/60 pb-1">
+                        <span>{language === 'tr' ? 'Süresi Biten Tarih' : language === 'de' ? 'Ablaufdatum' : 'Expiry Date'}</span>
+                        <span className={`font-bold ${isExpired ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {expiryDate.toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'de' ? 'de-DE' : 'en-US')}
+                        </span>
+                      </div>
+                      <div className={`flex justify-between ${!isExpired && 'border-b border-slate-800/60 pb-1'}`}>
+                        <span>{language === 'tr' ? 'Kalan Gün' : language === 'de' ? 'Verbleibende Tage' : 'Days Remaining'}</span>
+                        <span className={`font-bold ${isExpired ? 'text-red-400' : isWarning ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {isExpired ? (
+                            <span className="text-red-400">⚠️ {language === 'tr' ? 'Süresi Doldu' : language === 'de' ? 'Abgelaufen' : 'Expired'}</span>
+                          ) : (
+                            <>{daysLeft} {language === 'tr' ? 'gün' : language === 'de' ? 'Tage' : 'days'}</>
+                          )}
+                        </span>
+                      </div>
+                      {isWarning && !isExpired && (
+                        <div className="bg-amber-950/40 text-amber-300 p-1.5 rounded border border-amber-900/30 font-semibold leading-normal mt-1 text-center text-[9px]">
+                          ⏰ {language === 'tr' ? 'Lisansınızın süresi yakında bitecek!' : language === 'de' ? 'Ihre Lizenz läuft bald ab!' : 'Your license will expire soon!'}
+                        </div>
+                      )}
+                      {isExpired && (
+                        <div className="bg-red-950/40 text-red-300 p-1.5 rounded border border-red-900/30 font-semibold leading-normal mt-1 text-center text-[9px]">
+                          ❌ {language === 'tr' ? 'Lisansınızın süresi dolmuştur!' : language === 'de' ? 'Ihre Lizenz ist abgelaufen!' : 'Your license has expired!'}
+                        </div>
+                      )}
+                    </>
+                  );
+                } catch (e) {
+                  console.error('Lisans bilgisi okunamadı:', e);
+                  return (
+                    <div className="text-red-400 text-center py-2 text-[9px]">
+                      {language === 'tr' ? 'Lisans Bilgisi Hatası' : language === 'de' ? 'Lizenzfehler' : 'License Error'}
+                    </div>
+                  );
+                }
+              })()}
             </div>
 
             {/* Dışa Aktar Actions */}
@@ -1143,6 +1284,7 @@ export default function App() {
               onNavigate={(view) => setCurrentTab(view)}
               brandName={brandName}
               language={language}
+              onDownloadBackup={handleDownloadBackup}
             />
           )}
 

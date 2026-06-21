@@ -13,7 +13,9 @@ import {
   Layers,
   Truck,
   FileText,
-  MessageCircle
+  MessageCircle,
+  Download,
+  Server
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -23,6 +25,7 @@ interface DashboardProps {
   onNavigate: (view: string) => void;
   brandName?: string;
   language?: 'tr' | 'en' | 'de';
+  onDownloadBackup?: () => void;
 }
 
 // Helper function to get currency symbol
@@ -35,7 +38,7 @@ const getCurrencySymbol = (currency: Currency): string => {
   }
 };
 
-export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd', language = 'tr' }: DashboardProps) {
+export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd', language = 'tr', onDownloadBackup }: DashboardProps) {
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // Calculations
   const totalSalesAmount = useMemo(() => {
@@ -140,6 +143,34 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
             <MessageCircle className="h-4 w-4" />
             {language === 'tr' ? 'WhatsApp İletişim' : language === 'de' ? 'WhatsApp Kontakt' : 'WhatsApp Contact'}
           </a>
+        </div>
+      </div>
+
+      {/* Daily Backup & Safe Local Storage Alert Banner */}
+      <div className="bg-amber-50 rounded-2xl border border-amber-200/80 p-5 text-amber-900 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="p-2.5 bg-amber-100 rounded-xl text-amber-700 flex-shrink-0">
+              <Server className="h-5 w-5 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-amber-950 flex items-center gap-1.5 font-sans uppercase tracking-wider">
+                ⚠️ Güvenlik Uyarısı & Günlük Yedekleme Hatırlatıcı
+              </p>
+              <p className="text-xs text-amber-800 leading-relaxed font-medium mt-1">
+                Bu sistem tarayıcınızın kendi güvenli belleğinde çalışıyor. Tarayıcınızı sıfırlamadan veya çerezleri temizlemeden önce mutlaka <span className="font-bold underline">"Günlük Yedek Al"</span> butonuna tıklayarak verilerinizi indirin.
+              </p>
+            </div>
+          </div>
+          {onDownloadBackup && (
+            <button
+              onClick={onDownloadBackup}
+              className="w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-black tracking-wide px-5 py-3 rounded-xl transition-all shadow-md shadow-amber-600/20 active:scale-[0.98] cursor-pointer"
+            >
+              <Download className="h-4.5 w-4.5" />
+              GÜNLÜK YEDEK AL
+            </button>
+          )}
         </div>
       </div>
 

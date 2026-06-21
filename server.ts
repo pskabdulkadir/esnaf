@@ -3,6 +3,7 @@ import path from "path";
 import fs from "fs";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import { createServer as createViteServer } from "vite";
 
 dotenv.config();
 
@@ -799,11 +800,16 @@ function getFallbackSeoMeta(productName: string, discountPrice: number, category
 }
 
 async function startServer() {
-  // In production, serve static files and SPA fallback
-  // In development, Vite dev server handles frontend (via separate process)
-  // This backend only needs to serve API routes
-
-  if (process.env.NODE_ENV === "production") {
+  if (process.env.NODE_ENV !== "production") {
+    // In development, integrate Vite as middleware
+    console.log("[DEV] Initializing Vite dev server middleware...");
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "spa",
+    });
+    app.use(vite.middlewares);
+  } else {
+    // In production, serve compiler asset outputs
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
 
@@ -812,7 +818,6 @@ async function startServer() {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
-  // In dev: API routes only, frontend served by Vite dev server
 
   // Global server port binding (port is 3000 as required)
   app.listen(PORT, "0.0.0.0", () => {
