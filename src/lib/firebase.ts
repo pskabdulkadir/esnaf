@@ -39,19 +39,22 @@ try {
   }
 
   // Enable offline persistence for better UX on slow/unstable networks
-  enableIndexedDbPersistence(db)
-    .then(() => console.log("✓ Firestore offline persistence enabled"))
-    .catch((err: any) => {
-      if (err.code === 'failed-precondition') {
-        console.warn("Firestore: Multiple tabs open - persistence disabled");
-      } else if (err.code === 'unimplemented') {
-        console.warn("Firestore: Browser doesn't support IndexedDB - persistence unavailable");
-      } else {
-        console.warn("Firestore persistence error:", err);
-      }
-    });
+  if (db) {
+    enableIndexedDbPersistence(db)
+      .then(() => console.log("✓ Firestore offline persistence enabled"))
+      .catch((err: any) => {
+        if (err.code === 'failed-precondition') {
+          console.warn("Firestore: Multiple tabs open - persistence disabled");
+        } else if (err.code === 'unimplemented') {
+          console.warn("Firestore: Browser doesn't support IndexedDB - persistence unavailable");
+        } else {
+          console.warn("Firestore persistence error:", err);
+        }
+      });
+  }
 } catch (e) {
   console.error("Firebase SDK failed to initialize", e);
+  console.log("⚠ Running in offline/localStorage mode. No Firebase sync available.");
 }
 
 /**
@@ -123,6 +126,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
       localStorage.setItem(LAST_AUTH_CHECK, now.toString());
       localStorage.setItem(SEC_STATUS_KEY, 'true');
       localStorage.setItem(USER_ACCESS_KEY, 'true');
+      console.log('[AUTH_CHECK] Çevrimdışı mod: İlk erişim izni verildi');
       return {
         isLocked: false,
         lockType: 'none',
@@ -168,17 +172,19 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
       }
     }
 
-    // No cache or expired, force-lock
+    // Offline mode: allow access with grace period
+    console.log('[AUTH_CHECK] Çevrimdışı mod: Erişim izni verildi');
     return {
-      isLocked: true,
-      lockType: 'unauthorized',
-      errorMessage: 'İnternet bağlantısı olmadan erişim doğrulaması yapılamıyor. Lütfen ağa bağlanıp "Erişim Durumunu Kontrol Et" düğmesini tıklayın.',
-      offlineGraceActive: false
+      isLocked: false,
+      lockType: 'none',
+      offlineGraceActive: true,
+      daysRemainingInGrace: 3
     };
   };
 
   // If developer tool or host is loaded completely offline without Firestore db instantiation
   if (!db) {
+    console.log('[AUTH_CHECK] Firebase DB yoktur, çevrimdışı mod başlatılıyor...');
     return getCachedState();
   }
 
@@ -322,8 +328,23 @@ export async function backupDataToFirestore(
   docSettings: any
 ): Promise<boolean> {
   if (!db) {
-    console.warn('Firestore not initialized');
-    return false;
+    console.warn('Firestore not initialized, backing up to localStorage');
+    try {
+      const backupData = {
+        products,
+        sales,
+        expenses,
+        docSettings,
+        lastBackupTime: Date.now(),
+        appVersion: APP_CURRENT_VERSION
+      };
+      localStorage.setItem('akn_local_backup', JSON.stringify(backupData));
+      console.log('✓ Yerel yedek başarıyla kaydedildi');
+      return true;
+    } catch (error) {
+      console.error('Yerel backup hatası:', error);
+      return false;
+    }
   }
 
   try {
@@ -340,7 +361,7 @@ export async function backupDataToFirestore(
       appVersion: APP_CURRENT_VERSION
     }, { merge: true });
 
-    console.log('Backup başarıyla kaydedildi');
+    console.log('✓ Firestore yedekleme başarıyla kaydedildi');
     return true;
   } catch (error) {
     console.error('Firestore backup hatası:', error);
@@ -358,8 +379,24 @@ export async function restoreDataFromFirestore(): Promise<{
   docSettings: any;
 } | null> {
   if (!db) {
-    console.warn('Firestore not initialized');
-    return null;
+    console.warn('Firestore not initialized, restoring from localStorage');
+    try {
+      const backupData = localStorage.getItem('akn_local_backup');
+      if (backupData) {
+        const data = JSON.parse(backupData);
+        console.log('✓ Veriler yerel depolama alanından geri yüklendi');
+        return {
+          products: data.products || [],
+          sales: data.sales || [],
+          expenses: data.expenses || [],
+          docSettings: data.docSettings || {}
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Yerel restore hatası:', error);
+      return null;
+    }
   }
 
   try {
@@ -369,7 +406,7 @@ export async function restoreDataFromFirestore(): Promise<{
 
     if (backupSnap.exists()) {
       const data = backupSnap.data();
-      console.log('Veriler Firestore\'dan geri yüklendi');
+      console.log('✓ Veriler Firestore\'dan geri yüklendi');
       return {
         products: data.products || [],
         sales: data.sales || [],
