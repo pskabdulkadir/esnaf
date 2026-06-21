@@ -188,18 +188,30 @@ export default function App() {
     initializeSystem();
   }, []);
 
-  // Keep-alive mechanism: Ping backend every 5 minutes to prevent Render cold start
+  // Keep-alive mechanism: Ping backend nur wenn System aktiv (15 Tage + Admin Allow)
   useEffect(() => {
+    const isSystemActive = !securityStatus.isLocked && securityStatus.isWithin15Days && securityStatus.isAccessAllowedByAdmin;
+
+    if (!isSystemActive) {
+      console.log('[KEEP-ALIVE] Sistem kapalı - ping durduruldu');
+      return;
+    }
+
+    console.log('[KEEP-ALIVE] Sistem aktif - ping başlatılıyor (5 dakikada bir)');
     const keepAliveInterval = setInterval(async () => {
       try {
         await fetch("/api/health", { method: "GET" });
+        console.log('[KEEP-ALIVE] ✓ Ping başarılı');
       } catch (err) {
-        console.warn("Keep-alive ping failed (offline?):", err);
+        console.warn("[KEEP-ALIVE] Ping hatası (çevrimdışı?):", err);
       }
     }, 5 * 60 * 1000); // 5 dakikada bir
 
-    return () => clearInterval(keepAliveInterval);
-  }, []);
+    return () => {
+      console.log('[KEEP-ALIVE] Interval temizleniyor');
+      clearInterval(keepAliveInterval);
+    };
+  }, [securityStatus]);
 
   // JSON-LD Schema injection for SEO (organization-level schema)
   useEffect(() => {
@@ -684,33 +696,39 @@ export default function App() {
       )}
 
       {/* 3. User Access Denied Screen - Erişim Durdurulması */}
-      {!isCheckingAuth && securityStatus.isLocked && securityStatus.lockType === 'unauthorized' && (
+      {!isCheckingAuth && securityStatus.isLocked && (securityStatus.lockType === 'unauthorized' || securityStatus.lockType === 'trial_expired') && (
         <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-6 text-slate-200">
           <div className="w-full max-w-lg bg-slate-900 rounded-3xl border border-slate-850 p-8 text-center space-y-6 shadow-2xl relative overflow-hidden text-slate-800">
 
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-600 via-amber-500 to-red-650" />
+            <div className={`absolute top-0 left-0 right-0 h-[3px] ${securityStatus.lockType === 'trial_expired' ? 'bg-gradient-to-r from-orange-600 via-yellow-500 to-orange-600' : 'bg-gradient-to-r from-red-600 via-amber-500 to-red-650'}`} />
 
-            <div className="h-16 w-16 bg-red-650/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto border border-red-650/20 animate-pulse">
-              <Lock className="h-8 w-8 text-red-550" />
+            <div className={`h-16 w-16 rounded-2xl flex items-center justify-center mx-auto border animate-pulse ${
+              securityStatus.lockType === 'trial_expired'
+                ? 'bg-orange-650/10 text-orange-500 border-orange-650/20'
+                : 'bg-red-650/10 text-red-500 border-red-650/20'
+            }`}>
+              <Lock className="h-8 w-8" />
             </div>
 
             <div className="space-y-1">
               <h1 className="text-sm font-bold uppercase tracking-widest text-slate-205 font-sans">
-                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
-                  ? 'İnternet Bağlantısı Gerekli'
+                {securityStatus.lockType === 'trial_expired'
+                  ? '15 Günlük Deneme Süresi Doldu'
                   : 'Erişiminiz Durdurulmuştur'}
               </h1>
-              <p className="text-[9px] text-amber-400 font-mono tracking-wider font-semibold">
-                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
-                  ? 'OFFLINE / CONNECTION REQUIRED'
+              <p className={`text-[9px] font-mono tracking-wider font-semibold ${
+                securityStatus.lockType === 'trial_expired' ? 'text-orange-400' : 'text-amber-400'
+              }`}>
+                {securityStatus.lockType === 'trial_expired'
+                  ? 'TRIAL EXPIRED / DENEME SÜRESİ DOLDU'
                   : 'TEMPORARY ACCESS SUSPENSION'}
               </p>
             </div>
 
             <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850/60 text-left space-y-4">
               <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
-                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
-                  ? 'Sistemi kullanmak için internet bağlantısı gereklidir. Lütfen ağa bağlanıp tekrar deneyin.'
+                {securityStatus.lockType === 'trial_expired'
+                  ? 'Sisteminizin 15 günlük deneme süresi sona ermiştir. Lütfen yöneticinizle iletişime geçiniz.'
                   : 'Bu hesabın sisteme erişim izni yöneticiniz tarafından geçici olarak durdurulmuştur. Detaylı bilgi ve erişim talebiniz için lütfen yöneticinizle iletişime geçiniz.'}
               </p>
 
@@ -720,12 +738,18 @@ export default function App() {
                   <span className="text-amber-400 font-bold tracking-wide select-all">{getOrCreateDeviceId()}</span>
                 </div>
 
+                {securityStatus.daysRemainingInTrial !== undefined && (
+                  <div className="flex justify-between items-center bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-850">
+                    <span className="text-slate-500 text-[9px] uppercase font-bold">Kalan Gün:</span>
+                    <span className={`font-bold tracking-wide ${securityStatus.daysRemainingInTrial <= 0 ? 'text-red-400' : securityStatus.daysRemainingInTrial <= 3 ? 'text-orange-400' : 'text-emerald-400'}`}>
+                      {securityStatus.daysRemainingInTrial} gün
+                    </span>
+                  </div>
+                )}
+
                 {securityStatus.errorMessage && (
                   <div className="bg-slate-900 p-3 rounded-xl border border-slate-850 text-[10.5px] leading-normal font-sans text-slate-300 flex items-start gap-2.5">
-                    {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
-                      ? <WifiOff className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
-                      : <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                    }
+                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
                     <span>{securityStatus.errorMessage}</span>
                   </div>
                 )}
@@ -738,9 +762,7 @@ export default function App() {
                 className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-2xl text-[11px] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-950/40"
               >
                 <RefreshCw className="h-4 w-4" />
-                {securityStatus.errorMessage?.includes('bağlantı') || securityStatus.errorMessage?.includes('doğrulama')
-                  ? 'AĞA BAĞLAN VE YENİDEN DENE'
-                  : 'ERIŞIM DURUMUNU KONTROL ET'}
+                DURUMU KONTROL ET
               </button>
 
               <p className="text-[9.5px] text-slate-500 leading-relaxed font-sans pt-1">

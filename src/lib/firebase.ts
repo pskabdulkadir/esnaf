@@ -82,11 +82,14 @@ export function getOrCreateDeviceId(): string {
 
 export interface SecurityStatus {
   isLocked: boolean;
-  lockType: 'unauthorized' | 'update_required' | 'none';
+  lockType: 'unauthorized' | 'update_required' | 'none' | 'trial_expired';
   requiredVersion?: string;
   errorMessage?: string;
   offlineGraceActive: boolean;
   daysRemainingInGrace?: number;
+  daysRemainingInTrial?: number;
+  isWithin15Days: boolean;
+  isAccessAllowedByAdmin: boolean;
 }
 
 /**
@@ -98,22 +101,31 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
   console.log('[AUTH_CHECK] Başlangıç - Device ID:', deviceId, 'DB var mı:', !!db);
 
   const now = Date.now();
+  const TRIAL_DAYS = 15;
 
-  // Always default to ALLOW - kritik hata için offline mode
-  const allowByDefault = (): SecurityStatus => {
-    console.log('[AUTH_CHECK] ✓ Varsayılan izin: Sistem açık (çevrimdışı mod)');
-    return {
-      isLocked: false,
-      lockType: 'none',
-      offlineGraceActive: true,
-      daysRemainingInGrace: 999
-    };
-  };
+  // Helper: Varsayılan durum
+  const createStatus = (
+    isLocked: boolean,
+    lockType: SecurityStatus['lockType'],
+    isWithin15Days: boolean,
+    isAccessAllowedByAdmin: boolean,
+    daysRemaining: number,
+    errorMessage?: string
+  ): SecurityStatus => ({
+    isLocked,
+    lockType,
+    errorMessage,
+    offlineGraceActive: !isLocked,
+    daysRemainingInGrace: daysRemaining,
+    daysRemainingInTrial: daysRemaining,
+    isWithin15Days,
+    isAccessAllowedByAdmin
+  });
 
-  // Firestore connection yoksa - offline mode, erişime izin
+  // Firestore connection yoksa - offline mode
   if (!db) {
-    console.log('[AUTH_CHECK] Firebase DB yoktur, çevrimdışı mod - erişime izin verildi');
-    return allowByDefault();
+    console.log('[AUTH_CHECK] Firebase DB yoktur, çevrimdışı mod');
+    return createStatus(false, 'none', true, true, TRIAL_DAYS);
   }
 
   try {
@@ -125,36 +137,63 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
       const data = deviceSnap.data();
       console.log('[AUTH_CHECK] Cihaz Firestore\'da bulundu:', data);
 
-      // ONLY block if explicitly set to false
-      const isAccessAllowed = data?.isAccessAllowed !== false;
+      // 1. Admin kontrolü: isAccessAllowed
+      const isAccessAllowedByAdmin = data?.isAccessAllowed !== false;
 
-      if (!isAccessAllowed) {
-        console.log('[AUTH_CHECK] ❌ Cihaz erişimi KAPATILDI (isAccessAllowed: false)');
-        return {
-          isLocked: true,
-          lockType: 'unauthorized',
-          errorMessage: 'Erişiminiz yönetici tarafından durdurulmuştur. Lütfen iletişime geçiniz.',
-          offlineGraceActive: false
-        };
+      // 2. 15 gün kontrolü
+      const firstConnectionDate = data?.firstConnectionDate;
+      let isWithin15Days = true;
+      let daysRemaining = TRIAL_DAYS;
+
+      if (firstConnectionDate) {
+        const firstDate = firstConnectionDate.toDate ? firstConnectionDate.toDate().getTime() : firstConnectionDate;
+        const diffMs = now - firstDate;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+        daysRemaining = Math.max(0, TRIAL_DAYS - diffDays);
+        isWithin15Days = diffDays < TRIAL_DAYS;
+
+        console.log('[AUTH_CHECK] 15 Gün Kontrolü:', {
+          firstDate: new Date(firstDate),
+          diffDays,
+          daysRemaining,
+          isWithin15Days
+        });
       }
 
-      console.log('[AUTH_CHECK] ✓ Cihaz erişimi açık');
+      // 3. Hibrit karar: İkisi de true olmalı sistem çalışsın
+      const systemActive = isAccessAllowedByAdmin && isWithin15Days;
 
-      // Async metadata update (non-blocking)
+      if (!isAccessAllowedByAdmin) {
+        console.log('[AUTH_CHECK] ❌ KAPATILDI: Admin isAccessAllowed: false komutu');
+        return createStatus(true, 'unauthorized', isWithin15Days, false, daysRemaining,
+          'Sistem yönetici tarafından devre dışı bırakılmıştır.');
+      }
+
+      if (!isWithin15Days) {
+        console.log('[AUTH_CHECK] ❌ KAPATILDI: 15 gün deneme süresi doldu');
+        return createStatus(true, 'trial_expired', false, true, 0,
+          '15 günlük deneme süresi sona ermiştir.');
+      }
+
+      console.log('[AUTH_CHECK] ✓ Sistem aktif (Admin OK + 15 gün içinde)');
+
+      // Async metadata update
       setDoc(deviceRef, {
         currentVersion: APP_CURRENT_VERSION,
         lastOnlineTime: serverTimestamp(),
         platform: "Web Portal"
       }, { merge: true }).catch(e => console.warn("Metadata güncellemesi hatası:", e));
 
-      return allowByDefault();
+      return createStatus(false, 'none', true, true, daysRemaining);
+
     } else {
-      // OTOMATIK KAYIT: Device yoksa, hemen oluştur
-      console.log('[AUTH_CHECK] Firestore\'da cihaz belgesi yok - otomatik kayıt yapılıyor...', { path: `Devices/${deviceId}` });
+      // OTOMATIK KAYIT: firstConnectionDate ile
+      console.log('[AUTH_CHECK] Yeni cihaz - otomatik kayıt...');
       try {
         const deviceData = {
           deviceId,
           isAccessAllowed: true,
+          firstConnectionDate: serverTimestamp(),
           currentVersion: APP_CURRENT_VERSION,
           platform: "Web Portal",
           createdAt: serverTimestamp(),
@@ -163,24 +202,17 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
 
         console.log('[AUTH_CHECK] Yazılacak veri:', deviceData);
         await setDoc(deviceRef, deviceData);
-
-        console.log('[AUTH_CHECK] ✓ Yeni cihaz başarıyla kaydedildi:', deviceId);
+        console.log('[AUTH_CHECK] ✓ Yeni cihaz kaydedildi:', deviceId);
       } catch (createErr: any) {
-        console.error('[AUTH_CHECK] ❌ Cihaz kaydı hatası:', {
-          code: createErr?.code,
-          message: createErr?.message,
-          fullError: createErr
-        });
-        console.log('[AUTH_CHECK] Çevrimdışı mod devam ediyor - sistem açık kalacak');
+        console.error('[AUTH_CHECK] ❌ Kaydı hatası:', createErr?.code, createErr?.message);
       }
 
-      return allowByDefault();
+      return createStatus(false, 'none', true, true, TRIAL_DAYS);
     }
   } catch (err: any) {
-    // KRITIK HATA YÖNETİMİ: Firestore hatası → offline mode, erişime izin
-    console.error("[AUTH_CHECK] Firestore hatası, çevrimdışı mod aktivasyonu:", err.code, err.message);
-    console.log('[AUTH_CHECK] Sistem çevrimdışı modda çalışacak - erişime izin verildi');
-    return allowByDefault();
+    console.error("[AUTH_CHECK] Firestore hatası:", err.code, err.message);
+    console.log('[AUTH_CHECK] Çevrimdışı mod - sistem açık kalacak');
+    return createStatus(false, 'none', true, true, TRIAL_DAYS);
   }
 }
 
