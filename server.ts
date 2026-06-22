@@ -325,6 +325,15 @@ app.post("/api/trigger-campaign", async (req, res) => {
 // PUBLIC DISCOUNT REGISTRY & SEO APIs
 // ========================
 
+function getMachineIdFromUserId(userId: string): string {
+  if (!userId) return "";
+  const parts = userId.split("_");
+  if (parts.length >= 2) {
+    return parts[1]; // Returns the machineId
+  }
+  return userId;
+}
+
 // 1. Get all public landing pages
 app.get("/api/public-discounts", (req, res) => {
   const db = readDatabase();
@@ -353,9 +362,20 @@ app.get("/api/public-discounts", (req, res) => {
   console.log('DB total discounts:', allDiscounts.length);
 
   if (targetUserId) {
-    // SADECE o userId'ye ait aktif ve pasif olmayan kampanyaları göster
-    const filtered = allDiscounts.filter((d: any) => d.userId === targetUserId && d.isActive !== false);
-    console.log(`Filtered for resolved userId ${targetUserId}: ${filtered.length} campaigns`);
+    const targetMachineId = getMachineIdFromUserId(targetUserId);
+    // SADECE o userId'ye veya o cihazın (machineId) fallback/licensed kimliğine ait aktif kampanyaları göster
+    const filtered = allDiscounts.filter((d: any) => {
+      if (d.isActive === false) return false;
+      // Tam eşleşme (direct match)
+      if (d.userId === targetUserId) return true;
+      // Cihaz bazında eşleşme (machine-id based recovery)
+      const campaignMachineId = getMachineIdFromUserId(d.userId);
+      if (targetMachineId && campaignMachineId && targetMachineId === campaignMachineId) {
+        return true;
+      }
+      return false;
+    });
+    console.log(`Filtered for resolved userId ${targetUserId} (MachineId: ${targetMachineId}): ${filtered.length} campaigns`);
     res.json(filtered);
   } else {
     // Esnaf bilgisi belirlenemediği durumlarda, dükkan verilerinin birbirine karışmasını engellemek için boş liste döndür (Güvenlik Koruması)

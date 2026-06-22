@@ -309,7 +309,7 @@ export default function App() {
 
   // User ID (Lisans sahibinin kimliği) - her lisans kendi userId'ye sahip
   // Derived from: machineId + licenseKey hash (benzersiz ve tarayıcı localStorage'dan bağımsız)
-  const [userId] = useState<string>(() => {
+  const [userId, setUserId] = useState<string>(() => {
     try {
       // ⭐ FIXED: userId'yi lisans key'ine bağla, böylece her lisans farklı bir kullanıcı olur
       const licenseData = localStorage.getItem('license_data');
@@ -352,6 +352,38 @@ export default function App() {
       return `user_err_${errSuffix}`;
     }
   });
+
+  // Keep userId synchronously in sync with license validity and license_data additions
+  useEffect(() => {
+    const licenseData = localStorage.getItem('license_data') || sessionStorage.getItem('license_data_session');
+    const machineId = getOrCreateMachineId();
+    if (isLicenseValid && licenseData) {
+      try {
+        const parsed = JSON.parse(licenseData);
+        const licenseKeyPrefix = parsed.key ? parsed.key.substring(0, 12) : 'unknown';
+        const licenseUserId = `license_${machineId}_${licenseKeyPrefix}`;
+        setUserId(licenseUserId);
+        console.log("🔄 Synchronized userId to Licensed ID:", licenseUserId);
+      } catch (e) {
+        console.warn('Failed to parse licenseData for userId update.');
+      }
+    } else {
+      // Fallback stable ID for unlicensed/demo users
+      let stableSuffix = '';
+      try {
+        stableSuffix = localStorage.getItem('esnaf_stable_id_suffix') || '';
+        if (!stableSuffix) {
+          stableSuffix = Math.random().toString(36).substring(2, 11);
+          localStorage.setItem('esnaf_stable_id_suffix', stableSuffix);
+        }
+      } catch (err) {
+        stableSuffix = machineId.substring(0, 8);
+      }
+      const fallbackUserId = `user_${machineId}_${stableSuffix}`;
+      setUserId(fallbackUserId);
+      console.log("🔄 Synchronized userId to Fallback ID:", fallbackUserId);
+    }
+  }, [isLicenseValid]);
 
   // Core Database States
   const [products, setProducts] = useState<Product[]>([]);
