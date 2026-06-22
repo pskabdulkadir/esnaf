@@ -132,9 +132,9 @@ export default function App() {
             script.src = `https://www.googletagmanager.com/gtag/js?id=${config.googleAnalyticsId}`;
             document.head.appendChild(script);
 
-            window.dataLayer = window.dataLayer || [];
+            (window as any).dataLayer = (window as any).dataLayer || [];
             function gtag(...args: any[]) {
-              window.dataLayer.push(arguments);
+              (window as any).dataLayer.push(arguments);
             }
             (window as any).gtag = gtag;
             gtag('js', new Date());
@@ -1471,7 +1471,7 @@ export default function App() {
                   today.setHours(0, 0, 0, 0);
                   expiryDate.setHours(0, 0, 0, 0);
 
-                  const daysLeft = Math.ceil((expiryDate - today) / (1000 * 60 * 60 * 24));
+                  const daysLeft = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
                   const isExpired = daysLeft <= 0;
                   const isWarning = daysLeft > 0 && daysLeft <= 7;
 

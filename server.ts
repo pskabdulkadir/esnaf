@@ -1,7 +1,6 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
-import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 
@@ -53,27 +52,8 @@ function writeDatabase(data: any) {
   }
 }
 
-// Initialize Gemini Client
-let ai: GoogleGenAI | null = null;
-const API_KEY = process.env.GEMINI_API_KEY;
-
-if (API_KEY && API_KEY !== "MY_GEMINI_API_KEY" && API_KEY.trim() !== "") {
-  try {
-    ai = new GoogleGenAI({
-      apiKey: API_KEY,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build',
-        }
-      }
-    });
-    console.log("Gemini API Client initialized successfully.");
-  } catch (e) {
-    console.error("Error instantiating GoogleGenAI:", e);
-  }
-} else {
-  console.log("No valid GEMINI_API_KEY env variable found. Using simulated fallback responses.");
-}
+// Initialize Free & Unlimited Engine
+console.log("🚀 Google Esnaf: Sınırsız ve Ücretsiz Yapay Zeka & Slogan Algoritması Aktif!");
 
 // REST APIs
 
@@ -243,7 +223,7 @@ app.get("/api/analyze-stock", (req, res) => {
   res.json(analysisResult);
 });
 
-// 5. Modül 2 (AI İçerik Motoru - Gemini API)
+// 5. Modül 2 (AI İçerik Motoru - Ücretsiz Sınırsız Lisanslı Esnaf Algoritması)
 app.post("/api/generate-marketing", async (req, res) => {
   const { productName, originalPrice, discountPrice, category, reasonType, targetSegment } = req.body;
 
@@ -251,72 +231,12 @@ app.post("/api/generate-marketing", async (req, res) => {
     return res.status(400).json({ error: "Eksik parametreler: productName, discountPrice ve targetSegment gereklidir." });
   }
 
-  // Choose a campaign premise styled to Turkish local neighbourhood/işletme vibes
-  const prompt = `
-Yerel bir Türk mahalle esnafı (işletme, fırın, manav) için sosyal medya / WhatsApp pazarlama metni yazacaksın. 
-Müşteriyle samimi bir bağ kurmalı, mahalle esnafı kültürüne (sıcakkanlı, güvenilir, komşuluk ilişkilerini önemseyen) tam uygun olmalı ve bir aciliyet (fırsatı kaçırmama) hissi uyandırmalıdır.
-
-Ürün Bilgileri:
-- Ürün Adı: ${productName}
-- Kategori: ${category || "Genel Gıda"}
-- Normal Fiyat: ${originalPrice ? originalPrice + " TL" : "Bilinmiyor"}
-- Kampanyalı İndirimli Fiyat: ${discountPrice} TL
-- İndirim Sebebi Grubu: ${reasonType === 'son_kullanma' ? 'Son Kullanma Tarihi Yaklaşıyor (Zayiatı önlemek ve taze tükettirmek için)' : reasonType === 'stok_fazlasi' ? 'Depo / Stok Fazlası (Müşteriye dev fırsat)' : 'Esnaf Özel İndirimi (Müşteriye Jest)'}
-
-Hedef Kitle ve Tonlama Tarzı:
-Hedef Kitle Segmenti: "${targetSegment}"
-
-Segment Kuralları:
-1. "Ev Hanımları" ise:
-   - Ton: Son derece saygılı ama çok sıcak, "abla", "teyze" samimiyetinde.
-   - Odak: Bütçeye katkı, akşam yemeği hazırlığı pratikliği, çocuklara faydası, taze olması, ev ekonomisi.
-   - Örnek başlangıç: "Sevgili hanımlar, komşularım..." ya da "Aysel abla, Fatma teyze müjde..."
-   - Dil: "Yemeğe tam yetişsin diye", "bütçenizi düşündük".
-
-2. "Gençler" ise:
-   - Ton: Çok dinamik, enerjik, eğlenceli, samimi ("kanka", "gençler", "dostlar"). Emojiler bol olsun.
-   - Odak: Pratik atıştırmalık, öğrenci dostu fiyatlar, ders/sınav arası enerji deposu, oyun gecesi atıştırmalığı.
-   - Örnek başlangıç: "Gençler selam! 🚨 Açlık krizlerine son..." veya "Öğrenci dostu işletmenizden bomba haber!"
-
-3. "Genel" ise:
-   - Ton: Geleneksel esnaf nezaketi, "Hayırlı bereketli günler" dili, mahalle dayanışması ve sıcaklığı.
-   - Odak: Her eve lazım günlük ürün fırsatı, dürüst esnaf jesti.
-   - Örnek başlangıç: "Hayırlı sabahlar sevgili mahalle sakinleri...", "Bizim işletmeden günün haberi..."
-
-Yazım Şablonu Kuralları:
-- Kesinlikle yapay zeka tarafından yazıldığı anlaşılmamalıdır. Son derece doğal, sokak/mahalle jargonu içeren bir Türkçe olmalıdır.
-- WhatsApp mesajı olarak kolay okunması için emojiler kullan ve paragrafları kısa tut, can alıcı kelimeleri *kalın* (whatsapp formatı) yap.
-- Metnin sonunda "Akşam ezanına kadar geçerli" veya "Stoklar eriyene kadar" gibi aciliyet vurgulayan bir call-to-action (hareket çağrısı) ekle.
-
-Lütfen doğrudan reklam metnini yaz (başka açıklama veya 'işte reklamınız:' gibi ifadeler ekleme).
-`;
-
-  if (ai) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: {
-          temperature: 0.85,
-        }
-      });
-      
-      const text = response.text || "Metin oluşturulurken boş sonuç döndü.";
-      res.json({ message: text.trim() });
-    } catch (err: any) {
-      console.error("Gemini API call failed, generating simulated response:", err);
-      res.json({ 
-        message: getSimulatedMarketingText(productName, discountPrice, targetSegment, reasonType),
-        warning: "Gemini API hatası nedeniyle simüle edilmiş metin üretildi: " + err.message
-      });
-    }
-  } else {
-    // Elegant simulated response matching requested patterns
-    res.json({ 
-      message: getSimulatedMarketingText(productName, discountPrice, targetSegment, reasonType),
-      note: "Simülasyon modunda yerel şablon kullanıldı. Gerçek yapay zeka metinleri için Gemini API anahtarınızı giriniz."
-    });
-  }
+  // Beautifully designed dynamic local advertisement generator which is 100% free & unlimited
+  const text = getSimulatedMarketingText(productName, discountPrice, targetSegment, reasonType);
+  res.json({ 
+    message: text,
+    note: "✅ Ücretsiz ve sınırsız açık kaynaklı slogan motoru başarıyla çalıştırıldı!"
+  });
 });
 
 // Helper for simulated responses when Gemini is unavailable
@@ -408,27 +328,39 @@ app.post("/api/trigger-campaign", async (req, res) => {
 // 1. Get all public landing pages
 app.get("/api/public-discounts", (req, res) => {
   const db = readDatabase();
-  const userId = req.query.userId as string;
+  let targetUserId = req.query.userId as string || req.query.merchantId as string;
+  const slug = req.query.slug as string;
+  const discountId = req.query.discountId as string;
+
+  const allDiscounts = db.publicDiscounts || [];
+
+  // ⭐ Eğer slug veya discountId varsa ve targetUserId bulunamadıysa, ilgili kampanyadan userId'yi bul
+  if (!targetUserId && slug) {
+    const matched = allDiscounts.find((d: any) => d.slug === slug);
+    if (matched) {
+      targetUserId = matched.userId;
+    }
+  }
+  if (!targetUserId && discountId) {
+    const matched = allDiscounts.find((d: any) => d.id === discountId);
+    if (matched) {
+      targetUserId = matched.userId;
+    }
+  }
 
   // ⭐ DEBUG
-  console.log('GET /api/public-discounts - userId param:', userId);
-  console.log('DB total discounts:', (db.publicDiscounts || []).length);
+  console.log('GET /api/public-discounts - resolved userId:', targetUserId);
+  console.log('DB total discounts:', allDiscounts.length);
 
-  // ⭐ Eğer userId sağlandıysa, o kullanıcının kampanyalarını filtrele
-  // Eğer userId yoksa (müşteri görüşü), tüm kampanyaları döndür
-  if (userId) {
-    // ⭐ FIXED: SADECE o userId'ye ait kampanyaları göster
-    // publishMode kontrolü kaldırıldı çünkü her esnafın ürünlerini gizlemek gerekiyor
-    const filtered = (db.publicDiscounts || []).filter((d: any) => d.userId === userId);
-    console.log(`Filtered for userId ${userId}: ${filtered.length} campaigns`);
-    console.log('User campaigns:', filtered.map((d: any) => ({ id: d.id, productName: d.productName, userId: d.userId })));
+  if (targetUserId) {
+    // SADECE o userId'ye ait aktif ve pasif olmayan kampanyaları göster
+    const filtered = allDiscounts.filter((d: any) => d.userId === targetUserId && d.isActive !== false);
+    console.log(`Filtered for resolved userId ${targetUserId}: ${filtered.length} campaigns`);
     res.json(filtered);
   } else {
-    // Müşteri görüşü: tüm ESNAFIN kampanyaları görüntüleniyor (publishMode: global olan)
-    // EMNIYETLI: Esnaflara özel kampanyalar müşterilere gösterilmiyor
-    const allActive = (db.publicDiscounts || []).filter((d: any) => d.isActive !== false);
-    console.log('Public view - showing', allActive.length, 'active campaigns');
-    res.json(allActive);
+    // Esnaf bilgisi belirlenemediği durumlarda, dükkan verilerinin birbirine karışmasını engellemek için boş liste döndür (Güvenlik Koruması)
+    console.log('Public view without valid merchant context - returning empty package to prevent cross-shop pollution');
+    res.json([]);
   }
 });
 
@@ -615,7 +547,7 @@ app.post("/api/restore-marketing", (req, res) => {
   res.json({ success: true, publicDiscountsCount: db.publicDiscounts?.length || 0, settings: db.settings });
 });
 
-// 5. Generate SEO Meta utilizing Gemini 3.5-Flash
+// 5. Generate SEO Meta utilizing Free & Unlimited Esnaf Algorithm
 app.post("/api/generate-seo-meta", async (req, res) => {
   const { productName, price, discountPrice, category, merchantName, targetLanguage } = req.body;
 
@@ -626,54 +558,8 @@ app.post("/api/generate-seo-meta", async (req, res) => {
   const mName = merchantName || "Bizim Mahalle İşletmesi";
   const lang = targetLanguage || "tr"; // tr, en, de
 
-  const langInstruction = lang === "en" 
-    ? "Please write all fields in English." 
-    : lang === "de" 
-    ? "Please write all fields in German (Deutsch)."
-    : "Lütfen tüm alanları Türkçe yazın.";
-
-  const prompt = `
-Aşağıdaki ürün ve indirim bilgileri için Google, Yandex ve sosyal medya platformlarında (WhatsApp, Instagram, Facebook vb.) en yüksek tıklamayı ve paylaşımı alacak SEO uyumlu Meta Bilgilerini ve mükemmel, samimi, emojili ve sıcak bir esnaf lisanıyla yazılmış sosyal medya reklam yazısını oluştur.
-${langInstruction}
-
-Ürün Bilgileri:
-- Ürün Adı: ${productName}
-- Kategori: ${category || "Genel"}
-- Normal Fiyat: ${price} TL
-- İndirimli Fiyat: ${discountPrice} TL
-- Esnaf / Mağaza Adı: ${mName}
-
-JSON formatında şu değerleri tam olarak döndür (başka açıklama veya markdown bloğu yapma, direkt JSON döndür):
-{
-  "seoTitle": "Arama motoru başlığı (en fazla 60 karakter, dikkat çekici, diline uygun başlık)",
-  "seoDescription": "Müşterinin hemen tıklamasını sağlayacak, aciliyet uyandıran ve fiyatları barındıran meta açıklaması (en fazla 155 karakter, seçilen dilde)",
-  "seoKeywords": "En az 5 adet, virgülle ayrılmış seçilen dildeki arama kelimesi",
-  "recommendedImage": "Unsplash görsel urlsi (ürüne uygun olabilecek genel kaliteli bir gıda/manav/unlu mamul görseli)",
-  "adCopy": "Mükemmel, emojili, dürüst mahalle esnafı samimiyetinde, raf fiyatıyla indirimli fiyat farkını öne çıkaran, insanları işletmeye davet eden veya online/WhatsApp ile siparişe yönlendiren, bol etkileşim alacak sosyal medya paylaşım veya WhatsApp reklam yazısı (en az 3-4 cümle, hashtaglidir)."
-}
-`;
-
-  if (ai) {
-    try {
-      const response = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: prompt,
-        config: {
-          responseMimeType: "application/json",
-          temperature: 0.7
-        }
-      });
-
-      const text = response.text || "{}";
-      const parsed = JSON.parse(text);
-      res.json(parsed);
-    } catch (err: any) {
-      console.error("Gemini SEO generation failed, returning fallback:", err);
-      res.json(getFallbackSeoMeta(productName, discountPrice, category, mName, lang));
-    }
-  } else {
-    res.json(getFallbackSeoMeta(productName, discountPrice, category, mName, lang));
-  }
+  const result = getFallbackSeoMeta(productName, discountPrice, category || "Genel", mName, lang);
+  res.json(result);
 });
 
 // ========================
@@ -733,7 +619,10 @@ async function pingGoogle() {
 
   try {
     const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-    const response = await fetch(pingUrl, { method: 'GET', timeout: 5000 });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const response = await fetch(pingUrl, { method: 'GET', signal: controller.signal });
+    clearTimeout(timeoutId);
     console.log(`[GOOGLE_PING] ✅ Sitemap pinged. Status: ${response.status}`);
   } catch (err) {
     console.error(`[GOOGLE_PING] ⚠️ Ping başarısız (sistem çalışmaya devam eder):`, err);

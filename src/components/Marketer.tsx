@@ -472,10 +472,27 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
       // 2. Fetch public active discounts
       try {
-        // ⭐ userId'yi query parameter olarak gönder
-        const apiUrl = userId
-          ? `/api/public-discounts?userId=${encodeURIComponent(userId)}`
-          : `/api/public-discounts`;
+        const urlParams = new URLSearchParams(window.location.search);
+        const discountId = urlParams.get("discountId");
+        const slug = urlParams.get("slug");
+        const merchantId = urlParams.get("merchantId") || urlParams.get("userId");
+
+        // ⭐ userId veya URL parametrelerini query parameter olarak ekle
+        let apiUrl = "/api/public-discounts";
+        const queryParams = new URLSearchParams();
+        if (userId) {
+          queryParams.append("userId", userId);
+        } else {
+          if (slug) queryParams.append("slug", slug);
+          if (discountId) queryParams.append("discountId", discountId);
+          if (merchantId) queryParams.append("merchantId", merchantId);
+        }
+
+        const queryString = queryParams.toString();
+        if (queryString) {
+          apiUrl += `?${queryString}`;
+        }
+
         console.log('Marketer fetchData - fetching from URL:', apiUrl);
         const pubRes = await fetch(apiUrl);
         if (pubRes.ok) {
