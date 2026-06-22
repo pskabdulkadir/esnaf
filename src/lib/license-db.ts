@@ -315,6 +315,7 @@ function hashLicenseKey(licenseKey: string): string {
 
 /**
  * Lisans anahtarı kullanımını kaydet (tek seferlik kontrol için)
+ * ⭐ ÖNEMLI: Global düzeyde tutulur - cihaz ID değişse bile çalışmaz
  */
 export async function recordUsedLicense(machineId: string, licenseKey: string): Promise<boolean> {
   return new Promise(async (resolve) => {
@@ -329,9 +330,11 @@ export async function recordUsedLicense(machineId: string, licenseKey: string): 
       }
 
       const licenseKeyHash = hashLicenseKey(licenseKey);
+      // ⭐ ÖNEMLI: ID'ye sadece licenseKeyHash ekliyoruz, machineId EKLEMEMELIYIZ
+      // Bu sayede cihaz ID değişse bile lisans anahtarı bir daha kullanılamaz
       const usedLicense: UsedLicense = {
-        id: `${machineId}_${licenseKeyHash}`,
-        machineId,
+        id: licenseKeyHash,  // SADECE lisans hash'i
+        machineId,  // Referans amaçlı tutulur
         licenseKeyHash,
         timestamp: new Date().getTime()
       };
@@ -341,7 +344,7 @@ export async function recordUsedLicense(machineId: string, licenseKey: string): 
       const request = store.put(usedLicense);
 
       request.onsuccess = () => {
-        console.log('✅ Lisans kullanımı kaydedildi:', usedLicense.id);
+        console.log('🔒 Lisans GLOBAL düzeyde kayıtlandı (cihaz ID değişse bile çalışmaz):', licenseKeyHash);
         resolve(true);
       };
 
@@ -357,7 +360,8 @@ export async function recordUsedLicense(machineId: string, licenseKey: string): 
 }
 
 /**
- * Aynı lisans anahtarı daha önce bu cihazda kullanıldı mı kontrol et
+ * Lisans anahtarı daha önce HERHANGİ cihazda kullanıldı mı kontrol et
+ * ⭐ ÖNEMLI: Global kontrol - cihaz ID'den bağımsız
  */
 export async function isLicenseAlreadyUsed(machineId: string, licenseKey: string): Promise<boolean> {
   return new Promise(async (resolve) => {
@@ -372,16 +376,17 @@ export async function isLicenseAlreadyUsed(machineId: string, licenseKey: string
       }
 
       const licenseKeyHash = hashLicenseKey(licenseKey);
-      const usageId = `${machineId}_${licenseKeyHash}`;
+      // ⭐ ÖNEMLI: SADECE licenseKeyHash ile kontrol yapıyoruz
+      // Cihaz ID'si DIKKATE ALINMIYOR
 
       const transaction = db.transaction([USED_LICENSES_STORE], 'readonly');
       const store = transaction.objectStore(USED_LICENSES_STORE);
-      const request = store.get(usageId);
+      const request = store.get(licenseKeyHash);  // Sadece hash ile kontrol
 
       request.onsuccess = () => {
         const result = request.result as UsedLicense | undefined;
         if (result) {
-          console.log('⚠️ Bu lisans daha önce kullanıldı:', usageId);
+          console.log('🔒 Bu lisans DÜNYAda kayıtlı - tekrar kullanılamaz:', licenseKeyHash);
           resolve(true);
         } else {
           console.log('✅ Bu lisans daha önce kullanılmamış');
@@ -401,51 +406,14 @@ export async function isLicenseAlreadyUsed(machineId: string, licenseKey: string
 }
 
 /**
- * Cihaz kimliği değiştiğinde eski lisans kullanım history'sini temizle
+ * Cihaz kimliği değiştiğinde - BUNU YAPMIYORUZ
+ * ⭐ ÖNEMLI: Eski lisans anahtarları SONSUZA KADAR tek seferlik kalır
+ * Cihaz ID değişse bile, eski lisanslar hiçbir zaman tekrar kullanılamaz
+ * Bu nedenle temizleme yapılmaz
  */
 export async function clearUsedLicensesForMachine(machineId: string): Promise<boolean> {
-  return new Promise(async (resolve) => {
-    try {
-      if (!db) {
-        db = await initLicenseDB();
-      }
-
-      if (!db) {
-        return resolve(false);
-      }
-
-      const transaction = db.transaction([USED_LICENSES_STORE], 'readwrite');
-      const store = transaction.objectStore(USED_LICENSES_STORE);
-      const index = store.index('machineId');
-      const range = IDBKeyRange.only(machineId);
-      const request = index.openCursor(range);
-
-      const toDelete: IDBValidKey[] = [];
-
-      request.onsuccess = (event) => {
-        const cursor = (event.target as IDBRequest).result;
-        if (cursor) {
-          toDelete.push(cursor.primaryKey);
-          cursor.continue();
-        } else {
-          // Tüm bulduklarını sil
-          toDelete.forEach(key => {
-            store.delete(key);
-          });
-          console.log('✅ Cihaz kimliği için eski lisans history temizlendi:', machineId);
-          resolve(true);
-        }
-      };
-
-      request.onerror = () => {
-        console.error('❌ History temizleme hatası');
-        resolve(false);
-      };
-    } catch (e) {
-      console.error('History temizleme hatası:', e);
-      resolve(false);
-    }
-  });
+  console.log('ℹ️ Cihaz ID yenilendi, ama eski lisans geçmişi silinmeyecek (global koruma):', machineId);
+  return Promise.resolve(true);
 }
 
 /**

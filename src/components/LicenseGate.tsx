@@ -242,15 +242,15 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
           return;
         }
 
-        // TEKRAR KULLANIM KONTROLÜ: Aynı lisans anahtarı daha önce kullanıldı mı?
+        // TEKRAR KULLANIM KONTROLÜ: Bu lisans anahtarı daha önce KHERHANGİ cihazda kullanıldı mı?
         const alreadyUsed = await isLicenseAlreadyUsed(machineId, licenseKey);
         if (alreadyUsed) {
           setValidationMessage({
             text: language === 'tr'
-              ? '❌ Bu lisans anahtarı bu cihazda zaten kullanıldı! Süreyi uzatmak için yeni bir lisans anahtarı girin veya Cihaz Kimliğini Yenile seçeneğini kullanın.'
+              ? '❌ Bu lisans anahtarı zaten kullanıldı ve bir daha kullanılamaz. Lütfen yöneticiden yeni bir lisans anahtarı alın.'
               : language === 'de'
-              ? '❌ Dieser Lizenzschlüssel wurde bereits auf diesem Gerät verwendet! Geben Sie einen neuen Lizenzschlüssel ein oder verwenden Sie die Option "Gerät-ID erneuern".'
-              : '❌ This license key has already been used on this device! Enter a new license key or use the "Renew Device ID" option.',
+              ? '❌ Dieser Lizenzschlüssel wurde bereits verwendet und kann nicht erneut verwendet werden. Bitte erhalten Sie einen neuen Lizenzschlüssel vom Administrator.'
+              : '❌ This license key has already been used and cannot be reused. Please get a new license key from the administrator.',
             type: 'error'
           });
           setIsLoading(false);

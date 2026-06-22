@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw, AlertTriangle, CheckCircle, Copy } from 'lucide-react';
 import { getOrCreateMachineId, renewMachineId } from '../lib/machine-id';
-import { clearUsedLicensesForMachine } from '../lib/license-db';
+import { clearUsedLicensesForMachine, isLicenseAlreadyUsed, recordUsedLicense } from '../lib/license-db';
 import {
   loadLicenseData,
   saveLicenseData,
@@ -115,6 +115,12 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
         throw new Error('machine_id_mismatch');
       }
 
+      // ⭐ TEK SEFERLIK KONTROL: Bu lisans anahtarı daha önce bu cihazda kullanıldı mı?
+      const alreadyUsed = await isLicenseAlreadyUsed(machineId, newLicenseKey);
+      if (alreadyUsed) {
+        throw new Error('license_already_used');
+      }
+
       // Mevcut lisansla birleştir
       if (licenseData?.exp) {
         newLicense.exp = combineLicensePeriods(licenseData.exp, newLicense.exp);
@@ -126,6 +132,10 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
 
       // ⭐ ÖZEL: Lisans kalıcılığını sağla (tarayıcı sıfırlanırsa da saklanır)
       ensureLicensePersistency(newLicense);
+
+      // ⭐ TEK SEFERLIK: Kullanılan lisans anahtarını kaydet
+      await recordUsedLicense(machineId, newLicenseKey);
+      console.log('📝 Lisans kullanımı kaydedildi (tek seferlik)');
 
       setLicenseData(newLicense);
       calculateTimeRemaining(newLicense);
@@ -163,6 +173,13 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
             : language === 'de'
             ? '❌ Diese Lizenz gehört nicht zu diesem Gerät!'
             : '❌ This license does not belong to this device!';
+      } else if (e.message === 'license_already_used') {
+        errorMsg =
+          language === 'tr'
+            ? '❌ Bu lisans anahtarı zaten kullanıldı ve bir daha kullanılamaz. Lütfen yöneticiden yeni bir lisans anahtarı alın.'
+            : language === 'de'
+            ? '❌ Dieser Lizenzschlüssel wurde bereits verwendet und kann nicht erneut verwendet werden. Bitte erhalten Sie einen neuen Lizenzschlüssel vom Administrator.'
+            : '❌ This license key has already been used and cannot be reused. Please get a new license key from the administrator.';
       } else if (e instanceof SyntaxError) {
         errorMsg =
           language === 'tr'
@@ -267,7 +284,7 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
       renewSubmit: 'Doğrula ve Uzat',
       renewMachineButton: 'Cihaz Kimliğini Yenile',
       renewMachineTitle: 'Cihaz Kimliğini Yenile',
-      renewMachineConfirm: 'Cihaz kimliğini yenilemek istediğinizden emin misiniz? Bu işlem sonrası eski lisans anahtarlarını kullanabileceksiniz.',
+      renewMachineConfirm: 'Cihaz kimliğini yenilemek istediğinizden emin misiniz? Bu işlemle yeni bir cihaz kimliği oluşturulacaktır. Süreyi uzatmak için yöneticiden YENİ lisans anahtarı almanız gerekecektir.',
       cancel: 'İptal',
       copy: 'Kopyala',
       copied: 'Kopyalandı!',
@@ -286,7 +303,7 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
       renewSubmit: 'Verify and Renew',
       renewMachineButton: 'Renew Device ID',
       renewMachineTitle: 'Renew Device ID',
-      renewMachineConfirm: 'Are you sure you want to renew your device ID? After this, you will be able to use old license keys again.',
+      renewMachineConfirm: 'Are you sure you want to renew your device ID? A new device ID will be created. You will need a NEW license key from the administrator to extend the license.',
       cancel: 'Cancel',
       copy: 'Copy',
       copied: 'Copied!',
@@ -305,7 +322,7 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
       renewSubmit: 'Verifizieren und verlängern',
       renewMachineButton: 'Gerät-ID erneuern',
       renewMachineTitle: 'Gerät-ID erneuern',
-      renewMachineConfirm: 'Möchten Sie Ihre Gerät-ID wirklich erneuern? Danach können Sie alte Lizenzschlüssel erneut verwenden.',
+      renewMachineConfirm: 'Möchten Sie Ihre Gerät-ID wirklich erneuern? Eine neue Geräte-ID wird erstellt. Sie benötigen einen NEUEN Lizenzschlüssel vom Administrator, um die Lizenz zu verlängern.',
       cancel: 'Abbrechen',
       copy: 'Kopieren',
       copied: 'Kopiert!',
