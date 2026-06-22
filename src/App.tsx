@@ -70,17 +70,24 @@ export default function App() {
   });
 
   // Session Login State (Lisans girdikten sonra şifre kontrolü için)
-  // ⭐ ÖNEMLI: localStorage'dan oku, böylece sayfa yenilenirse de kalıcı olur
+  // ⭐ ÖNEMLI: sessionStorage'dan oku, böylece sayfa yenilenirse kaybolur ve şifre istenir
   const [isSessionLoggedIn, setIsSessionLoggedIn] = useState<boolean>(() => {
     try {
-      return localStorage.getItem('isSessionLoggedIn') === 'true';
+      return sessionStorage.getItem('isSessionLoggedIn') === 'true';
     } catch {
       return false;
     }
   });
 
   // Password-only Login State (Logout sonrası sadece şifre girişi için)
-  const [showPasswordOnly, setShowPasswordOnly] = useState(false);
+  // ⭐ ÖNEMLI: localStorage'dan oku, böylece logout sonrası sayfa yenilenirse de şifre ekranı kalır
+  const [showPasswordOnly, setShowPasswordOnly] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('showPasswordOnly') === 'true';
+    } catch {
+      return false;
+    }
+  });
 
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
@@ -226,6 +233,20 @@ export default function App() {
       console.error(e);
     }
   }, [language]);
+
+  // ⭐ YENİ: Tarayıcı kapatılıp açıldığında, eğer isSessionLoggedIn false ise, sadece şifre ekranı göster
+  useEffect(() => {
+    if (!isSessionLoggedIn) {
+      // sessionStorage'dan kontrol et
+      const sessionLogin = sessionStorage.getItem('isSessionLoggedIn');
+      if (!sessionLogin) {
+        // Sayfa yenilenmişse veya tarayıcı kapatılıp açıldıysa, sadece şifre ekranı göster
+        setShowPasswordOnly(true);
+        localStorage.setItem('showPasswordOnly', 'true');
+        console.log('ℹ️ Sayfa yenilendi veya tarayıcı kapatıldı - sadece şifre ekranı');
+      }
+    }
+  }, [isSessionLoggedIn]);
 
   // Permission / Security Mode State (Yonetici is default Admin)
   const [userRole, setUserRole] = useState<UserRole>('Yonetici');
@@ -857,10 +878,11 @@ export default function App() {
       <LicenseGate
         onLicenseValid={() => {
           setIsSessionLoggedIn(true);
-          // ⭐ localStorage'a kaydet, sayfa yenilenmişse de kalıcı olur
-          localStorage.setItem('isSessionLoggedIn', 'true');
-          // sessionStorage'a da kaydet (ek güvenlik için)
-          sessionStorage.setItem('session_logged_in', 'true');
+          // ⭐ sessionStorage'a kaydet (sayfa yenilenmişse kaybolur)
+          sessionStorage.setItem('isSessionLoggedIn', 'true');
+          // ⭐ Başarılı login sonrası showPasswordOnly'yi false yap
+          setShowPasswordOnly(false);
+          localStorage.removeItem('showPasswordOnly');
         }}
         language={language}
         showPasswordOnly={showPasswordOnly}
@@ -1450,12 +1472,13 @@ export default function App() {
               language={language}
               onDownloadBackup={handleDownloadBackup}
               onLogout={() => {
-                // ⭐ Session logout: localStorage'dan sil, böylece şifre tekrar istenir
-                localStorage.removeItem('isSessionLoggedIn');
-                sessionStorage.removeItem('session_logged_in');
+                // ⭐ Session logout: sessionStorage'dan sil, böylece şifre tekrar istenir
+                sessionStorage.removeItem('isSessionLoggedIn');
+                // ⭐ showPasswordOnly true yap ve localStorage'a kaydet (logout sonrası şifre ekranı göster)
+                setShowPasswordOnly(true);
+                localStorage.setItem('showPasswordOnly', 'true');
                 (window as any).__AKN_LICENSE__ = undefined;
                 setIsSessionLoggedIn(false);
-                setShowPasswordOnly(true);
               }}
             />
           )}
