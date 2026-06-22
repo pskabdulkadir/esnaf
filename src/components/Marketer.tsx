@@ -891,9 +891,8 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
         setProdDescription("");
         setProdAdCopy("");
         setProdImages([]);
-        showToast("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀", "success");
+        showToast("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀\n✅ Google'a otomatik olarak bildirildi!", "success");
         fetchData();
-        fetchSitemapData();
         setActiveTab("catalogue");
       }
     } catch (err) {
@@ -908,14 +907,13 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
       await fetch(`/api/public-discounts/${pubId}`, { method: "DELETE" });
       showToast(
         settings.language === "en"
-          ? "Campaign removed successfully!"
+          ? "Campaign removed successfully! ✅ Google updated."
           : settings.language === "de"
           ? "Aktion erfolgreich gelöscht!"
-          : "Kampanya vitrinden başarıyla kaldırıldı!",
+          : "Kampanya vitrinden başarıyla kaldırıldı! ✅ Google otomatik güncellendi.",
         "success"
       );
       fetchData();
-      fetchSitemapData();
     } catch (err) {
       console.error("Silme hatası:", err);
       showToast(
@@ -1453,7 +1451,7 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                       : "border-transparent text-stone-500 hover:text-stone-800"
                   }`}
                 >
-                  📢 Reklam Ayarları (Google Ads)
+                  📊 Google Entegrasyon
                 </button>
                 <button
                   onClick={() => setActiveTab("settings")}
@@ -1648,128 +1646,73 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                       </div>
                     </div>
 
-                    {/* Google Ads & Google Analytics Conversion Trackers Panel */}
-                    <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
-                       {/* Wizard Progress Header */}
-                       <div className="mb-6 pb-5 border-b border-stone-100">
-                         <div className="flex justify-between items-center mb-3">
-                           <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
-                             🎯 Reklam Bağlantı Sihirbazı
-                           </span>
-                           <span className="text-[10px] text-stone-400 font-extrabold">Adım {wizardStep} / 3</span>
-                         </div>
-                         
-                         {/* Animated Custom Progress Bar */}
-                         <div className="h-2 w-full bg-stone-100 rounded-full overflow-hidden relative mb-4">
-                           <div 
-                             className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                             style={{ width: wizardStep === 1 ? "33%" : wizardStep === 2 ? "66%" : "100%" }}
-                           />
-                         </div>
+                    {/* Google Analytics & Ads (Opsiyonel) */}
+                    <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl border border-blue-200 p-6 sm:p-8 shadow-sm">
+                      <div className="flex items-start gap-4">
+                        <div className="h-10 w-10 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                          <span className="text-lg">📊</span>
+                        </div>
+                        <div className="flex-1">
+                          <h3 className="text-sm font-black text-blue-900 mb-1">
+                            Google Analytics & Ads (Opsiyonel)
+                          </h3>
+                          <p className="text-xs text-blue-800 leading-relaxed mb-4">
+                            Kampanyalarınızın tıklama, gösterim ve dönüşüm verilerini izlemek istiyorsanız, Google Analytics ve Ads kodlarınızı buraya girin. Gerekli değildir.
+                          </p>
 
-                         {/* Step Labels */}
-                         <div className="grid grid-cols-3 text-center text-[10px] font-black tracking-tight">
-                           <button 
-                             type="button"
-                             onClick={() => setWizardStep(1)}
-                             className={`pb-1 border-b-2 transition-all cursor-pointer ${
-                               wizardStep === 1 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400 hover:text-stone-600"
-                             }`}
-                           >
-                             ✨ 1. Eğitim
-                           </button>
-                           <button 
-                             type="button"
-                             onClick={() => wizardAnalyticsId && wizardAdsId ? setWizardStep(2) : null}
-                             disabled={!wizardAnalyticsId || !wizardAdsId}
-                             className={`pb-1 border-b-2 transition-all ${
-                               wizardStep === 2 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400 disabled:opacity-40"
-                             }`}
-                           >
-                             🔧 2. Bağlantı
-                           </button>
-                           <button 
-                             type="button"
-                             disabled={wizardStep < 3}
-                             className={`pb-1 border-b-2 transition-all ${
-                               wizardStep === 3 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400 disabled:opacity-40"
-                             }`}
-                           >
-                             🚀 3. Tamamlandı!
-                           </button>
-                         </div>
-                       </div>
+                          {wizardAnalyticsId || wizardAdsId ? (
+                            <div className="bg-white/70 p-4 rounded-xl space-y-2">
+                              {wizardAnalyticsId && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-green-600 text-lg">✓</span>
+                                  <span className="text-[11px] text-blue-900 font-mono"><span className="font-bold">Analytics:</span> {wizardAnalyticsId}</span>
+                                </div>
+                              )}
+                              {wizardAdsId && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-green-600 text-lg">✓</span>
+                                  <span className="text-[11px] text-blue-900 font-mono"><span className="font-bold">Ads:</span> {wizardAdsId}</span>
+                                </div>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setWizardStep(1)}
+                                className="mt-2 text-xs font-black text-blue-600 hover:text-blue-700 underline"
+                              >
+                                Kodları Düzenle
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => setWizardStep(1)}
+                              className="w-full text-xs font-black text-white bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+                            >
+                              Kodları Girin (Opsiyonel)
+                            </button>
+                          )}
+                        </div>
+                      </div>
 
-                       {/* STEP 1: Eğitim ve Başlangıç */}
+                       {/* Wizard (Hidden unless user clicks) */}
                        {wizardStep === 1 && (
-                         <div className="animate-fadeIn space-y-4">
-                           <div>
-                             <h3 className="text-sm font-black text-stone-900 leading-snug">İşletmenizi Saniyeler İçinde Google Arama & Reklamlarına Bağlayın</h3>
-                             <p className="text-xs text-stone-550 mt-1 leading-relaxed">
-                               Uygulamanız arka planda çalışırken, Google Analytics ve Google Ads kodlarınız her tıklandığında Google sistemleri ile eşleşir. Bu sayede işletmeniz esnaf bütçesiyle küresel bir marka haline gelir.
-                             </p>
-                           </div>
-
-                           <div className="bg-stone-50 p-4 rounded-2xl border border-stone-150 space-y-3">
-                             <h4 className="text-[10px] uppercase font-extrabold tracking-wider text-stone-500">💡 NASIL REKLAM VERİRİM?</h4>
-                             <ul className="text-xs text-stone-700 space-y-2 font-medium">
-                               <li className="flex items-start gap-2">
-                                 <span className="text-emerald-600 font-extrabold">✓</span>
-                                 <span>Öncelikle ücretsiz bir <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline font-bold hover:text-emerald-800">Google Analytics Hesabı ↗</a> açarak başlama sinyalleri edinin.</span>
-                               </li>
-                               <li className="flex items-start gap-2">
-                                 <span className="text-emerald-600 font-extrabold">✓</span>
-                                 <span>Müşterilerinizin hangi mahalleden, kaç kere işletmenizi gezdiğini ve hangi ürüne bastığını anlık bütçe optimizasyonuyla ölçün.</span>
-                               </li>
-                               <li className="flex items-start gap-2">
-                                 <span className="text-emerald-600 font-extrabold">✓</span>
-                                 <span>Bir sonraki adımda sistemimizin otomatik algılayacağı ID'leri girerek kurulumu cihazınıza bağlayın.</span>
-                               </li>
-                             </ul>
-                           </div>
-
-                           <div className="flex justify-between items-center pt-2">
-                             <a 
-                               href="https://analytics.google.com/" 
-                               target="_blank" 
-                               rel="noopener noreferrer"
-                               className="text-xs text-emerald-705 font-black hover:underline"
-                             >
-                               Google Analytics Paneline Git ↗
-                             </a>
-                             <button
-                               type="button"
-                               onClick={() => setWizardStep(2)}
-                               className="bg-stone-900 hover:bg-stone-950 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-sm"
-                             >
-                               İleri: Kodları Bağla <ChevronRight className="h-4 w-4" />
-                             </button>
-                           </div>
-                         </div>
-                       )}
-
-                       {/* STEP 2: Google Integration Wizard */}
-                       {(wizardStep === 2 || wizardStep === 3 || wizardStep === 4) && (
-                         <div className="animate-fadeIn">
+                         <div className="mt-6 pt-6 border-t border-blue-200 animate-fadeIn">
                            <GoogleIntegrationWizard
                              initialGaId={wizardAnalyticsId}
                              initialAdsId={wizardAdsId}
                              onSuccess={(gaId, adsId) => {
                                setWizardAnalyticsId(gaId);
                                setWizardAdsId(adsId);
+                               setWizardStep(0);
                              }}
                            />
-                           {wizardStep === 2 && (
-                             <div className="mt-6 pt-4 border-t border-stone-100">
-                               <button
-                                 type="button"
-                                 onClick={() => setWizardStep(1)}
-                                 className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer"
-                               >
-                                 ⬅ Geri Dön
-                               </button>
-                             </div>
-                           )}
+                           <button
+                             type="button"
+                             onClick={() => setWizardStep(0)}
+                             className="w-full mt-4 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer text-xs"
+                           >
+                             Kapat
+                           </button>
                          </div>
                        )}
                      </div>
@@ -1779,129 +1722,51 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
 
 
 
-                    {/* Google XML Sitemap Generator Console */}
-                    <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
-                      <div className="flex justify-between items-center mb-3">
+                    {/* Otomatik Google Yayını */}
+                    <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-3xl border border-emerald-200 p-6 sm:p-8 shadow-sm">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="h-10 w-10 bg-emerald-100 rounded-2xl flex items-center justify-center">
+                          <Globe className="h-5 w-5 text-emerald-600" />
+                        </div>
                         <div>
-                          <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
-                            GOOGLE SEARCH CONSOLE HAZIRLIĞI
+                          <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                            ✅ OTOMATIK GOOGLE YAYINI
                           </span>
-                          <h2 className="text-md font-black text-stone-900 font-serif leading-tight mt-1.5 flex items-center gap-1.5">
-                            <Globe className="h-4.5 w-4.5 text-amber-500" />
-                            Otomatik Sitemap.xml İndeks Dosyası
+                          <h2 className="text-md font-black text-emerald-900 font-serif leading-tight mt-1">
+                            Kampanyalar Otomatik Olarak Yayınlanıyor
                           </h2>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={fetchSitemapData}
-                            disabled={isLoadingSitemap}
-                            className="text-[10px] font-black text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
-                          >
-                            <RefreshCw className={`h-3 w-3 ${isLoadingSitemap ? 'animate-spin' : ''}`} /> Yenile
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (sitemapData?.sitemapUrl) {
-                                navigator.clipboard.writeText(sitemapData.sitemapUrl);
-                                showToast("Sitemap URL'si kopyalandı! 🧭", "success");
-                              }
-                            }}
-                            className="text-[10px] font-black text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <Copy className="h-3 w-3" /> URL Kopyala
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (sitemapData?.sitemapUrl) {
-                                localStorage.setItem('pending_sitemap_url', sitemapData.sitemapUrl);
-                                window.open('https://search.google.com/search-console/', '_blank');
-                                showToast("Google Search Console açılıyor... Sitemap URL'si panoya kopyalandı. Sol menüdeki 'Sitemap'lar'a tıkla ve 'Yeni Sitemap Ekle'ye tıklayıp URL'yi yapıştır! 🚀", "info");
-                              }
-                            }}
-                            className="text-[10px] font-black text-white bg-amber-600 hover:bg-amber-700 border border-amber-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                          >
-                            <Globe className="h-3 w-3" /> GSC'ye Gönder
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-xs text-stone-500 mb-4 leading-relaxed">
-                        Yayındaki tüm kampanyalarınızı Google arama motoruna bildirmek için hazırlanan sitemap kodu. Tamamen dinamiktir, kampanya sildikçe veya ekledikçe anında güncellenir.
-                      </p>
-
-                      <div className="relative bg-stone-950 text-stone-200 font-mono text-[10px] p-4 rounded-2xl max-h-48 overflow-y-auto leading-relaxed border border-stone-900">
-                        <pre className="whitespace-pre-wrap">
-{sitemapData?.sitemapXml || `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, "-")}</loc>
-    <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>
-${publicDiscounts.map(d => `  <url>
-    <loc>https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, "-")}?slug=${d.slug}</loc>
-    <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>0.9</priority>
-  </url>`).join("\n")}
-</urlset>`}
-                        </pre>
                       </div>
 
-                      {sitemapData && (
-                        <div className="mt-4 pt-4 border-t border-stone-200 space-y-4">
-                          <div className="grid grid-cols-3 gap-3 text-center">
-                            <div className="bg-stone-50 p-3 rounded-xl">
-                              <p className="text-[10px] text-stone-500">Mağaza Adı</p>
-                              <p className="text-xs font-black text-stone-900 mt-1">{sitemapData.merchantName}</p>
-                            </div>
-                            <div className="bg-stone-50 p-3 rounded-xl">
-                              <p className="text-[10px] text-stone-500">Toplam URL'ler</p>
-                              <p className="text-xs font-black text-stone-900 mt-1">{sitemapData.totalUrls}</p>
-                            </div>
-                            <div className="bg-stone-50 p-3 rounded-xl">
-                              <p className="text-[10px] text-stone-500">Kampanyalar</p>
-                              <p className="text-xs font-black text-stone-900 mt-1">{sitemapData.publicDiscounts?.length || 0}</p>
-                            </div>
-                          </div>
-
-                          {/* GSC Submission Confirmation */}
-                          <div className={`p-4 rounded-xl border-2 transition-all ${
-                            gscSubmissionConfirmed
-                              ? 'bg-emerald-50 border-emerald-200'
-                              : 'bg-amber-50 border-amber-200'
-                          }`}>
-                            <label className="flex items-start gap-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={gscSubmissionConfirmed}
-                                onChange={(e) => {
-                                  const checked = e.target.checked;
-                                  setGscSubmissionConfirmed(checked);
-                                  localStorage.setItem('gsc_submission_confirmed', checked ? 'true' : 'false');
-                                  if (checked) {
-                                    showToast("✅ Google Search Console'a sitemap başarıyla gönderildi! Google bundan sonra tüm URL'lerinizi tarayacak. 🚀", "success");
-                                  }
-                                }}
-                                className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
-                              />
-                              <div>
-                                <p className="text-xs font-black text-stone-900">
-                                  ✅ Google Search Console'da Sitemap Gönderimi Tamamladım
-                                </p>
-                                <p className="text-[10px] text-stone-600 mt-1">
-                                  {gscSubmissionConfirmed
-                                    ? "Harika! Sitemap'ınız Google taraması için hazır. 24-48 saatte tüm kampanyalarınız Google Arama'da görünmeye başlayacak."
-                                    : "Bu kutuyu işaretleyerek Google Search Console'da sitemap gönderimini tamamladığınızı doğrulayın."}
-                                </p>
-                              </div>
-                            </label>
+                      <div className="space-y-3 text-sm text-emerald-800">
+                        <div className="flex items-start gap-2">
+                          <div className="text-lg">✓</div>
+                          <div>
+                            <p className="font-semibold">Ürün Eklediniz Mi?</p>
+                            <p className="text-xs text-emerald-700">Sistem anında Google'a bildiriyor</p>
                           </div>
                         </div>
-                      )}
+                        <div className="flex items-start gap-2">
+                          <div className="text-lg">✓</div>
+                          <div>
+                            <p className="font-semibold">Sitemap Otomatik Güncelleniyor</p>
+                            <p className="text-xs text-emerald-700">Her kampanya eklenince sitemap.xml yenileniyor</p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="text-lg">✓</div>
+                          <div>
+                            <p className="font-semibold">Google Bot Tarama Başladı</p>
+                            <p className="text-xs text-emerald-700">24-48 saat içinde Google Arama'da görünecek</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 pt-4 border-t border-emerald-200">
+                        <p className="text-[11px] text-emerald-700 font-mono font-semibold">
+                          ℹ️ Sitemap otomatik olarak güncelleniyor. Google 24-48 saatte tarayacak.
+                        </p>
+                      </div>
                     </div>
 
                   </div>

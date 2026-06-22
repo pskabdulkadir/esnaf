@@ -477,6 +477,10 @@ app.post("/api/public-discounts", (req, res) => {
   if (!db.publicDiscounts) db.publicDiscounts = [];
   db.publicDiscounts.push(newPublicDiscount);
   writeDatabase(db);
+
+  // Otomatik olarak Google'a sitemap güncellemesini bildir
+  pingGoogle();
+
   res.status(201).json(newPublicDiscount);
 });
 
@@ -533,6 +537,10 @@ app.delete("/api/public-discounts/:id", (req, res) => {
   const db = readDatabase();
   db.publicDiscounts = (db.publicDiscounts || []).filter((p: any) => p.id !== req.params.id);
   writeDatabase(db);
+
+  // Otomatik olarak Google'a sitemap güncellemesini bildir
+  pingGoogle();
+
   res.json({ success: true });
 });
 
@@ -682,6 +690,21 @@ function getBaseUrl(): string {
     return `https://${process.env.VERCEL_URL}`;
   }
   return "https://esnafindirim.com";
+}
+
+// Helper function to notify Google about sitemap update (automatic indexing)
+async function pingGoogle() {
+  const baseUrl = getBaseUrl();
+  const sitemapUrl = `${baseUrl}/sitemap.xml`;
+
+  try {
+    const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
+    const response = await fetch(pingUrl, { method: 'GET', timeout: 5000 });
+    console.log(`[GOOGLE_PING] ✅ Sitemap pinged. Status: ${response.status}`);
+  } catch (err) {
+    console.error(`[GOOGLE_PING] ⚠️ Ping başarısız (sistem çalışmaya devam eder):`, err);
+    // Sistem devam etmeli, ping başarısız olsa bile
+  }
 }
 
 // Global sitemap for all public discounts
