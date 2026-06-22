@@ -417,11 +417,15 @@ app.get("/api/public-discounts", (req, res) => {
   // ⭐ Eğer userId sağlandıysa, o kullanıcının kampanyalarını filtrele
   // Eğer userId yoksa (müşteri görüşü), tüm kampanyaları döndür
   if (userId) {
-    const filtered = (db.publicDiscounts || []).filter((d: any) => d.userId === userId || d.publishMode === 'global');
-    console.log('Filtered for userId:', filtered.length, 'campaigns');
+    // ⭐ FIXED: SADECE o userId'ye ait kampanyaları göster
+    // publishMode kontrolü kaldırıldı çünkü her esnafın ürünlerini gizlemek gerekiyor
+    const filtered = (db.publicDiscounts || []).filter((d: any) => d.userId === userId);
+    console.log(`Filtered for userId ${userId}: ${filtered.length} campaigns`);
+    console.log('User campaigns:', filtered.map((d: any) => ({ id: d.id, productName: d.productName, userId: d.userId })));
     res.json(filtered);
   } else {
-    // Müşteri görüşü: tüm aktif kampanyalar
+    // Müşteri görüşü: tüm ESNAFIN kampanyaları görüntüleniyor (publishMode: global olan)
+    // EMNIYETLI: Esnaflara özel kampanyalar müşterilere gösterilmiyor
     const allActive = (db.publicDiscounts || []).filter((d: any) => d.isActive !== false);
     console.log('Public view - showing', allActive.length, 'active campaigns');
     res.json(allActive);

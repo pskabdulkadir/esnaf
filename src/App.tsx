@@ -307,21 +307,33 @@ export default function App() {
   // Permission / Security Mode State (Yonetici is default Admin)
   const [userRole, setUserRole] = useState<UserRole>('Yonetici');
 
-  // User ID (Lisans sahibinin kimliği) - her kullanıcı eşsiz ID'ye sahip
-  // Synchronized from localStorage to ensure consistency across tabs
+  // User ID (Lisans sahibinin kimliği) - her lisans kendi userId'ye sahip
+  // Derived from: machineId + licenseKey hash (benzersiz ve tarayıcı localStorage'dan bağımsız)
   const [userId] = useState<string>(() => {
     try {
-      let id = localStorage.getItem('akn_user_id');
-      if (!id) {
-        id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('akn_user_id', id);
-        // Verify what was actually stored (handles race conditions in rare cases)
-        const storedId = localStorage.getItem('akn_user_id');
-        id = storedId || id;
+      // ⭐ FIXED: userId'yi lisans key'ine bağla, böylece her lisans farklı bir kullanıcı olur
+      const licenseData = localStorage.getItem('license_data');
+      const machineId = getOrCreateMachineId();
+
+      if (licenseData) {
+        // Lisans var: userId = machineId + lisans key'inin ilk 12 karakteri
+        try {
+          const parsed = JSON.parse(licenseData);
+          const licenseKeyPrefix = parsed.key ? parsed.key.substring(0, 12) : 'unknown';
+          const id = `license_${machineId}_${licenseKeyPrefix}`;
+          console.log('✅ App.tsx userId (from license):', id);
+          return id;
+        } catch (e) {
+          console.warn('License parse failed, using fallback');
+        }
       }
-      console.log('✅ App.tsx userId initialized:', id);
+
+      // Lisans yok: salt rasgele userId (demo/test için)
+      const id = `user_${machineId}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('✅ App.tsx userId (fallback):', id);
       return id;
-    } catch {
+    } catch (e) {
+      console.error('userId creation failed:', e);
       return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
   });

@@ -330,18 +330,29 @@ const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
 
 export default function App() {
   // ⭐ User ID for product ownership filtering
+  // FIXED: userId'yi lisans key'ine bağla, böylece her lisans farklı userId'ye sahip olur
   const [userId] = useState<string>(() => {
     try {
-      let id = localStorage.getItem('akn_user_id');
-      if (!id) {
-        id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-        localStorage.setItem('akn_user_id', id);
-        const storedId = localStorage.getItem('akn_user_id');
-        id = storedId || id;
+      const licenseData = localStorage.getItem('license_data');
+
+      if (licenseData) {
+        try {
+          const parsed = JSON.parse(licenseData);
+          const licenseKeyPrefix = parsed.key ? parsed.key.substring(0, 12) : 'unknown';
+          const machineIdFallback = `device_${Date.now()}`;
+          const id = `license_${machineIdFallback}_${licenseKeyPrefix}`;
+          console.log('siftah-repo userId (from license):', id);
+          return id;
+        } catch (e) {
+          console.warn('License parse failed, using fallback');
+        }
       }
-      console.log('siftah-repo userId initialized:', id);
+
+      const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('siftah-repo userId (fallback):', id);
       return id;
-    } catch {
+    } catch (e) {
+      console.error('userId creation failed:', e);
       return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     }
   });
@@ -456,13 +467,11 @@ export default function App() {
       }
 
       // 2. Fetch public active discounts
-      // ⭐ FIXED: userId'yi gönder (esnaf panelinde userId olacak)
-      const userIdForApi = typeof window !== 'undefined'
-        ? localStorage.getItem('akn_user_id') || undefined
-        : undefined;
-      const apiUrl = userIdForApi
-        ? `/api/public-discounts?userId=${encodeURIComponent(userIdForApi)}`
+      // ⭐ FIXED: userId state'ini kullan (lisans key'e bağlı unique ID)
+      const apiUrl = userId
+        ? `/api/public-discounts?userId=${encodeURIComponent(userId)}`
         : `/api/public-discounts`;
+      console.log('siftah-repo fetchData - fetching from URL:', apiUrl);
       const pubRes = await fetch(apiUrl);
       if (pubRes.ok) {
         const discountsData = await pubRes.json();
