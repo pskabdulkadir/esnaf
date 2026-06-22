@@ -541,7 +541,7 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
   useEffect(() => {
     fetchData();
-  }, [userId]); // ⭐ FIXED: userId değişince fetchData'yı yeniden çalıştır
+  }, [userId]); // ⭐ userId değişince veya component mount olduğunda verileri yükle
 
   // Fetch sitemap data for Google Search Console
   const fetchSitemapData = async () => {
