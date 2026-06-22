@@ -890,6 +890,12 @@ async function startServer() {
 
     // SPA fallback for non-API routes
     app.get("*", (req, res) => {
+      // Return 404 for missing assets or API requests instead of index.html
+      const hasExtension = path.extname(req.path) !== "";
+      const isAssetOrApi = req.path.startsWith("/assets/") || req.path.startsWith("/api/") || hasExtension;
+      if (isAssetOrApi) {
+        return res.status(404).type("text/plain").send("Not Found");
+      }
       res.sendFile(path.join(distPath, "index.html"));
     });
   }

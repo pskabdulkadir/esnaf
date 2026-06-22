@@ -31,7 +31,7 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Network öncelikli stratejisi - API çağrıları için
+// Network öncelikli stratejisi - HTML/Navigasyon ve API çağrıları için
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -40,13 +40,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // API çağrıları için network önceliği
-  if (request.url.includes('/api/')) {
+  // HTML navigasyon veya html kabul eden istekleri belirle
+  const isHtml = request.mode === 'navigate' || 
+                 request.url.endsWith('/') || 
+                 request.url.endsWith('.html') ||
+                 request.url.includes('/index.html') ||
+                 (request.headers.get('accept') && request.headers.get('accept').includes('text/html'));
+
+  // API çağrıları ve HTML sayfaları için NETWORK ÖNCELİĞİ (Network-First)
+  if (isHtml || request.url.includes('/api/')) {
     event.respondWith(
       fetch(request)
         .then((response) => {
           // Başarılı yanıtı cache'le
-          if (response.ok) {
+          if (response.ok && response.status === 200) {
             const cacheResponse = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, cacheResponse);
@@ -55,14 +62,20 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Network hatası varsa cache'ten getir
-          return caches.match(request);
+          // Network hatası/çevrimdışı ise cache'ten getir
+          return caches.match(request).then((cachedResponse) => {
+            if (cachedResponse) return cachedResponse;
+            // Eğer ana sayfa ise '/' veya 'index.html' cache'i dönmeye çalış
+            if (isHtml) {
+              return caches.match('/') || caches.match('/index.html');
+            }
+          });
         })
     );
     return;
   }
 
-  // Statik dosyalar için cache önceliği
+  // Diğer statik dosyalar (JS, CSS, Görseller vb.) için CACHE ÖNCELİĞİ (Cache-First)
   event.respondWith(
     caches.match(request).then((response) => {
       return response || fetch(request).then((response) => {
