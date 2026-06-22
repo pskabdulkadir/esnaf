@@ -30,6 +30,12 @@ import {
   checkAndRestoreLicenseValidity,
   restoreFromBackup
 } from './lib/license-manager';
+import {
+  initLicenseDB,
+  getLicenseFromIndexedDB,
+  isStoredLicenseValid
+} from './lib/license-db';
+import { getOrCreateMachineId } from './lib/machine-id';
 import { 
   Building2, 
   LayoutDashboard, 
@@ -78,35 +84,105 @@ export default function App() {
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
 
   // License validity check on mount
-  // ⭐ ÖZEL: Tarayıcı sıfırlandığında bile lisans bilgilerini geri yükle
+  // ⭐ ÖZEL: Cihaz tanıması ile IndexedDB'den lisans geri yükleme
   useEffect(() => {
-    try {
-      // Adım 1: localStorage'dan lisans bilgisini kontrol et ve geri yükle
-      const isValid = checkAndRestoreLicenseValidity();
+    (async () => {
+      try {
+        console.log('🔍 App.tsx: Lisans kontrol ediliyor...');
 
-      if (isValid) {
-        // Lisans geçerli
-        setIsLicenseValid(true);
-        console.log('✅ Lisans başarıyla geri yüklendi');
-      } else {
-        // Lisans geçersiz, backup'tan geri yüklemeyi dene
-        console.warn('⚠️ Ana lisans verisi geçersiz, backup\'tan geri yüklenmeye çalışılıyor...');
-        const backupData = restoreFromBackup();
+        // SEVIYE 1: localStorage'da hala veri varsa kullan
+        const licenseDataStr = localStorage.getItem('license_data');
+        const isValidFlag = localStorage.getItem('isLicenseValid');
 
-        if (backupData) {
-          // Backup'tan geri yüklenmiş
-          setIsLicenseValid(true);
-          console.log('✅ Lisans backup\'tan geri yüklendi');
-        } else {
-          // Backup da yoksa, lisans yok
-          setIsLicenseValid(false);
-          console.warn('❌ Lisans bilgisi bulunamadı');
+        if (licenseDataStr && isValidFlag === 'true') {
+          try {
+            const licenseData = JSON.parse(licenseDataStr);
+            if (licenseData.exp && new Date(licenseData.exp) > new Date()) {
+              console.log('✅ App: localStorage\'dan geçerli lisans bulundu');
+              setIsLicenseValid(true);
+              return;
+            }
+          } catch (e) {
+            console.warn('localStorage veri çözümleme hatası:', e);
+          }
         }
+
+        // SEVIYE 2: sessionStorage'a kontrol et
+        const sessionData = sessionStorage.getItem('license_data_session');
+        if (sessionData) {
+          try {
+            const licenseData = JSON.parse(sessionData);
+            if (licenseData.exp && new Date(licenseData.exp) > new Date()) {
+              console.log('✅ App: sessionStorage\'dan geçerli lisans bulundu');
+              localStorage.setItem('license_data', sessionData);
+              localStorage.setItem('isLicenseValid', 'true');
+              setIsLicenseValid(true);
+              return;
+            }
+          } catch (e) {
+            console.warn('sessionStorage veri çözümleme hatası:', e);
+          }
+        }
+
+        // SEVIYE 3: Memory'de veri varsa kontrol et
+        const memoryData = (window as any).__AKN_LICENSE__;
+        if (memoryData && memoryData.data && memoryData.data.exp) {
+          if (new Date(memoryData.data.exp) > new Date()) {
+            console.log('✅ App: Memory\'den geçerli lisans bulundu');
+            const dataStr = JSON.stringify(memoryData.data);
+            localStorage.setItem('license_data', dataStr);
+            localStorage.setItem('isLicenseValid', 'true');
+            sessionStorage.setItem('license_data_session', dataStr);
+            setIsLicenseValid(true);
+            return;
+          }
+        }
+
+        // ⭐ SEVIYE 4: IndexedDB'den cihaz ID'ye göre geri yükle (ÖZELLİKLE!)
+        // Tarayıcı temizlenmiş olsa bile cihaz tanınır ve lisans otomatik yüklenir
+        console.log('🔍 IndexedDB\'de cihaz tanımlaması yapılıyor...');
+        const machineId = getOrCreateMachineId();
+
+        // IndexedDB başlat
+        await initLicenseDB();
+
+        // Cihaz ID'ye göre lisans bul
+        const storedLicense = await getLicenseFromIndexedDB(machineId);
+
+        if (storedLicense) {
+          // Lisans geçerli mi kontrol et
+          const isValid = await isStoredLicenseValid(machineId);
+
+          if (isValid) {
+            console.log('🔒 Cihaz tanındı! IndexedDB\'den lisans geri yüklendi');
+            const licenseData = storedLicense.licenseData;
+            const dataStr = JSON.stringify(licenseData);
+
+            // Tüm seviyelere yeniden yaz
+            localStorage.setItem('license_data', dataStr);
+            localStorage.setItem('isLicenseValid', 'true');
+            sessionStorage.setItem('license_data_session', dataStr);
+            (window as any).__AKN_LICENSE__ = {
+              data: licenseData,
+              timestamp: new Date().getTime(),
+              valid: true
+            };
+
+            console.log('✅ Cihaz tanımlaması başarılı, Dashboard açılıyor...');
+            setIsLicenseValid(true);
+            return;
+          }
+        }
+
+        // SEVIYE 5: Hiçbir yerde veri yoksa
+        console.warn('❌ App: Geçerli lisans bulunamadı');
+        setIsLicenseValid(false);
+        localStorage.setItem('isLicenseValid', 'false');
+      } catch (e) {
+        console.error('App lisans kontrolü hatası:', e);
+        setIsLicenseValid(false);
       }
-    } catch (e) {
-      console.error('Lisans kontrolü hatası:', e);
-      setIsLicenseValid(false);
-    }
+    })();
   }, []);
 
   useEffect(() => {

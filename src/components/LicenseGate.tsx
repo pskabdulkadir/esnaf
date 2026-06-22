@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Copy, CheckCircle } from 'lucide-react';
 import { getOrCreateMachineId } from '../lib/machine-id';
 import { ensureLicensePersistency, restoreFromBackup, validateLicenseFormat, isLicenseExpired } from '../lib/license-manager';
+import { saveLicenseToIndexedDB, initLicenseDB } from '../lib/license-db';
 
 interface LicenseGateProps {
   onLicenseValid: () => void;
@@ -200,12 +201,38 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
         }
 
         // Tüm kontroller başarılı
-        localStorage.setItem('license_key_submitted', licenseKey);
-        localStorage.setItem('license_data', JSON.stringify(licenseData));
-        localStorage.setItem('isLicenseValid', 'true');
+        // ⭐ KRITIK: Lisansı tüm seviyelerde hemen kaydet
+        const licenseJSON = JSON.stringify(licenseData);
+        const timestamp = new Date().getTime();
 
-        // ⭐ ÖZEL: Lisans kalıcılığını sağla (tarayıcı sıfırlanırsa da saklanır)
-        ensureLicensePersistency(licenseData);
+        // SEVIYE 1: localStorage (AYNI ANDA)
+        localStorage.setItem('license_key_submitted', licenseKey);
+        localStorage.setItem('license_data', licenseJSON);
+        localStorage.setItem('isLicenseValid', 'true');
+        localStorage.setItem('license_backup_' + timestamp, licenseJSON);
+
+        // SEVIYE 2: sessionStorage
+        sessionStorage.setItem('license_data_session', licenseJSON);
+        sessionStorage.setItem('license_valid_session', 'true');
+
+        // SEVIYE 3: Memory
+        (window as any).__AKN_LICENSE__ = {
+          data: licenseData,
+          timestamp: timestamp,
+          valid: true
+        };
+
+        // ⭐ SEVIYE 4: IndexedDB (Tarayıcı temizlenmiş olsa bile saklanır!)
+        // Bu seviye en güvenli, tarayıcı tamamen temizlenmiş olsa da orada kalır
+        initLicenseDB().then(() => {
+          saveLicenseToIndexedDB(machineId, licenseData, machineId).then((success) => {
+            if (success) {
+              console.log('🔒 Lisans IndexedDB\'ye kaydedildi (Cihaz tanımlaması)');
+            }
+          });
+        });
+
+        console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
 
         setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
 
