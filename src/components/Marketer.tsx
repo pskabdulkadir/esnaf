@@ -425,6 +425,13 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
   const [wizardAdsLabel, setWizardAdsLabel] = useState<string>("");
   const [wizardError, setWizardError] = useState<string>("");
 
+  // Google Search Console Sitemap states
+  const [sitemapData, setSitemapData] = useState<any>(null);
+  const [isLoadingSitemap, setIsLoadingSitemap] = useState(false);
+  const [gscSubmissionConfirmed, setGscSubmissionConfirmed] = useState(() => {
+    return localStorage.getItem('gsc_submission_confirmed') === 'true';
+  });
+
   // Persist wizard step to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('wizardStep', wizardStep.toString());
@@ -512,6 +519,24 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
   useEffect(() => {
     fetchData();
   }, []);
+
+  // Fetch sitemap data for Google Search Console
+  const fetchSitemapData = async () => {
+    setIsLoadingSitemap(true);
+    try {
+      const res = await fetch("/api/sitemap-for-esnaf");
+      if (res.ok) {
+        const data = await res.json();
+        setSitemapData(data);
+      } else {
+        console.error(`Sitemap yüklenemedi (HTTP ${res.status})`);
+      }
+    } catch (err) {
+      console.error("Sitemap API hatası:", err);
+    } finally {
+      setIsLoadingSitemap(false);
+    }
+  };
 
   // Google Analytics Entegrasyonu (Otomatik Gömme)
   useEffect(() => {
@@ -866,8 +891,9 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
         setProdDescription("");
         setProdAdCopy("");
         setProdImages([]);
-        alert("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀");
+        showToast("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀", "success");
         fetchData();
+        fetchSitemapData();
         setActiveTab("catalogue");
       }
     } catch (err) {
@@ -889,6 +915,7 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
         "success"
       );
       fetchData();
+      fetchSitemapData();
     } catch (err) {
       console.error("Silme hatası:", err);
       showToast(
@@ -1764,17 +1791,41 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                             Otomatik Sitemap.xml İndeks Dosyası
                           </h2>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const mapUrl = `https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, '-')}/sitemap.xml`;
-                            navigator.clipboard.writeText(mapUrl);
-                            alert("Sitemap adresi kopyalandı! Bu adresi Google Search Console panelinize girerek her yeni kampanya eklediğinizde Google botlarının işletmenizi anında ziyaret etmesini sağlayabilirsiniz. 🧭");
-                          }}
-                          className="text-[10px] font-black text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
-                        >
-                          <Copy className="h-3 w-3" /> URL Kopyala
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={fetchSitemapData}
+                            disabled={isLoadingSitemap}
+                            className="text-[10px] font-black text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer disabled:opacity-50"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${isLoadingSitemap ? 'animate-spin' : ''}`} /> Yenile
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (sitemapData?.sitemapUrl) {
+                                navigator.clipboard.writeText(sitemapData.sitemapUrl);
+                                showToast("Sitemap URL'si kopyalandı! 🧭", "success");
+                              }
+                            }}
+                            className="text-[10px] font-black text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <Copy className="h-3 w-3" /> URL Kopyala
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (sitemapData?.sitemapUrl) {
+                                localStorage.setItem('pending_sitemap_url', sitemapData.sitemapUrl);
+                                window.open('https://search.google.com/search-console/', '_blank');
+                                showToast("Google Search Console açılıyor... Sitemap URL'si panoya kopyalandı. Sol menüdeki 'Sitemap'lar'a tıkla ve 'Yeni Sitemap Ekle'ye tıklayıp URL'yi yapıştır! 🚀", "info");
+                              }
+                            }}
+                            className="text-[10px] font-black text-white bg-amber-600 hover:bg-amber-700 border border-amber-700 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <Globe className="h-3 w-3" /> GSC'ye Gönder
+                          </button>
+                        </div>
                       </div>
                       <p className="text-xs text-stone-500 mb-4 leading-relaxed">
                         Yayındaki tüm kampanyalarınızı Google arama motoruna bildirmek için hazırlanan sitemap kodu. Tamamen dinamiktir, kampanya sildikçe veya ekledikçe anında güncellenir.
@@ -1782,7 +1833,7 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
 
                       <div className="relative bg-stone-950 text-stone-200 font-mono text-[10px] p-4 rounded-2xl max-h-48 overflow-y-auto leading-relaxed border border-stone-900">
                         <pre className="whitespace-pre-wrap">
-{`<?xml version="1.0" encoding="UTF-8"?>
+{sitemapData?.sitemapXml || `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, "-")}</loc>
@@ -1793,12 +1844,64 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
 ${publicDiscounts.map(d => `  <url>
     <loc>https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, "-")}?slug=${d.slug}</loc>
     <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
   </url>`).join("\n")}
 </urlset>`}
                         </pre>
                       </div>
+
+                      {sitemapData && (
+                        <div className="mt-4 pt-4 border-t border-stone-200 space-y-4">
+                          <div className="grid grid-cols-3 gap-3 text-center">
+                            <div className="bg-stone-50 p-3 rounded-xl">
+                              <p className="text-[10px] text-stone-500">Mağaza Adı</p>
+                              <p className="text-xs font-black text-stone-900 mt-1">{sitemapData.merchantName}</p>
+                            </div>
+                            <div className="bg-stone-50 p-3 rounded-xl">
+                              <p className="text-[10px] text-stone-500">Toplam URL'ler</p>
+                              <p className="text-xs font-black text-stone-900 mt-1">{sitemapData.totalUrls}</p>
+                            </div>
+                            <div className="bg-stone-50 p-3 rounded-xl">
+                              <p className="text-[10px] text-stone-500">Kampanyalar</p>
+                              <p className="text-xs font-black text-stone-900 mt-1">{sitemapData.publicDiscounts?.length || 0}</p>
+                            </div>
+                          </div>
+
+                          {/* GSC Submission Confirmation */}
+                          <div className={`p-4 rounded-xl border-2 transition-all ${
+                            gscSubmissionConfirmed
+                              ? 'bg-emerald-50 border-emerald-200'
+                              : 'bg-amber-50 border-amber-200'
+                          }`}>
+                            <label className="flex items-start gap-3 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={gscSubmissionConfirmed}
+                                onChange={(e) => {
+                                  const checked = e.target.checked;
+                                  setGscSubmissionConfirmed(checked);
+                                  localStorage.setItem('gsc_submission_confirmed', checked ? 'true' : 'false');
+                                  if (checked) {
+                                    showToast("✅ Google Search Console'a sitemap başarıyla gönderildi! Google bundan sonra tüm URL'lerinizi tarayacak. 🚀", "success");
+                                  }
+                                }}
+                                className="h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 mt-0.5"
+                              />
+                              <div>
+                                <p className="text-xs font-black text-stone-900">
+                                  ✅ Google Search Console'da Sitemap Gönderimi Tamamladım
+                                </p>
+                                <p className="text-[10px] text-stone-600 mt-1">
+                                  {gscSubmissionConfirmed
+                                    ? "Harika! Sitemap'ınız Google taraması için hazır. 24-48 saatte tüm kampanyalarınız Google Arama'da görünmeye başlayacak."
+                                    : "Bu kutuyu işaretleyerek Google Search Console'da sitemap gönderimini tamamladığınızı doğrulayın."}
+                                </p>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>

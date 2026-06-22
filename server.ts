@@ -649,12 +649,13 @@ app.get("/api/health", (req, res) => {
 // ROBOTS.TXT (SEO)
 // ========================
 app.get("/robots.txt", (req, res) => {
+  const baseUrl = getBaseUrl();
   const robots = `User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /admin/
 
-Sitemap: https://example.com/sitemap.xml
+Sitemap: ${baseUrl}/sitemap.xml
 `;
   res.header('Content-Type', 'text/plain');
   res.send(robots);
@@ -663,9 +664,23 @@ Sitemap: https://example.com/sitemap.xml
 // ========================
 // DYNAMIC SITEMAP.XML (SEO)
 // ========================
+
+// Helper function to get base URL from environment or fallback
+function getBaseUrl(): string {
+  if (process.env.PRODUCTION_URL) {
+    return process.env.PRODUCTION_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return "https://esnafindirim.com";
+}
+
+// Global sitemap for all public discounts
 app.get("/sitemap.xml", (req, res) => {
   const db = readDatabase();
-  const products = db.products || [];
+  const baseUrl = getBaseUrl();
+  const publicDiscounts = db.publicDiscounts || [];
 
   // Build sitemap header
   let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
@@ -673,32 +688,20 @@ app.get("/sitemap.xml", (req, res) => {
 
   // Add homepage
   sitemap += '  <url>\n';
-  sitemap += '    <loc>https://example.com/</loc>\n';
+  sitemap += `    <loc>${baseUrl}/</loc>\n`;
   sitemap += '    <lastmod>' + new Date().toISOString().split('T')[0] + '</lastmod>\n';
   sitemap += '    <changefreq>daily</changefreq>\n';
   sitemap += '    <priority>1.0</priority>\n';
   sitemap += '  </url>\n';
 
-  // Add each product
-  products.forEach((product: any) => {
-    const lastMod = product.lastUpdated ? new Date(product.lastUpdated).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
-    sitemap += '  <url>\n';
-    sitemap += `    <loc>https://example.com/product/${product.id}</loc>\n`;
-    sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
-    sitemap += '    <changefreq>weekly</changefreq>\n';
-    sitemap += '    <priority>0.8</priority>\n';
-    sitemap += '  </url>\n';
-  });
-
-  // Add public discounts
-  const publicDiscounts = db.publicDiscounts || [];
+  // Add each public discount campaign
   publicDiscounts.forEach((discount: any) => {
     const lastMod = discount.publishedAt ? new Date(discount.publishedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
     sitemap += '  <url>\n';
-    sitemap += `    <loc>https://example.com/discount/${discount.slug}</loc>\n`;
+    sitemap += `    <loc>${baseUrl}/discount/${discount.slug}</loc>\n`;
     sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
-    sitemap += '    <changefreq>weekly</changefreq>\n';
-    sitemap += '    <priority>0.7</priority>\n';
+    sitemap += '    <changefreq>daily</changefreq>\n';
+    sitemap += '    <priority>0.9</priority>\n';
     sitemap += '  </url>\n';
   });
 
@@ -706,6 +709,90 @@ app.get("/sitemap.xml", (req, res) => {
 
   res.header('Content-Type', 'application/xml');
   res.send(sitemap);
+});
+
+// Esnaf-specific sitemap for Google Search Console
+app.get("/api/sitemap-for-esnaf", (req, res) => {
+  const db = readDatabase();
+  const baseUrl = getBaseUrl();
+  const merchantName = db.settings?.merchantName || "Bizim Mahalle İşletmesi";
+
+  // Convert merchant name to URL-friendly slug
+  const merchantSlug = merchantName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
+  const publicDiscounts = db.publicDiscounts || [];
+
+  // Build sitemap header
+  let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
+  sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+  // Add merchant showcase homepage
+  sitemap += '  <url>\n';
+  sitemap += `    <loc>${baseUrl}/k/${merchantSlug}</loc>\n`;
+  sitemap += '    <lastmod>' + new Date().toISOString().split('T')[0] + '</lastmod>\n';
+  sitemap += '    <changefreq>daily</changefreq>\n';
+  sitemap += '    <priority>1.0</priority>\n';
+  sitemap += '  </url>\n';
+
+  // Add each campaign for this merchant
+  publicDiscounts.forEach((discount: any) => {
+    const lastMod = discount.publishedAt ? new Date(discount.publishedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+    sitemap += '  <url>\n';
+    sitemap += `    <loc>${baseUrl}/k/${merchantSlug}?slug=${discount.slug}</loc>\n`;
+    sitemap += `    <lastmod>${lastMod}</lastmod>\n`;
+    sitemap += '    <changefreq>daily</changefreq>\n';
+    sitemap += '    <priority>0.9</priority>\n';
+    sitemap += '  </url>\n';
+  });
+
+  sitemap += '</urlset>';
+
+  res.header('Content-Type', 'application/xml');
+  res.json({
+    baseUrl,
+    merchantSlug,
+    merchantName,
+    sitemapUrl: `${baseUrl}/api/sitemap-for-esnaf`,
+    sitemapXml: sitemap,
+    totalUrls: publicDiscounts.length + 1,
+    publicDiscounts
+  });
+});
+
+// Submit sitemap to Google Search Console (requires Google auth - partial automation)
+app.post("/api/submit-sitemap-to-google", (req, res) => {
+  const { sitemapUrl } = req.body;
+
+  if (!sitemapUrl) {
+    return res.status(400).json({ error: "Sitemap URL'si gereklidir." });
+  }
+
+  // Log submission attempt
+  console.log(`[SITEMAP_SUBMISSION] Sitemap URL: ${sitemapUrl}`);
+  console.log(`[SITEMAP_SUBMISSION] Timestamp: ${new Date().toISOString()}`);
+
+  // In production, you would integrate with Google Search Console API here
+  // This requires OAuth token from the user and proper Google API setup
+  // For now, we return helpful info to guide user through manual submission
+
+  res.json({
+    success: true,
+    message: "Sitemap URL'si işleme alındı. Google Search Console'a gitmek için yönlendiriliyorsunuz.",
+    sitemapUrl,
+    instructions: {
+      step1: "Google Search Console sayfası açılacak",
+      step2: "Sol taraftaki menüden 'Sitemap'lar'a tıkla",
+      step3: "'Yeni sitemap ekle' kutusuna tıkla",
+      step4: `Sitemap URL'sini yapıştır: ${sitemapUrl}`,
+      step5: "'Gönder' butonuna bas"
+    },
+    submittedAt: new Date().toISOString()
+  });
 });
 
 // ========================

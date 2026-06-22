@@ -17,7 +17,7 @@ export default function GoogleIntegrationWizard({
   const [isLoading, setIsLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [currentStep, setCurrentStep] = useState<1 | 2 | 3 | 4>(1);
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
   const [validationStatus, setValidationStatus] = useState<{
     ga?: boolean;
     ads?: boolean;
@@ -85,10 +85,6 @@ export default function GoogleIntegrationWizard({
       }
 
       setCurrentStep(3);
-      // Auto-redirect to next step after 1 second
-      setTimeout(() => {
-        setCurrentStep(4);
-      }, 1000);
     } catch (err) {
       setErrorMessage(
         `❌ Bağlantı Hatası: ${err instanceof Error ? err.message : "Bilinmeyen hata"}`
@@ -104,7 +100,7 @@ export default function GoogleIntegrationWizard({
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Step Indicator */}
         <div className="flex gap-2 justify-center mb-6">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3].map((step) => (
             <div
               key={step}
               className={`h-2 flex-1 rounded-full transition-all ${
@@ -117,7 +113,7 @@ export default function GoogleIntegrationWizard({
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
           <h2 className="text-xl font-extrabold text-blue-900 mb-2">
-            🚀 Google Entegrasyon Sihirbazı (Adım 1/4)
+            🚀 Google Entegrasyon Sihirbazı (Adım 1/3)
           </h2>
           <p className="text-sm text-blue-800 leading-relaxed">
             İşletmenizi saniyeler içinde Google Analytics ve Google Ads'e bağlayın. 
@@ -127,36 +123,9 @@ export default function GoogleIntegrationWizard({
 
         {/* Welcome Content */}
         <div className="space-y-4">
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-6">
-            <h3 className="font-bold text-slate-900 mb-4 text-lg">Bu Sihirbaz Neler Yapacak?</h3>
-            <ul className="space-y-3">
-              <li className="flex gap-3">
-                <span className="text-blue-600 font-bold text-lg">✓</span>
-                <div>
-                  <p className="font-semibold text-slate-900">Google Analytics Bağlantısı</p>
-                  <p className="text-xs text-slate-600 mt-1">Tüm müşteri ziyaretlerini ve satın alımlarını otomatik olarak Google Analytics'e gönder</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-orange-600 font-bold text-lg">✓</span>
-                <div>
-                  <p className="font-semibold text-slate-900">Google Ads Bağlantısı</p>
-                  <p className="text-xs text-slate-600 mt-1">Reklam kampanyalarının performansını ölç ve dönüşümleri takip et</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-emerald-600 font-bold text-lg">✓</span>
-                <div>
-                  <p className="font-semibold text-slate-900">Google Search Console Hazırlığı</p>
-                  <p className="text-xs text-slate-600 mt-1">İşletmenizi Google Arama sonuçlarına yayınlayın (sonraki adımda)</p>
-                </div>
-              </li>
-            </ul>
-          </div>
-
-          <div className="bg-amber-50 border-l-4 border-amber-500 rounded-r-xl p-4">
-            <p className="text-sm text-amber-900 font-semibold">
-              ⏱️ <strong>Toplam Süre:</strong> 5 dakika. Tüm veri Google'a güvenli bir şekilde gönderilir.
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
+            <p className="text-sm text-blue-800 leading-relaxed">
+              Google Analytics ve Google Ads kimliklerinizi girerek entegrasyonu tamamlayın. Daha sonra sistemin tüm müşteri ziyaretlerini ve satışlarını Google'a otomatik olarak iletmeye başlayacaktır.
             </p>
           </div>
         </div>
@@ -178,7 +147,7 @@ export default function GoogleIntegrationWizard({
       <div className="max-w-2xl mx-auto space-y-6">
         {/* Step Indicator */}
         <div className="flex gap-2 justify-center mb-6">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3].map((step) => (
             <div
               key={step}
               className={`h-2 flex-1 rounded-full transition-all ${
@@ -191,7 +160,7 @@ export default function GoogleIntegrationWizard({
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6">
           <h2 className="text-xl font-extrabold text-blue-900 mb-2">
-            🔑 Kimliklerinizi Girin (Adım 2/4)
+            🔑 Kimliklerinizi Girin (Adım 2/3)
           </h2>
           <p className="text-sm text-blue-800 leading-relaxed">
             Google Analytics ve Google Ads kimliklerinizi yapıştırın
@@ -330,12 +299,12 @@ export default function GoogleIntegrationWizard({
     );
   }
 
-  // Step 3: Processing
+  // Step 3: Success
   if (currentStep === 3) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex gap-2 justify-center mb-6">
-          {[1, 2, 3, 4].map((step) => (
+          {[1, 2, 3].map((step) => (
             <div
               key={step}
               className={`h-2 flex-1 rounded-full transition-all ${
@@ -345,110 +314,17 @@ export default function GoogleIntegrationWizard({
           ))}
         </div>
 
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-6 text-center space-y-6">
-          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-blue-600 text-white">
-            <Loader className="h-8 w-8 animate-spin" />
+        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6 text-center space-y-6">
+          <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-emerald-600 text-white">
+            <Check className="h-8 w-8" />
           </div>
           <div>
-            <h2 className="text-xl font-extrabold text-blue-900 mb-2">
-              Google'a Kaydediliyor...
+            <h2 className="text-xl font-extrabold text-emerald-900 mb-2">
+              ✅ Entegrasyon Tamamlandı!
             </h2>
-            <p className="text-sm text-blue-800">
-              {successMessage}
+            <p className="text-sm text-emerald-800">
+              {successMessage || "Google Analytics ve Google Ads bağlantınız başarıyla kaydedildi."}
             </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Step 4: Google Search Console Guide
-  if (currentStep === 4) {
-    return (
-      <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex gap-2 justify-center mb-6">
-          {[1, 2, 3, 4].map((step) => (
-            <div
-              key={step}
-              className={`h-2 flex-1 rounded-full transition-all ${
-                step <= currentStep ? 'bg-blue-600' : 'bg-slate-300'
-              }`}
-            />
-          ))}
-        </div>
-
-        <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-2xl p-6">
-          <h2 className="text-xl font-extrabold text-emerald-900 mb-2">
-            ✅ Google Entegrasyon Tamamlandı! (Adım 4/4)
-          </h2>
-          <p className="text-sm text-emerald-800 leading-relaxed">
-            Artık Google Analytics ve Google Ads bağlı. Son adım: Google Arama Sonuçlarında görünmek!
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-            <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-              🗺️ Adım 1: Google Search Console'a Sitemap Gönder
-            </h3>
-            
-            <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-              <p className="text-sm text-slate-700">
-                <strong>Sitemap nedir?</strong> Bu, Google'a tüm ürünlerinizin bir listesi. Google bu harita sayesinde dükkanınızı bulur ve Google Arama sonuçlarında gösterir.
-              </p>
-
-              <div className="bg-blue-50 border border-blue-200 p-3 rounded space-y-2">
-                <p className="font-semibold text-blue-900 text-sm">Yapılması Gerekenler:</p>
-                <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
-                  <li>
-                    <a 
-                      href="https://search.google.com/search-console/" 
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 hover:underline font-semibold inline-flex items-center gap-1"
-                    >
-                      Google Search Console'a Git <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </li>
-                  <li>Oturum aç (Google hesabını kullan)</li>
-                  <li>Sol taraftaki menüden <strong>"Sitemap'lar"</strong> sekmesine tıkla</li>
-                  <li>Sağ üstte <strong>"Yeni sitemap ekle"</strong> kutucuğuna tıkla</li>
-                  <li>Şu URL'yi yapıştır: <code className="bg-white px-2 py-1 rounded text-xs font-mono border">sitemap.xml</code></li>
-                  <li><strong>"Gönder"</strong> butonuna bas</li>
-                </ol>
-              </div>
-
-              <div className="bg-amber-50 border-l-4 border-amber-500 p-3 rounded">
-                <p className="text-xs text-amber-800 font-semibold">
-                  💡 <strong>İpucu:</strong> Sitemap zaten sunucuda aktif. Linkini kopyalayıp Google'a bildirmek yeterli. Google bundan sonra tüm ürünlerinizi tarar.
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white border border-slate-200 rounded-xl p-6 space-y-4">
-            <h3 className="font-bold text-slate-900 text-lg flex items-center gap-2">
-              🔍 Adım 2: Arama Görünürlüğünü Kontrol Et
-            </h3>
-            
-            <div className="bg-slate-50 p-4 rounded-lg space-y-3">
-              <p className="text-sm text-slate-700">
-                Sitemap gönderdikten sonra, Google 24-48 saatte tüm ürünlerinizi indeksler. Şu adımlarla kontrol edebilirsin:
-              </p>
-
-              <ol className="list-decimal list-inside space-y-2 text-sm text-slate-700">
-                <li>Search Console'da <strong>"Kapsam"</strong> sekmesine git</li>
-                <li>Sitemaptan kaç ürünün bulunduğunu gör</li>
-                <li><strong>"Sitemap Raporu"</strong>'nda detaylı bilgi al</li>
-                <li>Eğer 0 ürün görüyorsan, 24 saat daha bekle</li>
-              </ol>
-
-              <div className="bg-emerald-50 border border-emerald-200 p-3 rounded">
-                <p className="text-xs text-emerald-800 font-semibold">
-                  ✅ <strong>Bitti!</strong> Tüm ürünleriniz artık Google Arama'da görünmeye başlayacak.
-                </p>
-              </div>
-            </div>
           </div>
         </div>
 
@@ -456,7 +332,7 @@ export default function GoogleIntegrationWizard({
           onClick={() => window.location.reload()}
           className="w-full py-3 px-4 rounded-xl font-extrabold bg-gradient-to-r from-emerald-600 to-green-600 text-white hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all"
         >
-          Sayfayı Yenile ve Başla ✨
+          Kapat ve Devam Et
         </button>
       </div>
     );
