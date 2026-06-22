@@ -495,7 +495,7 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
         </div>
 
         {/* Security Note */}
-        <div className="mt-8 text-center">
+        <div className="mt-8 text-center space-y-4">
           <p className="text-slate-400 text-xs leading-relaxed max-w-sm mx-auto">
             {language === 'tr'
               ? '🔒 Lisans sistemi tamamen yerel olarak çalışır. Cihaz kimliğiniz veya lisans anahtarınız hiçbir zaman sunucuya gönderilmez.'
@@ -503,6 +503,22 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
               ? '🔒 Das Lizenzsystem funktioniert vollständig lokal. Ihre Maschinen-ID oder Ihr Lizenzschlüssel werden niemals an einen Server gesendet.'
               : '🔒 The license system runs completely locally. Your Machine ID or license key is never sent to any server.'}
           </p>
+
+          {/* WhatsApp Admin Contact Button */}
+          <a
+            href="https://wa.me/905425783748"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-150 shadow-lg hover:shadow-green-500/40 active:scale-95"
+          >
+            <span>💬</span>
+            {language === 'tr'
+              ? 'Yönetici ile İletişim Kurun'
+              : language === 'de'
+              ? 'Kontakt mit dem Administrator'
+              : 'Contact Administrator'}
+            <span className="text-lg">📱</span>
+          </a>
         </div>
       </div>
     </div>
