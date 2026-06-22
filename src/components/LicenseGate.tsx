@@ -20,7 +20,7 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
   const [password, setPassword] = useState('');
   const [passwordMessage, setPasswordMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isPasswordLoading, setIsPasswordLoading] = useState(false);
-  const CORRECT_PASSWORD = '123456';
+  const CORRECT_PASSWORD = 'yönetici1453';
 
   // Sayfa yüklendiğinde tüm seviyelerde lisansı kontrol et
   React.useEffect(() => {
