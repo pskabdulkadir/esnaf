@@ -107,7 +107,7 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
     } catch (e) {
       console.warn('LicenseGate genel kontrol hatası:', e);
     }
-  }, [onLicenseValid]);
+  }, [onLicenseValid, showPasswordOnly]);
 
   const translations = {
     tr: {
