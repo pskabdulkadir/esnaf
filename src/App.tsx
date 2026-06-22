@@ -117,6 +117,48 @@ export default function App() {
     localStorage.removeItem('showPasswordOnly');
   }, []);
 
+  // Load Google Analytics & Ads config from environment variables (otomatik enjeksiyon)
+  useEffect(() => {
+    (async () => {
+      try {
+        const response = await fetch('/api/google-config');
+        if (response.ok) {
+          const config = await response.json();
+
+          // Google Analytics Script
+          if (config.googleAnalyticsId) {
+            const script = document.createElement('script');
+            script.async = true;
+            script.src = `https://www.googletagmanager.com/gtag/js?id=${config.googleAnalyticsId}`;
+            document.head.appendChild(script);
+
+            window.dataLayer = window.dataLayer || [];
+            function gtag(...args: any[]) {
+              window.dataLayer.push(arguments);
+            }
+            (window as any).gtag = gtag;
+            gtag('js', new Date());
+            gtag('config', config.googleAnalyticsId);
+
+            console.log(`✅ Google Analytics başlatıldı: ${config.googleAnalyticsId}`);
+          }
+
+          // Google Ads Script (Conversion Tracking)
+          if (config.googleAdsId) {
+            const adsScript = document.createElement('script');
+            adsScript.async = true;
+            adsScript.src = `https://www.googletagmanager.com/gtag/js?id=${config.googleAdsId}`;
+            document.head.appendChild(adsScript);
+
+            console.log(`✅ Google Ads başlatıldı: ${config.googleAdsId}`);
+          }
+        }
+      } catch (err) {
+        console.error('Google config yüklenemedi:', err);
+      }
+    })();
+  }, []);
+
   // License validity check on mount
   // ⭐ ÖZEL: Cihaz tanıması ile IndexedDB'den lisans geri yükleme
   useEffect(() => {

@@ -564,6 +564,14 @@ app.post("/api/settings", (req, res) => {
   res.json(db.settings);
 });
 
+// 4.4 Get Google Analytics & Ads config from environment variables
+app.get("/api/google-config", (req, res) => {
+  res.json({
+    googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || "",
+    googleAdsId: process.env.GOOGLE_ADS_ID || ""
+  });
+});
+
 // 4.4 Bulk restore public discounts and settings
 app.post("/api/restore-marketing", (req, res) => {
   const db = readDatabase();

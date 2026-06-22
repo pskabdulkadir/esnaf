@@ -1646,76 +1646,22 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
                       </div>
                     </div>
 
-                    {/* Google Analytics & Ads (Opsiyonel) */}
+                    {/* Google Analytics & Ads (Otomatik) */}
                     <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-3xl border border-blue-200 p-6 sm:p-8 shadow-sm">
                       <div className="flex items-start gap-4">
                         <div className="h-10 w-10 bg-blue-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                          <span className="text-lg">📊</span>
+                          <span className="text-lg">✅</span>
                         </div>
                         <div className="flex-1">
                           <h3 className="text-sm font-black text-blue-900 mb-1">
-                            Google Analytics & Ads (Opsiyonel)
+                            Google Analytics & Ads (Otomatik)
                           </h3>
-                          <p className="text-xs text-blue-800 leading-relaxed mb-4">
-                            Kampanyalarınızın tıklama, gösterim ve dönüşüm verilerini izlemek istiyorsanız, Google Analytics ve Ads kodlarınızı buraya girin. Gerekli değildir.
+                          <p className="text-xs text-blue-800 leading-relaxed">
+                            Sistem ortamınıza kaydedilen Google Analytics ve Google Ads kodları otomatik olarak yükleniyor. Esnaf hiçbir işlem yapmasına gerek kalmıyor. Veriler merkezi hesaba toplanıyor.
                           </p>
-
-                          {wizardAnalyticsId || wizardAdsId ? (
-                            <div className="bg-white/70 p-4 rounded-xl space-y-2">
-                              {wizardAnalyticsId && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-green-600 text-lg">✓</span>
-                                  <span className="text-[11px] text-blue-900 font-mono"><span className="font-bold">Analytics:</span> {wizardAnalyticsId}</span>
-                                </div>
-                              )}
-                              {wizardAdsId && (
-                                <div className="flex items-center gap-2">
-                                  <span className="text-green-600 text-lg">✓</span>
-                                  <span className="text-[11px] text-blue-900 font-mono"><span className="font-bold">Ads:</span> {wizardAdsId}</span>
-                                </div>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => setWizardStep(1)}
-                                className="mt-2 text-xs font-black text-blue-600 hover:text-blue-700 underline"
-                              >
-                                Kodları Düzenle
-                              </button>
-                            </div>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setWizardStep(1)}
-                              className="w-full text-xs font-black text-white bg-blue-600 hover:bg-blue-700 px-4 py-2.5 rounded-xl transition-all cursor-pointer"
-                            >
-                              Kodları Girin (Opsiyonel)
-                            </button>
-                          )}
                         </div>
                       </div>
-
-                       {/* Wizard (Hidden unless user clicks) */}
-                       {wizardStep === 1 && (
-                         <div className="mt-6 pt-6 border-t border-blue-200 animate-fadeIn">
-                           <GoogleIntegrationWizard
-                             initialGaId={wizardAnalyticsId}
-                             initialAdsId={wizardAdsId}
-                             onSuccess={(gaId, adsId) => {
-                               setWizardAnalyticsId(gaId);
-                               setWizardAdsId(adsId);
-                               setWizardStep(0);
-                             }}
-                           />
-                           <button
-                             type="button"
-                             onClick={() => setWizardStep(0)}
-                             className="w-full mt-4 px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer text-xs"
-                           >
-                             Kapat
-                           </button>
-                         </div>
-                       )}
-                     </div>
+                    </div>
 
 
                           
