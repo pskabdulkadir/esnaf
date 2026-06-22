@@ -1664,6 +1664,7 @@ export default function App() {
               <Marketer
                 brandName={brandName}
                 language={language}
+                userId={userId}
               />
             </Suspense>
           )}

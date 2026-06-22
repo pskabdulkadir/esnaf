@@ -329,7 +329,7 @@ const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
   }
 };
 
-export default function Marketer({ brandName, language }: { brandName?: string; language?: "tr" | "en" | "de" }) {
+export default function Marketer({ brandName, language, userId }: { brandName?: string; language?: "tr" | "en" | "de"; userId?: string }) {
   // Is this visitor on the 100% Isolated Public URL?
   const [isPublicUrlLocked, setIsPublicUrlLocked] = useState(false);
   const [isCustomerShowcase, setIsCustomerShowcase] = useState(false);
@@ -472,7 +472,11 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
 
       // 2. Fetch public active discounts
       try {
-        const pubRes = await fetch("/api/public-discounts");
+        // ⭐ userId'yi query parameter olarak gönder
+        const apiUrl = userId
+          ? `/api/public-discounts?userId=${encodeURIComponent(userId)}`
+          : `/api/public-discounts`;
+        const pubRes = await fetch(apiUrl);
         if (pubRes.ok) {
           const discountsData = await pubRes.json();
           setPublicDiscounts(discountsData);
@@ -865,6 +869,7 @@ export default function Marketer({ brandName, language }: { brandName?: string; 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: "prod-" + Date.now(),
+          userId: userId,  // ⭐ Yeni: Kampanyayı kimin yayınladığını gönder
           productName: prodName,
           originalPrice: Number(prodPrice),
           discountPrice: Number(prodDiscountPrice),

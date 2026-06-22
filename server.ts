@@ -408,24 +408,35 @@ app.post("/api/trigger-campaign", async (req, res) => {
 // 1. Get all public landing pages
 app.get("/api/public-discounts", (req, res) => {
   const db = readDatabase();
-  res.json(db.publicDiscounts || []);
+  const userId = req.query.userId as string;
+
+  // ⭐ Eğer userId sağlandıysa, o kullanıcının kampanyalarını filtrele
+  // Eğer userId yoksa (müşteri görüşü), tüm kampanyaları döndür
+  if (userId) {
+    const filtered = (db.publicDiscounts || []).filter((d: any) => d.userId === userId || d.publishMode === 'global');
+    res.json(filtered);
+  } else {
+    // Müşteri görüşü: tüm aktif kampanyalar
+    res.json((db.publicDiscounts || []).filter((d: any) => d.isActive !== false));
+  }
 });
 
 // 2. Publish a new public landing page
 app.post("/api/public-discounts", (req, res) => {
   const db = readDatabase();
-  const { 
-    productId, 
-    productName, 
-    originalPrice, 
-    discountPrice, 
-    category, 
-    merchantName, 
-    merchantPhone, 
+  const {
+    productId,
+    userId,  // ⭐ Yeni: Kampanyayı kimin yayınladığını kaydet
+    productName,
+    originalPrice,
+    discountPrice,
+    category,
+    merchantName,
+    merchantPhone,
     merchantWhatsApp,
-    seoTitle, 
-    seoDescription, 
-    seoKeywords, 
+    seoTitle,
+    seoDescription,
+    seoKeywords,
     openGraphImage,
     publishMode,
     latitude,
@@ -451,6 +462,7 @@ app.post("/api/public-discounts", (req, res) => {
   const newPublicDiscount = {
     id: "pub-" + Date.now(),
     productId,
+    userId: userId || "unknown",  // ⭐ Yeni: Kampanya sahibini kaydet
     productName,
     slug: randomizedSlug,
     originalPrice: Number(originalPrice) || 0,
