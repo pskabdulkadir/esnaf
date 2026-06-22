@@ -11,6 +11,8 @@ export interface Product {
   saleCurrency: Currency;
   currentStock: number;
   lowStockThreshold: number;
+  ownerId: string; // Kim yükledi (lisans sahibinin kimliği)
+  accessLevel: 'private' | 'shared' | 'all'; // private: sadece sahibi, shared: belirli esnaflar, all: herkes
 }
 
 export interface Sale {

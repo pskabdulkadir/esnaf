@@ -29,6 +29,7 @@ interface InventoryProps {
   userRole: UserRole;
   brandName?: string;
   language?: 'tr' | 'en' | 'de';
+  userId: string; // Kullanıcı kimliği - ürün sahibi olarak kaydedilecek
 }
 
 // Helper function to get currency symbol
@@ -41,7 +42,7 @@ const getCurrencySymbol = (currency: Currency): string => {
   }
 };
 
-export default function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct, userRole, brandName = 'AKN Global Group', language = 'tr' }: InventoryProps) {
+export default function Inventory({ products, onAddProduct, onUpdateProduct, onDeleteProduct, userRole, brandName = 'AKN Global Group', language = 'tr', userId }: InventoryProps) {
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   // Filters & State
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,7 +165,9 @@ export default function Inventory({ products, onAddProduct, onUpdateProduct, onD
       salePrice: Number(formSalePrice),
       saleCurrency: formSaleCurrency,
       currentStock: Number(formCurrentStock),
-      lowStockThreshold: Number(formLowStockThreshold)
+      lowStockThreshold: Number(formLowStockThreshold),
+      ownerId: userId, // Bu ürün bu kullanıcıya ait
+      accessLevel: 'private' // Varsayılan olarak sadece kendi ürünü (sonra paylaşım eklenebilir)
     };
 
     if (editingProduct) {
@@ -172,6 +175,9 @@ export default function Inventory({ products, onAddProduct, onUpdateProduct, onD
         newProd.purchasePrice = editingProduct.purchasePrice;
         newProd.salePrice = editingProduct.salePrice;
       }
+      // Düzenleme sırasında sahiplik bilgisini koru
+      newProd.ownerId = editingProduct.ownerId;
+      newProd.accessLevel = editingProduct.accessLevel;
       onUpdateProduct(newProd);
     } else {
       if (products.some(p => p.id === formId)) {

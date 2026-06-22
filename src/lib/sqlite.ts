@@ -249,13 +249,15 @@ class SQLiteDatabase {
     sql += `  salePrice REAL,\n`;
     sql += `  currentStock INTEGER,\n`;
     sql += `  lowStockThreshold INTEGER,\n`;
-    sql += `  category TEXT\n`;
+    sql += `  category TEXT,\n`;
+    sql += `  ownerId TEXT,\n`;
+    sql += `  accessLevel TEXT\n`;
     sql += `);\n\n`;
 
     this.tables.Products.forEach(p => {
       const cleanName = String(p.name).replace(/'/g, "''");
       const cleanCategory = String(p.category).replace(/'/g, "''");
-      sql += `INSERT INTO Products VALUES ('${p.id}', '${cleanName}', '${p.barcode || ''}', ${p.purchasePrice}, ${p.salePrice}, ${p.currentStock}, ${p.lowStockThreshold}, '${cleanCategory}');\n`;
+      sql += `INSERT INTO Products VALUES ('${p.id}', '${cleanName}', '${p.barcode || ''}', ${p.purchasePrice}, ${p.salePrice}, ${p.currentStock}, ${p.lowStockThreshold}, '${cleanCategory}', '${p.ownerId || ''}', '${p.accessLevel || 'private'}');\n`;
     });
 
     sql += `\n-- =========================================================\n\n`;

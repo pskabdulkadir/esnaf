@@ -307,6 +307,24 @@ export default function App() {
   // Permission / Security Mode State (Yonetici is default Admin)
   const [userRole, setUserRole] = useState<UserRole>('Yonetici');
 
+  // User ID (Lisans sahibinin kimliği) - her kullanıcı eşsiz ID'ye sahip
+  // Synchronized from localStorage to ensure consistency across tabs
+  const [userId] = useState<string>(() => {
+    try {
+      let id = localStorage.getItem('akn_user_id');
+      if (!id) {
+        id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('akn_user_id', id);
+        // Verify what was actually stored (handles race conditions in rare cases)
+        const storedId = localStorage.getItem('akn_user_id');
+        id = storedId || id;
+      }
+      return id;
+    } catch {
+      return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+  });
+
   // Core Database States
   const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -366,7 +384,17 @@ export default function App() {
         if (cloudData && cloudData.products.length > 0) {
           // Cloud backup bulundu, SQLite'ye yükle
           sqliteDb.initializeDefaults(cloudData.products, cloudData.sales, cloudData.expenses);
-          setProducts(cloudData.products);
+
+          // ⭐ ÖNEMLI: Cloud'dan gelen ürünleri de filtrele + backward compatibility
+          const filteredCloudProducts = cloudData.products
+            .map(p => ({
+              ...p,
+              ownerId: p.ownerId || userId,
+              accessLevel: p.accessLevel || 'private'
+            }))
+            .filter(p => p.ownerId === userId || p.accessLevel === 'all');
+
+          setProducts(filteredCloudProducts);
           setSales(cloudData.sales);
           setExpenses(cloudData.expenses);
           restoredFromCloud = true;
@@ -393,7 +421,18 @@ export default function App() {
           const sqlSales = sqliteDb.query<Sale>("SELECT * FROM Sales");
           const sqlExpenses = sqliteDb.query<Expense>("SELECT * FROM Expenses");
 
-          setProducts(sqlProducts);
+          // ⭐ ÖNEMLI: Ürünleri filtrele + backward compatibility (eski ürünleri koru)
+          // 1. Eski ürünler: ownerId/accessLevel yok → current user'a ata
+          // 2. Yeni ürünler: ownerId ve accessLevel var → filtrele
+          const filteredProducts = sqlProducts
+            .map(p => ({
+              ...p,
+              ownerId: p.ownerId || userId,
+              accessLevel: p.accessLevel || 'private'
+            }))
+            .filter(p => p.ownerId === userId || p.accessLevel === 'all');
+
+          setProducts(filteredProducts);
           setSales(sqlSales);
           setExpenses(sqlExpenses);
         } catch (e) {
@@ -418,7 +457,7 @@ export default function App() {
     }
 
     initializeSystem();
-  }, []);
+  }, [userId]); // ⭐ userId dependency ekle: userId değişirse veya ilk load'da properly set olması için
 
   // Keep-alive mechanism: Ping backend nur wenn System aktiv (15 Tage + Admin Allow)
   useEffect(() => {
@@ -480,7 +519,17 @@ export default function App() {
       const sqlSales = sqliteDb.query<Sale>("SELECT * FROM Sales");
       const sqlExpenses = sqliteDb.query<Expense>("SELECT * FROM Expenses");
 
-      setProducts(sqlProducts);
+      // ⭐ ÖNEMLI: Ürünleri filtrele (sahiplik kontrolü + backward compatibility)
+      // Eski ürünlerin ownerId/accessLevel'i olabilir veya olmayabilir
+      const filteredProducts = sqlProducts
+        .map(p => ({
+          ...p,
+          ownerId: p.ownerId || userId, // Eski ürünleri current user'a ata
+          accessLevel: p.accessLevel || 'private'
+        }))
+        .filter(p => p.ownerId === userId || p.accessLevel === 'all');
+
+      setProducts(filteredProducts);
       setSales(sqlSales);
       setExpenses(sqlExpenses);
 
@@ -524,7 +573,7 @@ export default function App() {
   const handleAddProduct = async (newProduct: Product) => {
     try {
       sqliteDb.run(
-        "INSERT INTO Products (id, name, barcode, purchasePrice, salePrice, currentStock, lowStockThreshold, category) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        "INSERT INTO Products (id, name, barcode, purchasePrice, salePrice, currentStock, lowStockThreshold, category, ownerId, accessLevel) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         [
           newProduct.id,
           newProduct.name,
@@ -533,7 +582,9 @@ export default function App() {
           newProduct.salePrice,
           newProduct.currentStock,
           newProduct.lowStockThreshold,
-          newProduct.category
+          newProduct.category,
+          newProduct.ownerId,
+          newProduct.accessLevel
         ]
       );
       await reloadDataFromSQLite();
@@ -547,7 +598,7 @@ export default function App() {
   const handleUpdateProduct = async (modifiedProduct: Product) => {
     try {
       sqliteDb.run(
-        "UPDATE Products SET name=?, barcode=?, purchasePrice=?, salePrice=?, currentStock=?, lowStockThreshold=?, category=? WHERE id=?",
+        "UPDATE Products SET name=?, barcode=?, purchasePrice=?, salePrice=?, currentStock=?, lowStockThreshold=?, category=?, ownerId=?, accessLevel=? WHERE id=?",
         [
           modifiedProduct.name,
           modifiedProduct.barcode || '',
@@ -556,6 +607,8 @@ export default function App() {
           modifiedProduct.currentStock,
           modifiedProduct.lowStockThreshold,
           modifiedProduct.category,
+          modifiedProduct.ownerId,
+          modifiedProduct.accessLevel,
           modifiedProduct.id
         ]
       );
@@ -806,8 +859,15 @@ export default function App() {
         // Clear and restore data
         showToast("Veriler yükleniyor...", "info");
 
+        // ⭐ ÖNEMLI: Eski yedeklerden gelen ürünleri migrate et (backward compatibility)
+        const migratedProducts = backupData.products.map((p: Product) => ({
+          ...p,
+          ownerId: p.ownerId || userId,
+          accessLevel: p.accessLevel || 'private'
+        }));
+
         // Use direct robust import instead of length-dependent default initialization
-        sqliteDb.importBackup(backupData.products, backupData.sales || [], backupData.expenses || []);
+        sqliteDb.importBackup(migratedProducts, backupData.sales || [], backupData.expenses || []);
 
         // Restore doc settings
         if (backupData.docSettings) {
@@ -1550,6 +1610,7 @@ export default function App() {
                 userRole={userRole}
                 brandName={brandName}
                 language={language}
+                userId={userId}
               />
             </Suspense>
           )}
