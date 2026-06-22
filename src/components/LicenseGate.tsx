@@ -294,9 +294,7 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
           console.error('Memory kaydetme hatası:', e);
         }
 
-        // ⭐ SEVIYE 4: IndexedDB (ASYNC - AYRIDA ÇALIŞACAK)
-        // Bu seviye en güvenli, tarayıcı tamamen temizlenmiş olsa da orada kalır
-        // Ama ana işlemi bloke etmesin diye async bırakıyoruz
+        // ⭐ SEVIYE 4 + 5: IndexedDB + Kullanılan Lisans Kaydı (ASYNC - SERI OLARAK)
         (async () => {
           try {
             await initLicenseDB();
@@ -310,22 +308,29 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
             if (recordSuccess) {
               console.log('📝 Lisans kullanımı kaydedildi (tek seferlik)');
             }
+
+            // ⭐ TAMAMLANINCA: Şifre ekranına git
+            console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
+            setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
+
+            setTimeout(() => {
+              setLicenseValidated(true);
+              setPassword('');
+              setPasswordMessage(null);
+            }, 500);
           } catch (e) {
             console.error('IndexedDB kaydetme hatası:', e);
             // Hata olsa da devam et, localStorage vardır
+            console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
+            setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
+
+            setTimeout(() => {
+              setLicenseValidated(true);
+              setPassword('');
+              setPasswordMessage(null);
+            }, 500);
           }
         })();
-
-        console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
-
-        setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
-
-        // Şifre ekranına git
-        setTimeout(() => {
-          setLicenseValidated(true);
-          setPassword('');
-          setPasswordMessage(null);
-        }, 1000);
       } catch (e: any) {
         console.error('Lisans çözümleme hatası:', e);
         const errorMsg = e instanceof SyntaxError
