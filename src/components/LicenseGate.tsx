@@ -19,18 +19,24 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
   // Sayfa yüklendiğinde tüm seviyelerde lisansı kontrol et
   React.useEffect(() => {
     try {
+      console.log('🔍 LicenseGate: Lisans kontrol ediliyor...');
+
       // SEVIYE 1: localStorage kontrol
-      const storedLicense = localStorage.getItem('isLicenseValid');
-      if (storedLicense === 'true') {
-        const licenseDataStr = localStorage.getItem('license_data');
-        if (licenseDataStr) {
-          const licenseData = JSON.parse(licenseDataStr);
-          if (validateLicenseFormat(licenseData) && !isLicenseExpired(licenseData.exp)) {
-            console.log('✅ LicenseGate: localStorage\'dan lisans bulundu');
-            onLicenseValid();
-            return;
+      try {
+        const storedLicense = localStorage.getItem('isLicenseValid');
+        if (storedLicense === 'true') {
+          const licenseDataStr = localStorage.getItem('license_data');
+          if (licenseDataStr) {
+            const licenseData = JSON.parse(licenseDataStr);
+            if (validateLicenseFormat(licenseData) && !isLicenseExpired(licenseData.exp)) {
+              console.log('✅ LicenseGate: localStorage\'dan lisans bulundu');
+              onLicenseValid();
+              return;
+            }
           }
         }
+      } catch (e1) {
+        console.warn('localStorage kontrol hatası:', e1);
       }
 
       // SEVIYE 2: sessionStorage kontrol
@@ -51,19 +57,41 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
         console.warn('sessionStorage kontrol hatası:', e2);
       }
 
-      // SEVIYE 3: Backup'tan geri yükle
-      const backupData = restoreFromBackup();
-      if (backupData && validateLicenseFormat(backupData) && !isLicenseExpired(backupData.exp)) {
-        console.log('✅ LicenseGate: Backup\'tan lisans geri yüklendi');
-        localStorage.setItem('isLicenseValid', 'true');
-        sessionStorage.setItem('license_data_session', JSON.stringify(backupData));
-        onLicenseValid();
-        return;
+      // SEVIYE 3: Memory kontrol
+      try {
+        const memoryData = (window as any).__AKN_LICENSE__;
+        if (memoryData && memoryData.data) {
+          if (validateLicenseFormat(memoryData.data) && !isLicenseExpired(memoryData.data.exp)) {
+            console.log('✅ LicenseGate: Memory\'den lisans bulundu');
+            const dataStr = JSON.stringify(memoryData.data);
+            localStorage.setItem('license_data', dataStr);
+            localStorage.setItem('isLicenseValid', 'true');
+            sessionStorage.setItem('license_data_session', dataStr);
+            onLicenseValid();
+            return;
+          }
+        }
+      } catch (e3) {
+        console.warn('Memory kontrol hatası:', e3);
+      }
+
+      // SEVIYE 4: Backup'tan geri yükle
+      try {
+        const backupData = restoreFromBackup();
+        if (backupData && validateLicenseFormat(backupData) && !isLicenseExpired(backupData.exp)) {
+          console.log('✅ LicenseGate: Backup\'tan lisans geri yüklendi');
+          localStorage.setItem('isLicenseValid', 'true');
+          sessionStorage.setItem('license_data_session', JSON.stringify(backupData));
+          onLicenseValid();
+          return;
+        }
+      } catch (e4) {
+        console.warn('Backup kontrol hatası:', e4);
       }
 
       console.warn('❌ LicenseGate: Hiçbir seviyede geçerli lisans bulunamadı');
     } catch (e) {
-      console.warn('LicenseGate lisans kontrol hatası:', e);
+      console.warn('LicenseGate genel kontrol hatası:', e);
     }
   }, [onLicenseValid]);
 
@@ -205,32 +233,53 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
         const licenseJSON = JSON.stringify(licenseData);
         const timestamp = new Date().getTime();
 
-        // SEVIYE 1: localStorage (AYNI ANDA)
-        localStorage.setItem('license_key_submitted', licenseKey);
-        localStorage.setItem('license_data', licenseJSON);
-        localStorage.setItem('isLicenseValid', 'true');
-        localStorage.setItem('license_backup_' + timestamp, licenseJSON);
+        // SEVIYE 1: localStorage (SENKRON - AYNI ANDA)
+        try {
+          localStorage.setItem('license_key_submitted', licenseKey);
+          localStorage.setItem('license_data', licenseJSON);
+          localStorage.setItem('isLicenseValid', 'true');
+          localStorage.setItem('license_backup_' + timestamp, licenseJSON);
+          console.log('✅ localStorage\'a kaydedildi');
+        } catch (e) {
+          console.error('localStorage kaydetme hatası:', e);
+        }
 
-        // SEVIYE 2: sessionStorage
-        sessionStorage.setItem('license_data_session', licenseJSON);
-        sessionStorage.setItem('license_valid_session', 'true');
+        // SEVIYE 2: sessionStorage (SENKRON)
+        try {
+          sessionStorage.setItem('license_data_session', licenseJSON);
+          sessionStorage.setItem('license_valid_session', 'true');
+          console.log('✅ sessionStorage\'a kaydedildi');
+        } catch (e) {
+          console.error('sessionStorage kaydetme hatası:', e);
+        }
 
-        // SEVIYE 3: Memory
-        (window as any).__AKN_LICENSE__ = {
-          data: licenseData,
-          timestamp: timestamp,
-          valid: true
-        };
+        // SEVIYE 3: Memory (SENKRON)
+        try {
+          (window as any).__AKN_LICENSE__ = {
+            data: licenseData,
+            timestamp: timestamp,
+            valid: true
+          };
+          console.log('✅ Memory\'e kaydedildi');
+        } catch (e) {
+          console.error('Memory kaydetme hatası:', e);
+        }
 
-        // ⭐ SEVIYE 4: IndexedDB (Tarayıcı temizlenmiş olsa bile saklanır!)
+        // ⭐ SEVIYE 4: IndexedDB (ASYNC - AYRIDA ÇALIŞACAK)
         // Bu seviye en güvenli, tarayıcı tamamen temizlenmiş olsa da orada kalır
-        initLicenseDB().then(() => {
-          saveLicenseToIndexedDB(machineId, licenseData, machineId).then((success) => {
+        // Ama ana işlemi bloke etmesin diye async bırakıyoruz
+        (async () => {
+          try {
+            await initLicenseDB();
+            const success = await saveLicenseToIndexedDB(machineId, licenseData, machineId);
             if (success) {
               console.log('🔒 Lisans IndexedDB\'ye kaydedildi (Cihaz tanımlaması)');
             }
-          });
-        });
+          } catch (e) {
+            console.error('IndexedDB kaydetme hatası:', e);
+            // Hata olsa da devam et, localStorage vardır
+          }
+        })();
 
         console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
 

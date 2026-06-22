@@ -140,38 +140,59 @@ export default function App() {
 
         // ⭐ SEVIYE 4: IndexedDB'den cihaz ID'ye göre geri yükle (ÖZELLİKLE!)
         // Tarayıcı temizlenmiş olsa bile cihaz tanınır ve lisans otomatik yüklenir
-        console.log('🔍 IndexedDB\'de cihaz tanımlaması yapılıyor...');
-        const machineId = getOrCreateMachineId();
+        try {
+          console.log('🔍 IndexedDB\'de cihaz tanımlaması yapılıyor...');
+          const machineId = getOrCreateMachineId();
 
-        // IndexedDB başlat
-        await initLicenseDB();
+          // IndexedDB başlat (timeout ile)
+          const dbInitPromise = initLicenseDB();
+          const dbInitTimeout = new Promise((_, reject) =>
+            setTimeout(() => reject(new Error('IndexedDB timeout')), 5000)
+          );
 
-        // Cihaz ID'ye göre lisans bul
-        const storedLicense = await getLicenseFromIndexedDB(machineId);
-
-        if (storedLicense) {
-          // Lisans geçerli mi kontrol et
-          const isValid = await isStoredLicenseValid(machineId);
-
-          if (isValid) {
-            console.log('🔒 Cihaz tanındı! IndexedDB\'den lisans geri yüklendi');
-            const licenseData = storedLicense.licenseData;
-            const dataStr = JSON.stringify(licenseData);
-
-            // Tüm seviyelere yeniden yaz
-            localStorage.setItem('license_data', dataStr);
-            localStorage.setItem('isLicenseValid', 'true');
-            sessionStorage.setItem('license_data_session', dataStr);
-            (window as any).__AKN_LICENSE__ = {
-              data: licenseData,
-              timestamp: new Date().getTime(),
-              valid: true
-            };
-
-            console.log('✅ Cihaz tanımlaması başarılı, Dashboard açılıyor...');
-            setIsLicenseValid(true);
-            return;
+          try {
+            await Promise.race([dbInitPromise, dbInitTimeout]);
+          } catch (dbError) {
+            console.warn('⚠️ IndexedDB açılamadı:', dbError);
+            throw new Error('IndexedDB unavailable');
           }
+
+          // Cihaz ID'ye göre lisans bul
+          const storedLicense = await getLicenseFromIndexedDB(machineId);
+
+          if (storedLicense) {
+            // Lisans geçerli mi kontrol et
+            const isValid = await isStoredLicenseValid(machineId);
+
+            if (isValid) {
+              console.log('🔒 Cihaz tanındı! IndexedDB\'den lisans geri yüklendi');
+              const licenseData = storedLicense.licenseData;
+              const dataStr = JSON.stringify(licenseData);
+
+              // Tüm seviyelere yeniden yaz
+              try {
+                localStorage.setItem('license_data', dataStr);
+                localStorage.setItem('isLicenseValid', 'true');
+                sessionStorage.setItem('license_data_session', dataStr);
+                (window as any).__AKN_LICENSE__ = {
+                  data: licenseData,
+                  timestamp: new Date().getTime(),
+                  valid: true
+                };
+              } catch (storageError) {
+                console.warn('⚠️ Saklama yazma hatası:', storageError);
+              }
+
+              console.log('✅ Cihaz tanımlaması başarılı, Dashboard açılıyor...');
+              setIsLicenseValid(true);
+              return;
+            }
+          }
+
+          console.warn('⚠️ IndexedDB\'de lisans bulunamadı veya geçersiz');
+        } catch (indexedDBError) {
+          console.warn('⚠️ IndexedDB kontrol hatası:', indexedDBError);
+          // IndexedDB başarısız olsa da devam et, başka seviyelerde lisans olabilir
         }
 
         // SEVIYE 5: Hiçbir yerde veri yoksa
