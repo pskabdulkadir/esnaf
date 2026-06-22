@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useCallback } from 'react';
 import { Product, Sale, Expense, UserRole } from './types';
 import { INITIAL_PRODUCTS, INITIAL_SALES, INITIAL_EXPENSES } from './data';
 import Dashboard from './components/Dashboard';
@@ -102,6 +102,20 @@ export default function App() {
   });
 
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
+
+  // ⭐ Lisans doğrulama callback'ı (memoize edildi - infinite loop'u önler)
+  const handleFirstLicenseValid = useCallback(() => {
+    setIsLicenseValid(true);
+    localStorage.setItem('isLicenseValid', 'true');
+  }, []);
+
+  // ⭐ Şifre giriş callback'ı (memoize edildi - infinite loop'u önler)
+  const handlePasswordValid = useCallback(() => {
+    setIsSessionLoggedIn(true);
+    sessionStorage.setItem('isSessionLoggedIn', 'true');
+    setShowPasswordOnly(false);
+    localStorage.removeItem('showPasswordOnly');
+  }, []);
 
   // License validity check on mount
   // ⭐ ÖZEL: Cihaz tanıması ile IndexedDB'den lisans geri yükleme
@@ -863,10 +877,7 @@ export default function App() {
   if (!isLicenseValid) {
     return (
       <LicenseGate
-        onLicenseValid={() => {
-          setIsLicenseValid(true);
-          localStorage.setItem('isLicenseValid', 'true');
-        }}
+        onLicenseValid={handleFirstLicenseValid}
         language={language}
       />
     );
@@ -876,14 +887,7 @@ export default function App() {
   if (!isSessionLoggedIn) {
     return (
       <LicenseGate
-        onLicenseValid={() => {
-          setIsSessionLoggedIn(true);
-          // ⭐ sessionStorage'a kaydet (sayfa yenilenmişse kaybolur)
-          sessionStorage.setItem('isSessionLoggedIn', 'true');
-          // ⭐ Başarılı login sonrası showPasswordOnly'yi false yap
-          setShowPasswordOnly(false);
-          localStorage.removeItem('showPasswordOnly');
-        }}
+        onLicenseValid={handlePasswordValid}
         language={language}
         showPasswordOnly={showPasswordOnly}
       />
