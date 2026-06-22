@@ -760,16 +760,8 @@ app.get("/api/sitemap-for-esnaf", (req, res) => {
 
   sitemap += '</urlset>';
 
-  res.header('Content-Type', 'application/xml');
-  res.json({
-    baseUrl,
-    merchantSlug,
-    merchantName,
-    sitemapUrl: `${baseUrl}/api/sitemap-for-esnaf`,
-    sitemapXml: sitemap,
-    totalUrls: publicDiscounts.length + 1,
-    publicDiscounts
-  });
+  res.header('Content-Type', 'application/xml; charset=utf-8');
+  res.send(sitemap);
 });
 
 // Auto-submit sitemap to Google (background process)
