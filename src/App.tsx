@@ -70,9 +70,10 @@ export default function App() {
   });
 
   // Session Login State (Lisans girdikten sonra şifre kontrolü için)
+  // ⭐ ÖNEMLI: localStorage'dan oku, böylece sayfa yenilenirse de kalıcı olur
   const [isSessionLoggedIn, setIsSessionLoggedIn] = useState<boolean>(() => {
     try {
-      return sessionStorage.getItem('session_logged_in') === 'true';
+      return localStorage.getItem('isSessionLoggedIn') === 'true';
     } catch {
       return false;
     }
@@ -856,6 +857,9 @@ export default function App() {
       <LicenseGate
         onLicenseValid={() => {
           setIsSessionLoggedIn(true);
+          // ⭐ localStorage'a kaydet, sayfa yenilenmişse de kalıcı olur
+          localStorage.setItem('isSessionLoggedIn', 'true');
+          // sessionStorage'a da kaydet (ek güvenlik için)
           sessionStorage.setItem('session_logged_in', 'true');
         }}
         language={language}
@@ -1446,6 +1450,8 @@ export default function App() {
               language={language}
               onDownloadBackup={handleDownloadBackup}
               onLogout={() => {
+                // ⭐ Session logout: localStorage'dan sil, böylece şifre tekrar istenir
+                localStorage.removeItem('isSessionLoggedIn');
                 sessionStorage.removeItem('session_logged_in');
                 (window as any).__AKN_LICENSE__ = undefined;
                 setIsSessionLoggedIn(false);
