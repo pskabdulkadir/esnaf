@@ -328,13 +328,28 @@ export default function App() {
         }
       }
 
-      // Lisans yok: salt rasgele userId (demo/test için)
-      const id = `user_${machineId}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('✅ App.tsx userId (fallback):', id);
+      // Lisans yok: Geliştirici/demo modu için yenilendiğinde değişmeyen kararlı bir userId üretelim
+      let stableSuffix = '';
+      try {
+        stableSuffix = localStorage.getItem('esnaf_stable_id_suffix') || '';
+        if (!stableSuffix) {
+          stableSuffix = Math.random().toString(36).substring(2, 11);
+          localStorage.setItem('esnaf_stable_id_suffix', stableSuffix);
+        }
+      } catch (err) {
+        stableSuffix = machineId.substring(0, 8);
+      }
+
+      const id = `user_${machineId}_${stableSuffix}`;
+      console.log('✅ App.tsx userId (fallback - stable across refreshes):', id);
       return id;
     } catch (e) {
       console.error('userId creation failed:', e);
-      return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      let errSuffix = 'fallback';
+      try {
+        errSuffix = localStorage.getItem('esnaf_stable_id_suffix') || 'fallback';
+      } catch (err2) {}
+      return `user_err_${errSuffix}`;
     }
   });
 
