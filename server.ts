@@ -410,14 +410,21 @@ app.get("/api/public-discounts", (req, res) => {
   const db = readDatabase();
   const userId = req.query.userId as string;
 
+  // ⭐ DEBUG
+  console.log('GET /api/public-discounts - userId param:', userId);
+  console.log('DB total discounts:', (db.publicDiscounts || []).length);
+
   // ⭐ Eğer userId sağlandıysa, o kullanıcının kampanyalarını filtrele
   // Eğer userId yoksa (müşteri görüşü), tüm kampanyaları döndür
   if (userId) {
     const filtered = (db.publicDiscounts || []).filter((d: any) => d.userId === userId || d.publishMode === 'global');
+    console.log('Filtered for userId:', filtered.length, 'campaigns');
     res.json(filtered);
   } else {
     // Müşteri görüşü: tüm aktif kampanyalar
-    res.json((db.publicDiscounts || []).filter((d: any) => d.isActive !== false));
+    const allActive = (db.publicDiscounts || []).filter((d: any) => d.isActive !== false);
+    console.log('Public view - showing', allActive.length, 'active campaigns');
+    res.json(allActive);
   }
 });
 
@@ -458,6 +465,9 @@ app.post("/api/public-discounts", (req, res) => {
     .replace(/-+/g, "-"); // clean double dashes
 
   const randomizedSlug = `${cleanSlug}-${Math.floor(1000 + Math.random() * 9000)}`;
+
+  // ⭐ DEBUG: userId kontrolü
+  console.log('POST /api/public-discounts - gelen userId:', userId);
 
   const newPublicDiscount = {
     id: "pub-" + Date.now(),

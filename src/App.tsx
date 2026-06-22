@@ -319,6 +319,7 @@ export default function App() {
         const storedId = localStorage.getItem('akn_user_id');
         id = storedId || id;
       }
+      console.log('✅ App.tsx userId initialized:', id);
       return id;
     } catch {
       return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;

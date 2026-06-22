@@ -476,9 +476,11 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
         const apiUrl = userId
           ? `/api/public-discounts?userId=${encodeURIComponent(userId)}`
           : `/api/public-discounts`;
+        console.log('Marketer fetchData - fetching from URL:', apiUrl);
         const pubRes = await fetch(apiUrl);
         if (pubRes.ok) {
           const discountsData = await pubRes.json();
+          console.log('Marketer fetchData - received discounts:', discountsData.length);
           setPublicDiscounts(discountsData);
 
           // Analyze URL params for Isolasyon and Deep linking
@@ -522,7 +524,7 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [userId]); // ⭐ FIXED: userId değişince fetchData'yı yeniden çalıştır
 
   // Fetch sitemap data for Google Search Console
   const fetchSitemapData = async () => {
@@ -853,6 +855,13 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
       alert("Lütfen temel alanları eksiksiz doldurunuz!");
       return;
     }
+
+    // ⭐ DEBUG: userId kontrolü
+    console.log('publishCampaign - userId:', userId);
+    if (!userId) {
+      console.warn('⚠️ UYARI: userId undefined veya boş!');
+    }
+
     setIsLoading(true);
     try {
       let finalDesc = prodDescription;

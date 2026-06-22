@@ -329,6 +329,23 @@ const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
 };
 
 export default function App() {
+  // ⭐ User ID for product ownership filtering
+  const [userId] = useState<string>(() => {
+    try {
+      let id = localStorage.getItem('akn_user_id');
+      if (!id) {
+        id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        localStorage.setItem('akn_user_id', id);
+        const storedId = localStorage.getItem('akn_user_id');
+        id = storedId || id;
+      }
+      console.log('siftah-repo userId initialized:', id);
+      return id;
+    } catch {
+      return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+  });
+
   // Is this visitor on the 100% Isolated Public URL?
   const [isPublicUrlLocked, setIsPublicUrlLocked] = useState(false);
   const [isCustomerShowcase, setIsCustomerShowcase] = useState(false);
@@ -439,7 +456,14 @@ export default function App() {
       }
 
       // 2. Fetch public active discounts
-      const pubRes = await fetch("/api/public-discounts");
+      // ⭐ FIXED: userId'yi gönder (esnaf panelinde userId olacak)
+      const userIdForApi = typeof window !== 'undefined'
+        ? localStorage.getItem('akn_user_id') || undefined
+        : undefined;
+      const apiUrl = userIdForApi
+        ? `/api/public-discounts?userId=${encodeURIComponent(userIdForApi)}`
+        : `/api/public-discounts`;
+      const pubRes = await fetch(apiUrl);
       if (pubRes.ok) {
         const discountsData = await pubRes.json();
         setPublicDiscounts(discountsData);
@@ -479,7 +503,7 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [userId]); // ⭐ FIXED: userId değişince fetchData'yı yeniden çalıştır
 
   // Set default coordinates on loading
   useEffect(() => {
@@ -758,6 +782,10 @@ export default function App() {
       alert("Lütfen temel alanları eksiksiz doldurunuz!");
       return;
     }
+
+    // ⭐ DEBUG: userId kontrol
+    console.log('siftah-repo publishCampaign - userId:', userId);
+
     setIsLoading(true);
     try {
       let finalDesc = prodDescription;
@@ -772,6 +800,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: "prod-" + Date.now(),
+          userId: userId,  // ⭐ FIXED: userId'yi gönder
           productName: prodName,
           originalPrice: Number(prodPrice),
           discountPrice: Number(prodDiscountPrice),
