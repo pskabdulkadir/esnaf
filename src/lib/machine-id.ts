@@ -52,3 +52,19 @@ export function clearMachineId(): void {
     console.error('MachineID silme hatası:', e);
   }
 }
+
+export function renewMachineId(): string {
+  // Eski machine ID'yi sil
+  clearMachineId();
+
+  // Yeni machine ID oluştur ve kaydet
+  const newMachineId = generateMachineId();
+  try {
+    localStorage.setItem('license_machine_id', newMachineId);
+    console.log('✅ Yeni MachineID oluşturuldu:', newMachineId);
+  } catch (e) {
+    console.error('Yeni MachineID kaydedilemedi:', e);
+  }
+
+  return newMachineId;
+}

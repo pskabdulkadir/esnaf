@@ -2,22 +2,36 @@ import React, { useState } from 'react';
 import { Copy, CheckCircle } from 'lucide-react';
 import { getOrCreateMachineId } from '../lib/machine-id';
 import { ensureLicensePersistency, restoreFromBackup, validateLicenseFormat, isLicenseExpired } from '../lib/license-manager';
-import { saveLicenseToIndexedDB, initLicenseDB } from '../lib/license-db';
+import { saveLicenseToIndexedDB, initLicenseDB, isLicenseAlreadyUsed, recordUsedLicense } from '../lib/license-db';
 
 interface LicenseGateProps {
   onLicenseValid: () => void;
   language: 'tr' | 'en' | 'de';
+  showPasswordOnly?: boolean;
 }
 
-export default function LicenseGate({ onLicenseValid, language }: LicenseGateProps) {
+export default function LicenseGate({ onLicenseValid, language, showPasswordOnly = false }: LicenseGateProps) {
   const machineId = getOrCreateMachineId();
   const [licenseKey, setLicenseKey] = useState('');
   const [copied, setCopied] = useState(false);
   const [validationMessage, setValidationMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [licenseValidated, setLicenseValidated] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordMessage, setPasswordMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [isPasswordLoading, setIsPasswordLoading] = useState(false);
+  const CORRECT_PASSWORD = '123456';
 
   // Sayfa yüklendiğinde tüm seviyelerde lisansı kontrol et
   React.useEffect(() => {
+    // Eğer showPasswordOnly true ise, lisans kontrolünü atlayıp direkt şifre ekranına git
+    if (showPasswordOnly) {
+      setLicenseValidated(true);
+      setPassword('');
+      setPasswordMessage(null);
+      return;
+    }
+
     try {
       console.log('🔍 LicenseGate: Lisans kontrol ediliyor...');
 
@@ -175,7 +189,7 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
 
     setIsLoading(true);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       try {
         // Base64 çöz
         const decodedKey = atob(licenseKey.trim());
@@ -222,6 +236,21 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
               : language === 'de'
               ? '⏰ Ihre Lizenz ist abgelaufen!'
               : '⏰ Your license has expired!',
+            type: 'error'
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // TEKRAR KULLANIM KONTROLÜ: Aynı lisans anahtarı daha önce kullanıldı mı?
+        const alreadyUsed = await isLicenseAlreadyUsed(machineId, licenseKey);
+        if (alreadyUsed) {
+          setValidationMessage({
+            text: language === 'tr'
+              ? '❌ Bu lisans anahtarı bu cihazda zaten kullanıldı! Süreyi uzatmak için yeni bir lisans anahtarı girin veya Cihaz Kimliğini Yenile seçeneğini kullanın.'
+              : language === 'de'
+              ? '❌ Dieser Lizenzschlüssel wurde bereits auf diesem Gerät verwendet! Geben Sie einen neuen Lizenzschlüssel ein oder verwenden Sie die Option "Gerät-ID erneuern".'
+              : '❌ This license key has already been used on this device! Enter a new license key or use the "Renew Device ID" option.',
             type: 'error'
           });
           setIsLoading(false);
@@ -275,6 +304,12 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
             if (success) {
               console.log('🔒 Lisans IndexedDB\'ye kaydedildi (Cihaz tanımlaması)');
             }
+
+            // SEVIYE 5: Kullanılan lisans anahtarını kaydet (tek seferlik kullanım için)
+            const recordSuccess = await recordUsedLicense(machineId, licenseKey);
+            if (recordSuccess) {
+              console.log('📝 Lisans kullanımı kaydedildi (tek seferlik)');
+            }
           } catch (e) {
             console.error('IndexedDB kaydetme hatası:', e);
             // Hata olsa da devam et, localStorage vardır
@@ -285,9 +320,11 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
 
         setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
 
-        // 1 saniye sonra uygulamaya git
+        // Şifre ekranına git
         setTimeout(() => {
-          onLicenseValid();
+          setLicenseValidated(true);
+          setPassword('');
+          setPasswordMessage(null);
         }, 1000);
       } catch (e: any) {
         console.error('Lisans çözümleme hatası:', e);
@@ -312,8 +349,57 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
-      handleValidateLicense();
+      if (licenseValidated) {
+        handleValidatePassword();
+      } else {
+        handleValidateLicense();
+      }
     }
+  };
+
+  const handleValidatePassword = () => {
+    if (!password.trim()) {
+      setPasswordMessage({
+        text: language === 'tr'
+          ? 'Lütfen şifre girin.'
+          : language === 'de'
+          ? 'Bitte geben Sie ein Passwort ein.'
+          : 'Please enter a password.',
+        type: 'error'
+      });
+      return;
+    }
+
+    setIsPasswordLoading(true);
+
+    setTimeout(() => {
+      if (password === CORRECT_PASSWORD) {
+        setPasswordMessage({
+          text: language === 'tr'
+            ? '✅ Şifre doğru! Uygulamaya giriş yapılıyor...'
+            : language === 'de'
+            ? '✅ Passwort korrekt! Anwendung wird geöffnet...'
+            : '✅ Password correct! Opening application...',
+          type: 'success'
+        });
+
+        setTimeout(() => {
+          onLicenseValid();
+        }, 1000);
+      } else {
+        setPasswordMessage({
+          text: language === 'tr'
+            ? '❌ Şifre yanlış! Lütfen tekrar deneyin.'
+            : language === 'de'
+            ? '❌ Passwort ist falsch! Bitte versuchen Sie es erneut.'
+            : '❌ Password incorrect! Please try again.',
+          type: 'error'
+        });
+        setPassword('');
+      }
+
+      setIsPasswordLoading(false);
+    }, 1500);
   };
 
   return (
@@ -326,200 +412,312 @@ export default function LicenseGate({ onLicenseValid, language }: LicenseGatePro
 
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-2xl">
-        
+
         {/* Header Section */}
         <div className="text-center mb-8 animate-fade-in">
           <div className="inline-block mb-6">
             <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-indigo-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-              <span className="text-white text-2xl font-bold">🔐</span>
+              <span className="text-white text-2xl font-bold">
+                {licenseValidated ? '🔑' : '🔐'}
+              </span>
             </div>
           </div>
 
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight mb-2">
-            {t.title}
+            {licenseValidated
+              ? (language === 'tr'
+                ? 'ŞİFRE GİRİŞİ'
+                : language === 'de'
+                ? 'PASSWORT-EINGABE'
+                : 'PASSWORD ENTRY')
+              : t.title}
           </h1>
           <p className="text-slate-300 text-sm md:text-base font-medium">
-            {t.subtitle}
+            {licenseValidated
+              ? (language === 'tr'
+                ? 'Uygulamaya erişmek için şifrenizi girin'
+                : language === 'de'
+                ? 'Geben Sie Ihr Passwort ein, um auf die Anwendung zuzugreifen'
+                : 'Enter your password to access the application')
+              : t.subtitle}
           </p>
         </div>
 
         {/* Main Content Card */}
         <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 rounded-3xl shadow-2xl p-8 md:p-10 space-y-8 animate-scale-up">
-          
-          {/* Instructions */}
-          <div className="bg-slate-950/50 border border-slate-800/30 rounded-2xl p-6 space-y-3">
-            <p className="text-slate-300 font-semibold text-sm flex items-center gap-2">
-              <span className="text-indigo-400">ℹ️</span>
-              {t.instructions}
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="flex gap-3 text-xs text-slate-300">
-                <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">1</span>
-                <span className="pt-0.5">{t.step1}</span>
-              </div>
-              <div className="flex gap-3 text-xs text-slate-300">
-                <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">2</span>
-                <span className="pt-0.5">{t.step2}</span>
-              </div>
-              <div className="flex gap-3 text-xs text-slate-300">
-                <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">3</span>
-                <span className="pt-0.5">{t.step3}</span>
-              </div>
-              <div className="flex gap-3 text-xs text-slate-300">
-                <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">4</span>
-                <span className="pt-0.5">{t.step4}</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Machine ID Section */}
-          <div className="space-y-3">
-            <label className="block text-slate-200 font-bold text-sm uppercase tracking-wide">
-              {t.machineIdLabel}
-            </label>
-            <p className="text-slate-400 text-xs">{t.machineIdDesc}</p>
-            <div className="flex gap-3 items-center">
-              <div className="flex-1 bg-slate-950 border border-slate-700/50 rounded-xl p-4 font-mono text-sm text-amber-400 break-all select-all">
-                {machineId}
+          {!licenseValidated ? (
+            <>
+              {/* Instructions */}
+              <div className="bg-slate-950/50 border border-slate-800/30 rounded-2xl p-6 space-y-3">
+                <p className="text-slate-300 font-semibold text-sm flex items-center gap-2">
+                  <span className="text-indigo-400">ℹ️</span>
+                  {t.instructions}
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex gap-3 text-xs text-slate-300">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">1</span>
+                    <span className="pt-0.5">{t.step1}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-slate-300">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">2</span>
+                    <span className="pt-0.5">{t.step2}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-slate-300">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">3</span>
+                    <span className="pt-0.5">{t.step3}</span>
+                  </div>
+                  <div className="flex gap-3 text-xs text-slate-300">
+                    <span className="flex-shrink-0 h-6 w-6 rounded-full bg-indigo-600 flex items-center justify-center font-bold text-white">4</span>
+                    <span className="pt-0.5">{t.step4}</span>
+                  </div>
+                </div>
               </div>
-              <button
-                onClick={handleCopyMachineId}
-                className={`flex-shrink-0 h-12 w-12 rounded-xl flex items-center justify-center transition-all font-bold text-white font-semibold ${
-                  copied
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-lg hover:shadow-indigo-500/30'
-                }`}
-                title={t.copyButton}
-              >
-                {copied ? <CheckCircle className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
-              </button>
-            </div>
-          </div>
 
-          {/* License Key Input Section */}
-          <div className="space-y-3">
-            <label className="block text-slate-200 font-bold text-sm uppercase tracking-wide">
-              {t.licenseKeyLabel}
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={licenseKey}
-                onChange={(e) => setLicenseKey(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder={t.licenseKeyPlaceholder}
-                disabled={isLoading}
-                className="w-full bg-slate-950 border border-slate-700/50 focus:border-indigo-500/80 rounded-xl p-4 text-white placeholder-slate-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-60"
-              />
-            </div>
-          </div>
+              {/* Machine ID Section */}
+              <div className="space-y-3">
+                <label className="block text-slate-200 font-bold text-sm uppercase tracking-wide">
+                  {t.machineIdLabel}
+                </label>
+                <p className="text-slate-400 text-xs">{t.machineIdDesc}</p>
+                <div className="flex gap-3 items-center">
+                  <div className="flex-1 bg-slate-950 border border-slate-700/50 rounded-xl p-4 font-mono text-sm text-amber-400 break-all select-all">
+                    {machineId}
+                  </div>
+                  <button
+                    onClick={handleCopyMachineId}
+                    className={`flex-shrink-0 h-12 w-12 rounded-xl flex items-center justify-center transition-all font-bold text-white font-semibold ${
+                      copied
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-indigo-600 hover:bg-indigo-700 text-white hover:shadow-lg hover:shadow-indigo-500/30'
+                    }`}
+                    title={t.copyButton}
+                  >
+                    {copied ? <CheckCircle className="h-5 w-5" /> : <Copy className="h-5 w-5" />}
+                  </button>
+                </div>
+              </div>
 
-          {/* Validation Message */}
-          {validationMessage && (
-            <div className={`p-4 rounded-xl text-sm font-semibold flex items-center gap-3 animate-fade-in ${
-              validationMessage.type === 'success'
-                ? 'bg-emerald-950/40 border border-emerald-600/30 text-emerald-300'
-                : 'bg-red-950/40 border border-red-600/30 text-red-300'
-            }`}>
-              {validationMessage.type === 'success' ? (
-                <CheckCircle className="h-5 w-5 flex-shrink-0" />
-              ) : (
-                <span className="h-5 w-5 flex-shrink-0 text-center">⚠️</span>
+              {/* License Key Input Section */}
+              <div className="space-y-3">
+                <label className="block text-slate-200 font-bold text-sm uppercase tracking-wide">
+                  {t.licenseKeyLabel}
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={licenseKey}
+                    onChange={(e) => setLicenseKey(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    placeholder={t.licenseKeyPlaceholder}
+                    disabled={isLoading}
+                    className="w-full bg-slate-950 border border-slate-700/50 focus:border-indigo-500/80 rounded-xl p-4 text-white placeholder-slate-500 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-60"
+                  />
+                </div>
+              </div>
+
+              {/* Validation Message */}
+              {validationMessage && (
+                <div className={`p-4 rounded-xl text-sm font-semibold flex items-center gap-3 animate-fade-in ${
+                  validationMessage.type === 'success'
+                    ? 'bg-emerald-950/40 border border-emerald-600/30 text-emerald-300'
+                    : 'bg-red-950/40 border border-red-600/30 text-red-300'
+                }`}>
+                  {validationMessage.type === 'success' ? (
+                    <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                  ) : (
+                    <span className="h-5 w-5 flex-shrink-0 text-center">⚠️</span>
+                  )}
+                  {validationMessage.text}
+                </div>
               )}
-              {validationMessage.text}
-            </div>
+
+              {/* Validation Info Panel */}
+              <div className="bg-slate-950/30 border border-slate-800/40 rounded-xl p-4 space-y-2 text-xs text-slate-400">
+                <p className="font-bold text-slate-300 flex items-center gap-2">
+                  <span>🔍</span>
+                  {language === 'tr'
+                    ? 'Doğrulama Kontrolleri'
+                    : language === 'de'
+                    ? 'Validierungsprüfungen'
+                    : 'Validation Checks'}
+                </p>
+                <ul className="space-y-1.5 font-mono text-[11px] text-slate-400">
+                  <li className="flex items-center gap-2">
+                    <span className="text-amber-400">1.</span>
+                    {language === 'tr'
+                      ? 'Base64 Decode → JSON Parse'
+                      : language === 'de'
+                      ? 'Base64 Dekodierung → JSON Analyse'
+                      : 'Base64 Decode → JSON Parse'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-amber-400">2.</span>
+                    {language === 'tr'
+                      ? 'MachineID eşleştirmesi'
+                      : language === 'de'
+                      ? 'Maschinen-ID-Abgleich'
+                      : 'Machine ID matching'}
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="text-amber-400">3.</span>
+                    {language === 'tr'
+                      ? 'Lisans süresi kontrolü'
+                      : language === 'de'
+                      ? 'Lizenzablaufdatum überprüfen'
+                      : 'License expiry date check'}
+                  </li>
+                </ul>
+              </div>
+
+              {/* Validate Button */}
+              <button
+                onClick={handleValidateLicense}
+                disabled={isLoading}
+                className={`w-full py-4 px-6 rounded-xl font-bold text-white text-sm uppercase tracking-wide transition-all shadow-lg ${
+                  isLoading
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 hover:shadow-indigo-500/40 active:scale-95'
+                }`}
+              >
+                {isLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
+                    {t.validating}
+                  </span>
+                ) : (
+                  t.validateButton
+                )}
+              </button>
+
+              {/* Info Text */}
+              <p className="text-center text-xs text-slate-500 font-mono">
+                {t.generatorUrl}
+              </p>
+            </>
+          ) : (
+            <>
+              {/* Password Input Section */}
+              <div className="space-y-4">
+                <div className="space-y-3">
+                  <label className="block text-slate-200 font-bold text-sm uppercase tracking-wide">
+                    {language === 'tr'
+                      ? 'Şifre'
+                      : language === 'de'
+                      ? 'Passwort'
+                      : 'Password'}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      onKeyPress={handleKeyPress}
+                      placeholder={language === 'tr'
+                        ? 'Şifrenizi girin...'
+                        : language === 'de'
+                        ? 'Geben Sie Ihr Passwort ein...'
+                        : 'Enter your password...'}
+                      disabled={isPasswordLoading}
+                      className="w-full bg-slate-950 border border-slate-700/50 focus:border-indigo-500/80 rounded-xl p-4 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all disabled:opacity-60"
+                    />
+                  </div>
+                </div>
+
+                {/* Password Message */}
+                {passwordMessage && (
+                  <div className={`p-4 rounded-xl text-sm font-semibold flex items-center gap-3 animate-fade-in ${
+                    passwordMessage.type === 'success'
+                      ? 'bg-emerald-950/40 border border-emerald-600/30 text-emerald-300'
+                      : 'bg-red-950/40 border border-red-600/30 text-red-300'
+                  }`}>
+                    {passwordMessage.type === 'success' ? (
+                      <CheckCircle className="h-5 w-5 flex-shrink-0" />
+                    ) : (
+                      <span className="h-5 w-5 flex-shrink-0 text-center">⚠️</span>
+                    )}
+                    {passwordMessage.text}
+                  </div>
+                )}
+
+                {/* Info Text */}
+                <div className="bg-slate-950/30 border border-slate-800/40 rounded-xl p-4 text-xs text-slate-400">
+                  <p className="font-semibold text-slate-300 mb-2">
+                    {language === 'tr'
+                      ? '🔐 Güvenlik Notu'
+                      : language === 'de'
+                      ? '🔐 Sicherheitshinweis'
+                      : '🔐 Security Note'}
+                  </p>
+                  <p>
+                    {language === 'tr'
+                      ? 'Uygulamaya erişmek için verilen şifreyi girin. Şifre doğru girildiğinde uygulama açılacaktır.'
+                      : language === 'de'
+                      ? 'Geben Sie das für den Zugriff auf die Anwendung bereitgestellte Passwort ein. Wenn das Passwort korrekt eingegeben wird, wird die Anwendung geöffnet.'
+                      : 'Enter the password provided to access the application. When the correct password is entered, the application will open.'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Validate Password Button */}
+              <button
+                onClick={handleValidatePassword}
+                disabled={isPasswordLoading}
+                className={`w-full py-4 px-6 rounded-xl font-bold text-white text-sm uppercase tracking-wide transition-all shadow-lg ${
+                  isPasswordLoading
+                    ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-500 hover:to-purple-600 hover:shadow-purple-500/40 active:scale-95'
+                }`}
+              >
+                {isPasswordLoading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="h-4 w-4 rounded-full border-2 border-purple-300 border-t-purple-600 animate-spin" />
+                    {language === 'tr'
+                      ? 'Doğrulanıyor...'
+                      : language === 'de'
+                      ? 'Wird überprüft...'
+                      : 'Verifying...'}
+                  </span>
+                ) : (
+                  language === 'tr'
+                    ? 'Şifre Doğrula'
+                    : language === 'de'
+                    ? 'Passwort überprüfen'
+                    : 'Verify Password'
+                )}
+              </button>
+            </>
           )}
-
-          {/* Validation Info Panel */}
-          <div className="bg-slate-950/30 border border-slate-800/40 rounded-xl p-4 space-y-2 text-xs text-slate-400">
-            <p className="font-bold text-slate-300 flex items-center gap-2">
-              <span>🔍</span>
-              {language === 'tr'
-                ? 'Doğrulama Kontrolleri'
-                : language === 'de'
-                ? 'Validierungsprüfungen'
-                : 'Validation Checks'}
-            </p>
-            <ul className="space-y-1.5 font-mono text-[11px] text-slate-400">
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">1.</span>
-                {language === 'tr'
-                  ? 'Base64 Decode → JSON Parse'
-                  : language === 'de'
-                  ? 'Base64 Dekodierung → JSON Analyse'
-                  : 'Base64 Decode → JSON Parse'}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">2.</span>
-                {language === 'tr'
-                  ? 'MachineID eşleştirmesi'
-                  : language === 'de'
-                  ? 'Maschinen-ID-Abgleich'
-                  : 'Machine ID matching'}
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="text-amber-400">3.</span>
-                {language === 'tr'
-                  ? 'Lisans süresi kontrolü'
-                  : language === 'de'
-                  ? 'Lizenzablaufdatum überprüfen'
-                  : 'License expiry date check'}
-              </li>
-            </ul>
-          </div>
-
-          {/* Validate Button */}
-          <button
-            onClick={handleValidateLicense}
-            disabled={isLoading}
-            className={`w-full py-4 px-6 rounded-xl font-bold text-white text-sm uppercase tracking-wide transition-all shadow-lg ${
-              isLoading
-                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
-                : 'bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 hover:shadow-indigo-500/40 active:scale-95'
-            }`}
-          >
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-2">
-                <span className="h-4 w-4 rounded-full border-2 border-indigo-300 border-t-indigo-600 animate-spin" />
-                {t.validating}
-              </span>
-            ) : (
-              t.validateButton
-            )}
-          </button>
-
-          {/* Info Text */}
-          <p className="text-center text-xs text-slate-500 font-mono">
-            {t.generatorUrl}
-          </p>
         </div>
 
         {/* Security Note */}
-        <div className="mt-8 text-center space-y-4">
-          <p className="text-slate-400 text-xs leading-relaxed max-w-sm mx-auto">
-            {language === 'tr'
-              ? '🔒 Lisans sistemi tamamen yerel olarak çalışır. Cihaz kimliğiniz veya lisans anahtarınız hiçbir zaman sunucuya gönderilmez.'
-              : language === 'de'
-              ? '🔒 Das Lizenzsystem funktioniert vollständig lokal. Ihre Maschinen-ID oder Ihr Lizenzschlüssel werden niemals an einen Server gesendet.'
-              : '🔒 The license system runs completely locally. Your Machine ID or license key is never sent to any server.'}
-          </p>
+        {!licenseValidated && (
+          <div className="mt-8 text-center space-y-4">
+            <p className="text-slate-400 text-xs leading-relaxed max-w-sm mx-auto">
+              {language === 'tr'
+                ? '🔒 Lisans sistemi tamamen yerel olarak çalışır. Cihaz kimliğiniz veya lisans anahtarınız hiçbir zaman sunucuya gönderilmez.'
+                : language === 'de'
+                ? '🔒 Das Lizenzsystem funktioniert vollständig lokal. Ihre Maschinen-ID oder Ihr Lizenzschlüssel werden niemals an einen Server gesendet.'
+                : '🔒 The license system runs completely locally. Your Machine ID or license key is never sent to any server.'}
+            </p>
 
-          {/* WhatsApp Admin Contact Button */}
-          <a
-            href="https://wa.me/905425783748"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-150 shadow-lg hover:shadow-green-500/40 active:scale-95"
-          >
-            <span>💬</span>
-            {language === 'tr'
-              ? 'Yönetici ile İletişim Kurun'
-              : language === 'de'
-              ? 'Kontakt mit dem Administrator'
-              : 'Contact Administrator'}
-            <span className="text-lg">📱</span>
-          </a>
-        </div>
+            {/* WhatsApp Admin Contact Button */}
+            <a
+              href="https://wa.me/905425783748"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-500 hover:to-green-600 text-white px-6 py-3 rounded-lg text-sm font-semibold transition-all duration-150 shadow-lg hover:shadow-green-500/40 active:scale-95"
+            >
+              <span>💬</span>
+              {language === 'tr'
+                ? 'Yönetici ile İletişim Kurun'
+                : language === 'de'
+                ? 'Kontakt mit dem Administrator'
+                : 'Contact Administrator'}
+              <span className="text-lg">📱</span>
+            </a>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -16,7 +16,8 @@ import {
   FileText,
   MessageCircle,
   Download,
-  Server
+  Server,
+  LogOut
 } from 'lucide-react';
 
 interface DashboardProps {
@@ -27,6 +28,7 @@ interface DashboardProps {
   brandName?: string;
   language?: 'tr' | 'en' | 'de';
   onDownloadBackup?: () => void;
+  onLogout?: () => void;
 }
 
 // Helper function to get currency symbol
@@ -39,7 +41,7 @@ const getCurrencySymbol = (currency: Currency): string => {
   }
 };
 
-export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd', language = 'tr', onDownloadBackup }: DashboardProps) {
+export default function Dashboard({ products, sales, expenses, onNavigate, brandName = 'AKN Global Group Ltd', language = 'tr', onDownloadBackup, onLogout }: DashboardProps) {
   const t = TRANSLATIONS[language] || TRANSLATIONS.tr;
   const [, setLicenseUpdated] = useState(0);
 
@@ -144,15 +146,26 @@ export default function Dashboard({ products, sales, expenses, onNavigate, brand
           <div className="text-xs font-mono text-slate-400 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200">
             {t.systemTime || 'SİSTEM SAATİ'}: {new Date().toLocaleDateString(language === 'tr' ? 'tr-TR' : language === 'de' ? 'de-DE' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
           </div>
-          <a
-            href="https://wa.me/905425783748"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
-          >
-            <MessageCircle className="h-4 w-4" />
-            {language === 'tr' ? 'WhatsApp İletişim' : language === 'de' ? 'WhatsApp Kontakt' : 'WhatsApp Contact'}
-          </a>
+          <div className="flex gap-2 flex-wrap justify-end">
+            <a
+              href="https://wa.me/905425783748"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md"
+            >
+              <MessageCircle className="h-4 w-4" />
+              {language === 'tr' ? 'WhatsApp İletişim' : language === 'de' ? 'WhatsApp Kontakt' : 'WhatsApp Contact'}
+            </a>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                className="flex items-center gap-2 bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-150 shadow-sm hover:shadow-md active:scale-95"
+              >
+                <LogOut className="h-4 w-4" />
+                {language === 'tr' ? 'Çıkış' : language === 'de' ? 'Abmelden' : 'Logout'}
+              </button>
+            )}
+          </div>
         </div>
       </div>
 

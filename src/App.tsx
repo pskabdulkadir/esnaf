@@ -69,6 +69,18 @@ export default function App() {
     }
   });
 
+  // Session Login State (Lisans girdikten sonra şifre kontrolü için)
+  const [isSessionLoggedIn, setIsSessionLoggedIn] = useState<boolean>(() => {
+    try {
+      return sessionStorage.getItem('session_logged_in') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  // Password-only Login State (Logout sonrası sadece şifre girişi için)
+  const [showPasswordOnly, setShowPasswordOnly] = useState(false);
+
   // Navigation State
   const [currentTab, setCurrentTab] = useState<string>('dashboard');
 
@@ -838,6 +850,20 @@ export default function App() {
     );
   }
 
+  // Session Login Kontrolü - Lisans doğrulandıktan sonra şifre giriş
+  if (!isSessionLoggedIn) {
+    return (
+      <LicenseGate
+        onLicenseValid={() => {
+          setIsSessionLoggedIn(true);
+          sessionStorage.setItem('session_logged_in', 'true');
+        }}
+        language={language}
+        showPasswordOnly={showPasswordOnly}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased">
       
@@ -1411,7 +1437,7 @@ export default function App() {
         <main className="flex-1 bg-white p-6 md:p-8 rounded-3xl border border-slate-200/75 shadow-sm min-w-0">
           
           {currentTab === 'dashboard' && (
-            <Dashboard 
+            <Dashboard
               products={products}
               sales={sales}
               expenses={expenses}
@@ -1419,6 +1445,12 @@ export default function App() {
               brandName={brandName}
               language={language}
               onDownloadBackup={handleDownloadBackup}
+              onLogout={() => {
+                sessionStorage.removeItem('session_logged_in');
+                (window as any).__AKN_LICENSE__ = undefined;
+                setIsSessionLoggedIn(false);
+                setShowPasswordOnly(true);
+              }}
             />
           )}
 

@@ -6,7 +6,8 @@
 
 const DB_NAME = 'AKN_Global_License_DB';
 const STORE_NAME = 'licenses';
-const VERSION = 1;
+const USED_LICENSES_STORE = 'used_licenses';
+const VERSION = 2;
 
 export interface StoredLicense {
   deviceId: string;
@@ -17,6 +18,13 @@ export interface StoredLicense {
   };
   timestamp: number;
   machineId: string;
+}
+
+export interface UsedLicense {
+  id: string; // machineId + hash(licenseKey)
+  machineId: string;
+  licenseKeyHash: string;
+  timestamp: number;
 }
 
 let db: IDBDatabase | null = null;
@@ -49,7 +57,16 @@ export async function initLicenseDB(): Promise<IDBDatabase | null> {
             keyPath: 'deviceId'
           });
           store.createIndex('timestamp', 'timestamp', { unique: false });
-          console.log('✅ IndexedDB store oluşturuldu');
+          console.log('✅ IndexedDB licenses store oluşturuldu');
+        }
+
+        // Kullanılan lisanslar store'unu oluştur
+        if (!database.objectStoreNames.contains(USED_LICENSES_STORE)) {
+          const usedStore = database.createObjectStore(USED_LICENSES_STORE, {
+            keyPath: 'id'
+          });
+          usedStore.createIndex('machineId', 'machineId', { unique: false });
+          console.log('✅ IndexedDB used_licenses store oluşturuldu');
         }
       };
     } catch (e) {
@@ -281,6 +298,154 @@ export async function isStoredLicenseValid(deviceId: string): Promise<boolean> {
     console.error('Lisans geçerlilik kontrol hatası:', e);
     return false;
   }
+}
+
+/**
+ * Lisans anahtarı hash'i oluştur (basit)
+ */
+function hashLicenseKey(licenseKey: string): string {
+  let hash = 0;
+  for (let i = 0; i < licenseKey.length; i++) {
+    const char = licenseKey.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return 'lh_' + Math.abs(hash).toString(36);
+}
+
+/**
+ * Lisans anahtarı kullanımını kaydet (tek seferlik kontrol için)
+ */
+export async function recordUsedLicense(machineId: string, licenseKey: string): Promise<boolean> {
+  return new Promise(async (resolve) => {
+    try {
+      if (!db) {
+        db = await initLicenseDB();
+      }
+
+      if (!db) {
+        console.warn('⚠️ IndexedDB kullanılamıyor');
+        return resolve(false);
+      }
+
+      const licenseKeyHash = hashLicenseKey(licenseKey);
+      const usedLicense: UsedLicense = {
+        id: `${machineId}_${licenseKeyHash}`,
+        machineId,
+        licenseKeyHash,
+        timestamp: new Date().getTime()
+      };
+
+      const transaction = db.transaction([USED_LICENSES_STORE], 'readwrite');
+      const store = transaction.objectStore(USED_LICENSES_STORE);
+      const request = store.put(usedLicense);
+
+      request.onsuccess = () => {
+        console.log('✅ Lisans kullanımı kaydedildi:', usedLicense.id);
+        resolve(true);
+      };
+
+      request.onerror = () => {
+        console.error('❌ Lisans kullanımı kaydetme hatası');
+        resolve(false);
+      };
+    } catch (e) {
+      console.error('Lisans kullanımı kaydetme hatası:', e);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Aynı lisans anahtarı daha önce bu cihazda kullanıldı mı kontrol et
+ */
+export async function isLicenseAlreadyUsed(machineId: string, licenseKey: string): Promise<boolean> {
+  return new Promise(async (resolve) => {
+    try {
+      if (!db) {
+        db = await initLicenseDB();
+      }
+
+      if (!db) {
+        console.warn('⚠️ IndexedDB kullanılamıyor');
+        return resolve(false);
+      }
+
+      const licenseKeyHash = hashLicenseKey(licenseKey);
+      const usageId = `${machineId}_${licenseKeyHash}`;
+
+      const transaction = db.transaction([USED_LICENSES_STORE], 'readonly');
+      const store = transaction.objectStore(USED_LICENSES_STORE);
+      const request = store.get(usageId);
+
+      request.onsuccess = () => {
+        const result = request.result as UsedLicense | undefined;
+        if (result) {
+          console.log('⚠️ Bu lisans daha önce kullanıldı:', usageId);
+          resolve(true);
+        } else {
+          console.log('✅ Bu lisans daha önce kullanılmamış');
+          resolve(false);
+        }
+      };
+
+      request.onerror = () => {
+        console.error('❌ Lisans kontrol hatası');
+        resolve(false);
+      };
+    } catch (e) {
+      console.error('Lisans kontrol hatası:', e);
+      resolve(false);
+    }
+  });
+}
+
+/**
+ * Cihaz kimliği değiştiğinde eski lisans kullanım history'sini temizle
+ */
+export async function clearUsedLicensesForMachine(machineId: string): Promise<boolean> {
+  return new Promise(async (resolve) => {
+    try {
+      if (!db) {
+        db = await initLicenseDB();
+      }
+
+      if (!db) {
+        return resolve(false);
+      }
+
+      const transaction = db.transaction([USED_LICENSES_STORE], 'readwrite');
+      const store = transaction.objectStore(USED_LICENSES_STORE);
+      const index = store.index('machineId');
+      const range = IDBKeyRange.only(machineId);
+      const request = index.openCursor(range);
+
+      const toDelete: IDBValidKey[] = [];
+
+      request.onsuccess = (event) => {
+        const cursor = (event.target as IDBRequest).result;
+        if (cursor) {
+          toDelete.push(cursor.primaryKey);
+          cursor.continue();
+        } else {
+          // Tüm bulduklarını sil
+          toDelete.forEach(key => {
+            store.delete(key);
+          });
+          console.log('✅ Cihaz kimliği için eski lisans history temizlendi:', machineId);
+          resolve(true);
+        }
+      };
+
+      request.onerror = () => {
+        console.error('❌ History temizleme hatası');
+        resolve(false);
+      };
+    } catch (e) {
+      console.error('History temizleme hatası:', e);
+      resolve(false);
+    }
+  });
 }
 
 /**

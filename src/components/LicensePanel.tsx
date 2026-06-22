@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, ChevronUp, RefreshCw, AlertTriangle, CheckCircle, Copy } from 'lucide-react';
-import { getOrCreateMachineId } from '../lib/machine-id';
+import { getOrCreateMachineId, renewMachineId } from '../lib/machine-id';
+import { clearUsedLicensesForMachine } from '../lib/license-db';
 import {
   loadLicenseData,
   saveLicenseData,
@@ -31,6 +32,8 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isRenewingMachine, setIsRenewingMachine] = useState(false);
+  const [showRenewMachineConfirm, setShowRenewMachineConfirm] = useState(false);
 
   // Lisans verilerini yükle
   useEffect(() => {
@@ -189,6 +192,48 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
     }
   };
 
+  const handleRenewMachineId = async () => {
+    setIsRenewingMachine(true);
+    setShowRenewMachineConfirm(false);
+
+    try {
+      // Eski machine ID'yi almak için
+      const oldMachineId = machineId;
+
+      // Yeni machine ID oluştur
+      const newMachineId = renewMachineId();
+
+      // Eski cihaz kimliği için eski lisans kullanım geçmişini temizle
+      await clearUsedLicensesForMachine(oldMachineId);
+
+      setMessage({
+        text: language === 'tr'
+          ? `✅ Cihaz Kimliği başarıyla yenilendi! Yeni ID: ${newMachineId.substring(0, 8)}...`
+          : language === 'de'
+          ? `✅ Geräte-ID erfolgreich erneuert! Neue ID: ${newMachineId.substring(0, 8)}...`
+          : `✅ Device ID renewed successfully! New ID: ${newMachineId.substring(0, 8)}...`,
+        type: 'success'
+      });
+
+      // Sayfayı yenile
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    } catch (e) {
+      console.error('Cihaz kimliği yenileme hatası:', e);
+      setMessage({
+        text: language === 'tr'
+          ? 'Cihaz kimliği yenileme hatası!'
+          : language === 'de'
+          ? 'Fehler beim Erneuern der Geräte-ID!'
+          : 'Device ID renewal error!',
+        type: 'error'
+      });
+    }
+
+    setIsRenewingMachine(false);
+  };
+
   // Koşullu renk sınıfları
   const getStatusColor = () => {
     if (daysRemaining <= 0) return 'text-red-400';
@@ -220,6 +265,9 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
       renewTitle: 'Lisans Süresini Uzat',
       enterLicenseKey: 'Lisans Anahtarı Girin',
       renewSubmit: 'Doğrula ve Uzat',
+      renewMachineButton: 'Cihaz Kimliğini Yenile',
+      renewMachineTitle: 'Cihaz Kimliğini Yenile',
+      renewMachineConfirm: 'Cihaz kimliğini yenilemek istediğinizden emin misiniz? Bu işlem sonrası eski lisans anahtarlarını kullanabileceksiniz.',
       cancel: 'İptal',
       copy: 'Kopyala',
       copied: 'Kopyalandı!',
@@ -236,6 +284,9 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
       renewTitle: 'Renew License Period',
       enterLicenseKey: 'Enter License Key',
       renewSubmit: 'Verify and Renew',
+      renewMachineButton: 'Renew Device ID',
+      renewMachineTitle: 'Renew Device ID',
+      renewMachineConfirm: 'Are you sure you want to renew your device ID? After this, you will be able to use old license keys again.',
       cancel: 'Cancel',
       copy: 'Copy',
       copied: 'Copied!',
@@ -252,6 +303,9 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
       renewTitle: 'Lizenzdauer verlängern',
       enterLicenseKey: 'Geben Sie den Lizenzschlüssel ein',
       renewSubmit: 'Verifizieren und verlängern',
+      renewMachineButton: 'Gerät-ID erneuern',
+      renewMachineTitle: 'Gerät-ID erneuern',
+      renewMachineConfirm: 'Möchten Sie Ihre Gerät-ID wirklich erneuern? Danach können Sie alte Lizenzschlüssel erneut verwenden.',
       cancel: 'Abbrechen',
       copy: 'Kopieren',
       copied: 'Kopiert!',
@@ -347,13 +401,49 @@ export default function LicensePanel({ language, onLicenseUpdated }: LicensePane
 
           {/* Renew Form */}
           {!showRenewForm ? (
-            <button
-              onClick={() => setShowRenewForm(true)}
-              className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2"
-            >
-              <RefreshCw className="h-4 w-4" />
-              {t.renewButton}
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={() => setShowRenewForm(true)}
+                className="w-full py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                {t.renewButton}
+              </button>
+
+              {/* Renew Device ID Button */}
+              {!showRenewMachineConfirm ? (
+                <button
+                  onClick={() => setShowRenewMachineConfirm(true)}
+                  className="w-full py-2 px-4 bg-orange-600 hover:bg-orange-700 text-white text-sm font-semibold rounded transition-colors flex items-center justify-center gap-2"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  {t.renewMachineButton}
+                </button>
+              ) : (
+                <div className="bg-orange-950/30 border border-orange-600/30 rounded p-3 space-y-2">
+                  <p className="text-xs text-orange-200">{t.renewMachineConfirm}</p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleRenewMachineId}
+                      disabled={isRenewingMachine}
+                      className={`flex-1 py-2 px-3 rounded text-xs font-semibold transition-all ${
+                        isRenewingMachine
+                          ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                          : 'bg-orange-600 hover:bg-orange-700 text-white active:scale-95'
+                      }`}
+                    >
+                      {isRenewingMachine ? '...' : 'Evet, Yenile'}
+                    </button>
+                    <button
+                      onClick={() => setShowRenewMachineConfirm(false)}
+                      className="flex-1 py-2 px-3 bg-slate-700 hover:bg-slate-600 text-white text-xs font-semibold rounded transition-all"
+                    >
+                      {t.cancel}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           ) : (
             <div className="space-y-3 pt-2 border-t border-white/10">
               <div className="space-y-2">
