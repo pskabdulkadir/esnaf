@@ -509,7 +509,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         const urlParams = new URLSearchParams(window.location.search);
         const discountId = urlParams.get("discountId");
         const slug = urlParams.get("slug") || initialSlug;  // ⭐ initialSlug'ı fallback olarak kullan
-        const merchantId = urlParams.get("merchantId") || urlParams.get("userId");
+        const urlUserId = urlParams.get("userId");  // ⭐ URL'den userId al
+        const merchantId = urlParams.get("merchantId") || urlUserId;
 
         // ⭐ userId veya URL parametrelerini query parameter olarak ekle
         let apiUrl = "/api/public-discounts";
@@ -519,7 +520,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         if (slug) {
           queryParams.append("slug", slug);
           // Slug'la birlikte userId de gönder (paylaşan kişinin kendi ürünlerini görmesi için)
-          if (userId) queryParams.append("userId", userId);
+          const finalUserId = urlUserId || userId;  // ⭐ URL'deki userId'yi tercih et
+          if (finalUserId) queryParams.append("userId", finalUserId);
         } else if (userId) {
           // Slug yoksa userId gönder (admin panel)
           queryParams.append("userId", userId);
