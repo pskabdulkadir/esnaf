@@ -519,7 +519,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
         console.log(`🔥 Firestore'a yazılıyor - users/${userId}/publicDiscounts/${discountId}`);
         await firestoreDb
           .collection("users")
-          .doc(req.user?.userId || "unknown")
+          .doc(userId)  // ✅ DÜZELTILDI: userId değişkenini kullan
           .collection("publicDiscounts")
           .doc(discountId)
           .set({
