@@ -518,6 +518,8 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
         // ⭐ ÖNEMLI: slug varsa her zaman gönder (public share için)
         if (slug) {
           queryParams.append("slug", slug);
+          // Slug'la birlikte userId de gönder (paylaşan kişinin kendi ürünlerini görmesi için)
+          if (userId) queryParams.append("userId", userId);
         } else if (userId) {
           // Slug yoksa userId gönder (admin panel)
           queryParams.append("userId", userId);
