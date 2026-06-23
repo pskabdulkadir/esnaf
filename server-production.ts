@@ -1,9 +1,9 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
-// Firebase Admin SDK
-// @ts-ignore - Dynamic import for ESM compatibility
+// @ts-ignore - Firebase Admin SDK dynamic import
 import firebaseAdmin from "firebase-admin";
 
 dotenv.config();
@@ -39,12 +39,14 @@ async function initializeFirebase() {
       tokenUri: "https://oauth2.googleapis.com/token",
     };
 
+    // Validate credentials
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
       firebaseReady = false;
       return;
     }
 
+    // Initialize Firebase
     if (firebaseAdmin.apps.length === 0) {
       firebaseAdmin.initializeApp({
         credential: firebaseAdmin.credential.cert(serviceAccount),
@@ -53,6 +55,7 @@ async function initializeFirebase() {
 
     firestoreDb = firebaseAdmin.firestore();
     
+    // Test connection
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
     
     console.log("✅ Firestore initialized successfully");
@@ -63,6 +66,7 @@ async function initializeFirebase() {
   }
 }
 
+// Initialize on startup
 await initializeFirebase();
 
 // ============================================
@@ -108,9 +112,10 @@ app.get("/api/health", async (req: Request, res: Response) => {
       firebaseProject: firebaseReady ? process.env.FIREBASE_PROJECT_ID : "N/A",
     };
 
+    // If Firestore ready, do a quick test
     if (firebaseReady && firestoreDb) {
       try {
-        await firestoreDb.collection("_health").doc("test").get();
+        const testDoc = await firestoreDb.collection("_health").doc("test").get();
         health.firebaseConnection = "connected";
       } catch (err) {
         health.firebaseConnection = "failed";
@@ -162,6 +167,7 @@ app.post("/api/products", requireAuth, async (req: AuthRequest, res: Response) =
 
     const userId = req.user!.userId;
 
+    // Validation
     if (!req.body.name || typeof req.body.name !== "string" || req.body.name.trim().length === 0) {
       return res.status(400).json({ error: "Ürün adı gereklidir" });
     }
@@ -253,7 +259,7 @@ app.delete("/api/products/:id", requireAuth, async (req: AuthRequest, res: Respo
 });
 
 // ============================================
-// API: PUBLIC DISCOUNTS
+// API: PUBLIC DISCOUNTS (Halka Açık)
 // ============================================
 
 app.get("/api/public-discounts", async (req: Request, res: Response) => {
@@ -440,6 +446,7 @@ const server = app.listen(PORT, () => {
   }
 });
 
+// Graceful shutdown
 process.on("SIGTERM", () => {
   console.log("SIGTERM received, shutting down gracefully...");
   server.close(() => {
