@@ -1,5 +1,6 @@
 import express, { Request, Response, NextFunction } from "express";
 import path from "path";
+import fs from "fs";
 import dotenv from "dotenv";
 
 // Firebase Admin SDK
@@ -338,11 +339,6 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
 
 app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
   try {
-    if (!firebaseReady || !firestoreDb) {
-      return res.status(503).json({ error: "Database not available in fallback mode" });
-    }
-
-    const userId = req.user!.userId;
     const { productId, productName, originalPrice, discountPrice, seoTitle } = req.body;
 
     if (!productId || !originalPrice || !discountPrice) {
@@ -351,6 +347,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
 
     const discountId = "discount_" + Date.now();
     const discountData = {
+      id: discountId,
       productId,
       productName: productName || "Ürün",
       slug: (productName || "urun").toLowerCase().replace(/\s+/g, "-"),
@@ -365,17 +362,49 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       views: 0,
       shares: 0,
       isActive: true,
-      publishedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+      publishedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
-    await firestoreDb
-      .collection("users")
-      .doc(userId)
-      .collection("publicDiscounts")
-      .doc(discountId)
-      .set(discountData);
+    // If Firestore available, write there
+    if (firebaseReady && firestoreDb) {
+      try {
+        await firestoreDb
+          .collection("users")
+          .doc(req.user?.userId || "unknown")
+          .collection("publicDiscounts")
+          .doc(discountId)
+          .set({
+            ...discountData,
+            publishedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+            createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+          });
+      } catch (fsErr) {
+        console.warn("Firestore write failed, using fallback:", fsErr);
+      }
+    }
+
+    // Fallback: write to db_data.json if not Firestore
+    if (!firebaseReady) {
+      try {
+        const dbPath = path.join(process.cwd(), "db_data.json");
+        let dbData: any = { products: [], campaigns: [], publicDiscounts: [], settings: {} };
+
+        if (fs.existsSync(dbPath)) {
+          const content = fs.readFileSync(dbPath, "utf-8");
+          dbData = JSON.parse(content);
+        }
+
+        if (!dbData.publicDiscounts) dbData.publicDiscounts = [];
+        dbData.publicDiscounts.push(discountData);
+
+        fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+      } catch (writeErr) {
+        console.warn("db_data.json write failed:", writeErr);
+      }
+    }
 
     res.status(201).json({ id: discountId, ...discountData });
   } catch (err) {
