@@ -533,23 +533,34 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
     const userId = req.query.userId as string || req.user?.userId;
     const { id } = req.params;
 
+    console.log(`🗑️ DELETE /api/public-discounts/${id} - userId: ${userId}, firebaseReady: ${firebaseReady}`);
+
     if (!userId) {
+      console.error("🗑️ DELETE hatası: userId zorunlu");
       return res.status(400).json({ error: "userId zorunlu" });
     }
 
     // If Firestore available, use it
     if (firebaseReady && firestoreDb) {
-      await firestoreDb
-        .collection("users")
-        .doc(userId)
-        .collection("publicDiscounts")
-        .doc(id)
-        .delete();
+      try {
+        console.log(`🔥 Firestore'dan siliniyor - users/${userId}/publicDiscounts/${id}`);
+        await firestoreDb
+          .collection("users")
+          .doc(userId)
+          .collection("publicDiscounts")
+          .doc(id)
+          .delete();
 
-      return res.json({ success: true });
+        console.log(`✅ Firestore'dan başarıyla silindi!`);
+        return res.json({ success: true });
+      } catch (fsErr) {
+        console.error(`❌ Firestore delete hatası:`, fsErr);
+        return res.status(500).json({ error: "Firestore silme hatası" });
+      }
     }
 
     // Fallback mode: delete from db_data.json
+    console.log(`⚠️ Fallback mode: db_data.json'dan siliniyor`);
     try {
       const dbPath = path.join(process.cwd(), "db_data.json");
       let dbData: any = { products: [], campaigns: [], publicDiscounts: [], settings: {} };
@@ -563,23 +574,29 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
 
       // Find and remove the discount (only if it belongs to this user)
       const initialLength = dbData.publicDiscounts.length;
+      console.log(`🗑️ Silme öncesi: ${initialLength} indirim`);
+
       dbData.publicDiscounts = dbData.publicDiscounts.filter(
         (d: any) => !(d.id === id && d.userId === userId)
       );
 
+      console.log(`🗑️ Silme sonrası: ${dbData.publicDiscounts.length} indirim`);
+
       // If nothing was deleted, return 404
       if (dbData.publicDiscounts.length === initialLength) {
+        console.error(`🗑️ Ürün bulunamadı: id=${id}, userId=${userId}`);
         return res.status(404).json({ error: "İndirim bulunamadı" });
       }
 
       fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+      console.log(`✅ db_data.json'dan başarıyla silindi!`);
       res.json({ success: true });
     } catch (writeErr) {
-      console.error("db_data.json delete failed:", writeErr);
+      console.error("❌ db_data.json delete failed:", writeErr);
       res.status(500).json({ error: "İndirim silinemedi" });
     }
   } catch (err) {
-    console.error("Error deleting discount:", err);
+    console.error("❌ DELETE endpoint hatası:", err);
     res.status(500).json({ error: "İndirim silinemedi" });
   }
 });
