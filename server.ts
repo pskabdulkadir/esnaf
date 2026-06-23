@@ -309,12 +309,13 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
   try {
     const userId = req.query.userId as string;
 
+    // CRITICAL: userId is required for privacy/isolation
+    if (!userId) {
+      return res.status(400).json({ error: "userId query parametresi zorunlu (veri gizliliği)" });
+    }
+
     // If Firestore available, use it
     if (firebaseReady && firestoreDb) {
-      if (!userId) {
-        return res.status(400).json({ error: "userId query parametresi gerekli" });
-      }
-
       const snapshot = await firestoreDb
         .collection("users")
         .doc(userId)
@@ -344,17 +345,12 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       }
     }
 
-    // If userId provided, filter by it; otherwise return all active
-    if (userId) {
-      const filtered = allDiscounts.filter(
-        (d: any) => d.isActive === true && (!d.userId || d.userId === userId)
-      );
-      return res.json(filtered);
-    }
+    // CRITICAL: STRICT filtering by userId - only return user's own discounts
+    const userDiscounts = allDiscounts.filter(
+      (d: any) => d.isActive === true && d.userId === userId
+    );
 
-    // No userId: return all active discounts
-    const active = allDiscounts.filter((d: any) => d.isActive === true);
-    res.json(active);
+    res.json(userDiscounts);
   } catch (err) {
     console.error("Error fetching discounts:", err);
     res.json([]);
@@ -369,9 +365,13 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "Eksik alanlar" });
     }
 
+    // Get userId from query, body, or auth header
+    const userId = req.query.userId as string || req.body.userId || req.user?.userId || "unknown";
+
     const discountId = "discount_" + Date.now();
     const discountData = {
       id: discountId,
+      userId: userId,  // ⭐ CRITICAL: Store user ID for privacy
       productId,
       productName: productName || "Ürün",
       slug: (productName || "urun").toLowerCase().replace(/\s+/g, "-"),
