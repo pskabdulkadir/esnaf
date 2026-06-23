@@ -603,46 +603,52 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
 
 app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.query.userId as string || req.user?.userId;
+    const userId = (req.query.userId as string) || (req.body.userId as string);
     const { id } = req.params;
 
+    // Stats önemli değil, hata olsa da success döndür
     if (!userId || !firebaseReady || !firestoreDb) {
-      return res.status(400).json({ error: "userId gerekli" });
+      return res.json({ success: true });
     }
 
+    const FieldValue = firebaseAdmin.firestore.FieldValue;
     await firestoreDb
       .collection("users")
       .doc(userId)
       .collection("publicDiscounts")
       .doc(id)
-      .update({ views: firebaseAdmin.firestore.FieldValue.increment(1) });
+      .update({ views: FieldValue.increment(1) });
 
     res.json({ success: true });
   } catch (err) {
-    // Fallback: sadece başarı döndür (stats kritik değil)
+    // Stats critical değil, error logla ama 200 döndür
+    console.warn("Views update hatası:", err);
     res.json({ success: true });
   }
 });
 
 app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.query.userId as string || req.user?.userId;
+    const userId = (req.query.userId as string) || (req.body.userId as string);
     const { id } = req.params;
 
+    // Stats önemli değil, hata olsa da success döndür
     if (!userId || !firebaseReady || !firestoreDb) {
       return res.json({ success: true });
     }
 
+    const FieldValue = firebaseAdmin.firestore.FieldValue;
     await firestoreDb
       .collection("users")
       .doc(userId)
       .collection("publicDiscounts")
       .doc(id)
-      .update({ shares: firebaseAdmin.firestore.FieldValue.increment(1) });
+      .update({ shares: FieldValue.increment(1) });
 
     res.json({ success: true });
   } catch (err) {
-    // Fallback: sadece başarı döndür (stats kritik değil)
+    // Stats critical değil, error logla ama 200 döndür
+    console.warn("Shares update hatası:", err);
     res.json({ success: true });
   }
 });
