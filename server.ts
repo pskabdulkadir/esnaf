@@ -503,39 +503,46 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       updatedAt: new Date().toISOString(),
     };
 
-    console.log(`📝 POST /api/public-discounts - İndirim ekleniyor:`, {
-      id: discountId,
-      userId,
-      productName,
-      firebaseReady,
-      timestamp: new Date().toISOString()
-    });
+    console.log(`\n📝 POST /api/public-discounts BAŞLADI`);
+    console.log(`   📋 ID: ${discountId}`);
+    console.log(`   👤 userId: ${userId}`);
+    console.log(`   📦 productName: ${productName}`);
+    console.log(`   🔥 firebaseReady: ${firebaseReady}`);
+    console.log(`   ⏰ timestamp: ${new Date().toISOString()}\n`);
 
     let writeSuccess = false;
 
     // If Firestore available, write there
     if (firebaseReady && firestoreDb) {
       try {
-        console.log(`🔥 Firestore'a yazılıyor - users/${userId}/publicDiscounts/${discountId}`);
-        await firestoreDb
+        console.log(`   🔥 Firestore'a yazılıyor - users/${userId}/publicDiscounts/${discountId}`);
+        const docRef = firestoreDb
           .collection("users")
           .doc(userId)
           .collection("publicDiscounts")
-          .doc(discountId)
-          .set({
-            ...discountData,
-            publishedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
-            createdAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
-            updatedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
-          });
-        console.log(`✅ Firestore'a başarıyla yazıldı!`);
+          .doc(discountId);
+
+        console.log(`   ✍️  set() çağrılıyor...`);
+
+        await docRef.set({
+          ...discountData,
+          publishedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+          createdAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+          updatedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+        });
+
+        console.log(`   ✅ Firestore'a başarıyla yazıldı!`);
         writeSuccess = true;
       } catch (fsErr) {
-        console.error(`❌ Firestore write hatası:`, fsErr);
-        console.warn("Fallback mode'a geçiliyor...");
+        console.error(`   ❌ Firestore write HATA:`, {
+          errorMsg: String(fsErr),
+          errorCode: (fsErr as any)?.code,
+          errorDetails: (fsErr as any)?.message
+        });
+        console.warn(`   ⚠️ Fallback mode'a geçiliyor...`);
       }
     } else {
-      console.warn(`⚠️ Firestore hazır değil (firebaseReady=${firebaseReady}), fallback mode kullanılacak`);
+      console.warn(`   ⚠️ Firestore hazır değil (firebaseReady=${firebaseReady}), fallback mode kullanılacak`);
     }
 
     // Fallback: write to db_data.json if Firestore write failed or not ready
