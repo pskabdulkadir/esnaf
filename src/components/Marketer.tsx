@@ -586,9 +586,13 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
     }
   };
 
+  // ⭐ URL parametreleri değişince fetchData'yı çalıştır (share link açıldığında slug değişir)
   useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const currentSlug = urlParams.get("slug");
+    const currentView = urlParams.get("view");
     fetchData();
-  }, [userId]); // ⭐ FIXED: userId değişince fetchData'yı yeniden çalıştır
+  }, [userId, window.location.search]); // userId veya URL parametreleri değişince
 
   // Fetch sitemap data for Google Search Console
   const fetchSitemapData = async () => {
