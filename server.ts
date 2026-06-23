@@ -48,11 +48,17 @@ async function initializeFirebase() {
     // Check if Firebase Admin SDK is available
     console.log("🔍 Firebase Admin SDK kontrol:");
     console.log("  - firebaseAdmin type:", typeof firebaseAdmin);
-    console.log("  - firebaseAdmin.credential:", typeof firebaseAdmin?.credential);
+    console.log("  - firebaseAdmin.cert type:", typeof firebaseAdmin?.cert);
+    console.log("  - firebaseAdmin.initializeApp type:", typeof firebaseAdmin?.initializeApp);
+    console.log("  - getFirestore type:", typeof getFirestore);
 
-    if (!firebaseAdmin || !firebaseAdmin.credential) {
+    if (!firebaseAdmin || !firebaseAdmin.cert || !getFirestore) {
       console.warn("⚠️  Firebase Admin SDK not available - fallback to file-based mode");
-      console.warn("  Firebase Admin SDK bulunamadı. Mevcut firebaseAdmin:", firebaseAdmin ? "Var ama credential yok" : "Tamamen boş");
+      console.warn("  Firebase Admin SDK eksik özellikleri:", {
+        hasFirebaseAdmin: !!firebaseAdmin,
+        hasCert: !!firebaseAdmin?.cert,
+        hasGetFirestore: !!getFirestore
+      });
       firebaseReady = false;
       return;
     }
