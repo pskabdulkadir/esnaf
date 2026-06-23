@@ -514,10 +514,15 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
         // ⭐ userId veya URL parametrelerini query parameter olarak ekle
         let apiUrl = "/api/public-discounts";
         const queryParams = new URLSearchParams();
-        if (userId) {
+
+        // ⭐ ÖNEMLI: slug varsa her zaman gönder (public share için)
+        if (slug) {
+          queryParams.append("slug", slug);
+        } else if (userId) {
+          // Slug yoksa userId gönder (admin panel)
           queryParams.append("userId", userId);
         } else {
-          if (slug) queryParams.append("slug", slug);
+          // Diğer parametreler
           if (discountId) queryParams.append("discountId", discountId);
           if (merchantId) queryParams.append("merchantId", merchantId);
         }
