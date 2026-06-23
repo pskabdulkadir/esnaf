@@ -306,8 +306,8 @@ app.post("/api/products", async (req: AuthRequest, res: Response) => {
       category: req.body.category || "Genel",
       expiryDate: req.body.expiryDate || "",
       isSpecialDiscount: req.body.isSpecialDiscount === true,
-      lastUpdated: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
-      createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+      createdAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
     };
 
     await firestoreDb
@@ -346,7 +346,7 @@ app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
 
     const updateData = {
       ...req.body,
-      lastUpdated: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
     };
 
     await docRef.update(updateData);
@@ -524,9 +524,9 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
           .doc(discountId)
           .set({
             ...discountData,
-            publishedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
-            createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
-            updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+            publishedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+            createdAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+            updatedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
           });
         console.log(`✅ Firestore'a başarıyla yazıldı!`);
         writeSuccess = true;
@@ -702,7 +702,7 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantName: req.body.merchantName,
       merchantPhone: req.body.merchantPhone,
       merchantWhatsApp: req.body.merchantWhatsApp,
-      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
     };
 
     await firestoreDb
