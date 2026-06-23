@@ -727,7 +727,20 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
       });
       if (response.ok) {
         console.log(`👁️ View recorded for discount ${id}`);
-        fetchData();
+        // Sunucu tarafında güncellendi, şimdi local state'i güncelle
+        setPublicDiscounts(prev =>
+          prev.map(d =>
+            d.id === id
+              ? { ...d, views: (d.views || 0) + 1 }
+              : d
+          )
+        );
+        // selectedDetailDiscount'ı da güncelle
+        if (selectedDetailDiscount?.id === id) {
+          setSelectedDetailDiscount(prev =>
+            prev ? { ...prev, views: (prev.views || 0) + 1 } : null
+          );
+        }
       }
     } catch (err) {
       console.error("View count update failed:", err);
@@ -743,7 +756,20 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
       });
       if (response.ok) {
         console.log(`📤 Share recorded for discount ${id}`);
-        fetchData();
+        // Sunucu tarafında güncellendi, şimdi local state'i güncelle
+        setPublicDiscounts(prev =>
+          prev.map(d =>
+            d.id === id
+              ? { ...d, shares: (d.shares || 0) + 1 }
+              : d
+          )
+        );
+        // selectedDetailDiscount'ı da güncelle
+        if (selectedDetailDiscount?.id === id) {
+          setSelectedDetailDiscount(prev =>
+            prev ? { ...prev, shares: (prev.shares || 0) + 1 } : null
+          );
+        }
       }
     } catch (err) {
       console.error("Share count update failed:", err);
