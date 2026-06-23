@@ -399,8 +399,12 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "userId veya slug parametresi zorunlu" });
     }
 
-    // If Firestore available, use it
-    if (firebaseReady && firestoreDb) {
+    // ⭐ ÖNEMLI: Slug varsa (paylaşım linki) userId'den bağımsız tüm kullanıcılardan ara
+    // userId varsa (admin panel) sadece o kullanıcının ürünlerini döndür
+    const isPublicShare = !!slug;
+
+    // If Firestore available, use it (but skip if public share with slug - use fallback for cross-user search)
+    if (firebaseReady && firestoreDb && !isPublicShare) {
       try {
         console.log(`🔥 Firestore'dan okuyuyor - users/${userId}/publicDiscounts`);
 
@@ -418,19 +422,14 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
           ...doc.data(),
         }));
 
-        // If slug provided, filter by slug
-        if (slug) {
-          discounts = discounts.filter((d: any) => d.slug === slug);
-          console.log(`✅ Firestore'dan slug=${slug} ile ${discounts.length} indirim okundu`);
-        } else {
-          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
-        }
-
+        console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
         return res.json(discounts);
       } catch (fsErr) {
         console.error(`❌ Firestore read hatası:`, fsErr);
         console.warn("Fallback mode'a geçiliyor...");
       }
+    } else if (isPublicShare) {
+      console.log(`🔍 Public share detected (slug=${slug}) - fallback mode kullanılacak (cross-user search)`);
     } else {
       console.warn(`⚠️ Firestore hazır değil, fallback mode kullanılıyor`);
     }
@@ -452,17 +451,21 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // CRITICAL: STRICT filtering by userId - only return user's own discounts (if userId provided)
-    let userDiscounts = allDiscounts.filter(
-      (d: any) => d.isActive === true && (!userId || d.userId === userId)
-    );
+    // ⭐ ÖNEMLI FARK:
+    // - Slug varsa (public share): tüm kullanıcılardan ara (userId göz ardı et)
+    // - Slug yoksa (admin panel): sadece bu userId'nin ürünlerini ara
+    let userDiscounts = allDiscounts.filter((d: any) => {
+      const isActive = d.isActive === true;
+      const userMatch = isPublicShare ? true : (!userId || d.userId === userId);
+      return isActive && userMatch;
+    });
 
     // Filter by slug if provided
     if (slug) {
       userDiscounts = userDiscounts.filter((d: any) => d.slug === slug);
-      console.log(`✅ Fallback mod: slug=${slug} ile ${userDiscounts.length} indirim döndürülüyor`);
+      console.log(`✅ Fallback mod: slug=${slug} ile ${userDiscounts.length} indirim döndürülüyor (cross-user search)`);
     } else {
-      console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor`);
+      console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor (userId=${userId})`);
     }
 
     res.json(userDiscounts);
