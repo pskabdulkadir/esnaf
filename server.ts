@@ -7,10 +7,19 @@ dotenv.config();
 
 // Firebase Admin SDK - CommonJS require
 let firebaseAdmin: any = null;
+let FirestoreModule: any = null;
 
 try {
   firebaseAdmin = require("firebase-admin");
   console.log("✅ firebase-admin require başarılı");
+
+  // Firestore module'ü ayrı import et
+  try {
+    FirestoreModule = require("firebase-admin/firestore");
+    console.log("✅ firebase-admin/firestore module başarılı");
+  } catch (err) {
+    console.warn("⚠️ firebase-admin/firestore require başarısız:", err);
+  }
 } catch (err) {
   console.warn("⚠️ firebase-admin require başarısız:", err);
 }
@@ -47,15 +56,17 @@ async function initializeFirebase() {
     console.log("  - firebaseAdmin type:", typeof firebaseAdmin);
     console.log("  - firebaseAdmin.cert type:", typeof firebaseAdmin?.cert);
     console.log("  - firebaseAdmin.initializeApp type:", typeof firebaseAdmin?.initializeApp);
-    console.log("  - firebaseAdmin.firestore type:", typeof firebaseAdmin?.firestore);
+    console.log("  - FirestoreModule type:", typeof FirestoreModule);
+    console.log("  - FirestoreModule.getFirestore type:", typeof FirestoreModule?.getFirestore);
 
-    if (!firebaseAdmin || !firebaseAdmin.cert || !firebaseAdmin.initializeApp || !firebaseAdmin.firestore) {
+    if (!firebaseAdmin || !firebaseAdmin.cert || !firebaseAdmin.initializeApp || !FirestoreModule?.getFirestore) {
       console.warn("⚠️  Firebase Admin SDK not available - fallback to file-based mode");
       console.warn("  Firebase Admin SDK eksik özellikleri:", {
         hasFirebaseAdmin: !!firebaseAdmin,
         hasCert: !!firebaseAdmin?.cert,
         hasInitializeApp: !!firebaseAdmin?.initializeApp,
-        hasFirestore: !!firebaseAdmin?.firestore
+        hasFirestoreModule: !!FirestoreModule,
+        hasGetFirestore: !!FirestoreModule?.getFirestore
       });
       firebaseReady = false;
       return;
@@ -89,8 +100,8 @@ async function initializeFirebase() {
     }
 
     // Firestore instance al
-    firestoreDb = firebaseAdmin.firestore();
-    console.log("📝 Firestore instance alındı (via firebaseAdmin.firestore())");
+    firestoreDb = FirestoreModule.getFirestore();
+    console.log("📝 Firestore instance alındı (via FirestoreModule.getFirestore())");
 
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
     console.log("✅ Firestore health test başarılı");
