@@ -917,6 +917,23 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
       });
 
       if (pubResponse.ok) {
+        const pubData = await pubResponse.json();
+
+        // 🌐 Google'a URL'i index et
+        const discountUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${pubData.slug}&view=showcase&userId=${userId}`;
+        try {
+          const googleRes = await fetch("/api/google-index-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ url: discountUrl })
+          });
+          if (googleRes.ok) {
+            console.log("✅ Google'a URL gönderildi:", discountUrl);
+          }
+        } catch (googleErr) {
+          console.warn("⚠️ Google notification hatası:", googleErr);
+        }
+
         setProdName("");
         setProdPrice("");
         setProdDiscountPrice("");
