@@ -52,9 +52,9 @@ async function initializeFirebase() {
     }
 
     firestoreDb = firebaseAdmin.firestore();
-    
+
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
-    
+
     console.log("✅ Firestore initialized successfully");
     firebaseReady = true;
   } catch (err) {
@@ -63,7 +63,10 @@ async function initializeFirebase() {
   }
 }
 
-await initializeFirebase();
+// Initialize Firebase on startup (not at module level)
+initializeFirebase().catch(err => {
+  console.warn("Firebase init warning:", err);
+});
 
 // ============================================
 // EXPRESS APP
