@@ -597,6 +597,56 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ============================================
+// API: DISCOUNT STATS (Views & Shares)
+// ============================================
+
+app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.query.userId as string || req.user?.userId;
+    const { id } = req.params;
+
+    if (!userId || !firebaseReady || !firestoreDb) {
+      return res.status(400).json({ error: "userId gerekli" });
+    }
+
+    await firestoreDb
+      .collection("users")
+      .doc(userId)
+      .collection("publicDiscounts")
+      .doc(id)
+      .update({ views: firebaseAdmin.firestore.FieldValue.increment(1) });
+
+    res.json({ success: true });
+  } catch (err) {
+    // Fallback: sadece başarı döndür (stats kritik değil)
+    res.json({ success: true });
+  }
+});
+
+app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.query.userId as string || req.user?.userId;
+    const { id } = req.params;
+
+    if (!userId || !firebaseReady || !firestoreDb) {
+      return res.json({ success: true });
+    }
+
+    await firestoreDb
+      .collection("users")
+      .doc(userId)
+      .collection("publicDiscounts")
+      .doc(id)
+      .update({ shares: firebaseAdmin.firestore.FieldValue.increment(1) });
+
+    res.json({ success: true });
+  } catch (err) {
+    // Fallback: sadece başarı döndür (stats kritik değil)
+    res.json({ success: true });
+  }
+});
+
 app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.query.userId as string || req.user?.userId;
