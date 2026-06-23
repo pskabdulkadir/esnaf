@@ -1170,16 +1170,23 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     try {
       const res = await fetch("/api/settings", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userId}`  // ⭐ userId header'da gönder
+        },
         body: JSON.stringify(settings)
       });
       if (res.ok) {
         const updated = await res.json();
         setSettings(updated);
         alert(t.storeSettingsSaved);
+      } else {
+        console.error(`Settings save hatası: HTTP ${res.status}`);
+        alert("Ayarlar kaydedilemedi!");
       }
     } catch (err) {
       console.error(err);
+      alert("Ayarlar kaydedilemedi!");
     } finally {
       setIsLoading(false);
     }
