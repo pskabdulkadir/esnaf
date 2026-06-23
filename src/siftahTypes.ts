@@ -59,6 +59,7 @@ export interface PublicDiscount {
   seoDescription: string;
   seoKeywords: string;
   openGraphImage: string;
+  adCopy?: string;
   views: number;
   shares: number;
   isActive: boolean;

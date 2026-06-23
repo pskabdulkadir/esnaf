@@ -1258,15 +1258,15 @@ export default function App() {
           </div>
 
           {/* Right Header Navigation Controllers */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-wrap sm:flex-nowrap justify-end">
 
             {/* Manual Language Selector dropdown */}
-            <div className="flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1.5 transition-colors">
-              <span className="text-xs text-indigo-300 font-extrabold hidden md:inline">🌐 DİL / LANG:</span>
+            <div className="flex items-center gap-1 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-2 transition-colors">
+              <span className="text-xs text-indigo-300 font-extrabold hidden lg:inline">🌐 DİL / LANG:</span>
               <select
                 value={language}
                 onChange={(e) => setLanguage(e.target.value as 'tr' | 'en' | 'de')}
-                className="bg-transparent text-white text-xs font-black font-sans border-none outline-none focus:ring-0 cursor-pointer uppercase py-0"
+                className="bg-transparent text-white text-xs sm:text-sm font-black font-sans border-none outline-none focus:ring-0 cursor-pointer uppercase py-0"
               >
                 <option value="tr" className="bg-slate-900 text-white font-bold">🇹🇷 Türkçe (TR)</option>
                 <option value="en" className="bg-slate-900 text-white font-bold">🇺🇸 English (EN)</option>
@@ -1280,7 +1280,7 @@ export default function App() {
                 setTempBrandName(brandName);
                 setIsBrandModalOpen(true);
               }}
-              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/25 to-amber-600/25 hover:from-amber-500/40 hover:to-amber-600/40 text-amber-300 border border-amber-500/30 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs font-bold"
+              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-500/25 to-amber-600/25 hover:from-amber-500/40 hover:to-amber-600/40 text-amber-300 border border-amber-500/30 py-2 px-3 sm:px-4 rounded-xl transition-all cursor-pointer text-xs sm:text-sm font-bold whitespace-nowrap"
               title="Sistem Marka ve Şirket İsmini Düzenle"
             >
               {t.addChangeBrand}
@@ -1289,21 +1289,21 @@ export default function App() {
             {/* Quick Switch Switcher for user role permissions */}
             <button
               onClick={toggleRole}
-              className="flex items-center gap-2 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 py-1.5 px-3 rounded-xl transition-all cursor-pointer text-xs"
+              className="flex items-center gap-2 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 py-2 px-3 rounded-xl transition-all cursor-pointer text-xs sm:text-sm"
               title="Güvenlik Yetkilerini Değiştir"
             >
               {userRole === 'Yonetici' ? (
                 <>
-                  <ShieldCheck className="h-4 w-4 text-emerald-400" />
-                  <span className="text-slate-200 hidden sm:inline text-[11px] font-semibold font-sans">{t.currentRoleManager}</span>
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                  <span className="text-slate-200 hidden lg:inline text-xs font-semibold font-sans">{t.currentRoleManager}</span>
                 </>
               ) : (
                 <>
-                  <User className="h-4 w-4 text-amber-400" />
-                  <span className="text-slate-400 hidden sm:inline text-[11px] font-sans">{t.currentRoleOperator}</span>
+                  <User className="h-5 w-5 text-amber-400" />
+                  <span className="text-slate-400 hidden lg:inline text-xs font-sans">{t.currentRoleOperator}</span>
                 </>
               )}
-              <span className="text-[9px] bg-slate-800 py-0.5 px-1.5 rounded text-indigo-300 font-mono uppercase font-bold text-center">
+              <span className="text-[9px] sm:text-xs bg-slate-800 py-1 px-2 rounded text-indigo-300 font-mono uppercase font-bold text-center">
                 {t.roleChangeBtn}
               </span>
             </button>

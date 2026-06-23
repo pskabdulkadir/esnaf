@@ -1715,10 +1715,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
 
               {/* TAB REKLAM: GLOBAL ADVERTISING & SEO INTEGRATION HUB */}
               {activeTab === "reklam" && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fadeIn">
-                  
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-8 items-start animate-fadeIn">
+
                   {/* Left Column: Settings and Wizards */}
-                  <div className="lg:col-span-7 flex flex-col gap-6">
+                  <div className="md:col-span-1 lg:col-span-7 flex flex-col gap-6">
                     
                     {/* Cloud Synchronization Bridge Panel */}
                     <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
@@ -1866,7 +1866,7 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                   </div>
 
                   {/* Right Column: Google SEO Snippet and Live Conversion Logs */}
-                  <div className="lg:col-span-5 flex flex-col gap-6">
+                  <div className="md:col-span-1 lg:col-span-5 flex flex-col gap-6">
 
                     {/* Google SEO Snippet Simulator */}
                     <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm">
@@ -1992,10 +1992,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
 
               {/* TAB 1: NEW PUBLICATION FORM & PREVIEW */}
               {activeTab === "publisher" && (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-                  
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+
                   {/* Form panel */}
-                  <div className="lg:col-span-7 bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
+                  <div className="md:col-span-1 lg:col-span-7 bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
                     <div className="mb-6 flex justify-between items-start">
                       <div>
                         <h2 className="text-md font-black text-stone-900 font-serif flex items-center gap-2">
@@ -2005,12 +2005,12 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                         <p className="text-xs text-stone-500 mt-1 leading-relaxed">
                           {t.campaignSubtitle}
                         </p>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2 py-0.5 rounded-full shadow-xs">
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className="inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 border border-emerald-200/50 px-2.5 py-1 rounded-full shadow-xs">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
                             Limitsiz İndirim & Reklam Hazırlama Aktif
                           </span>
-                          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200/50 px-2 py-0.5 rounded-full shadow-xs">
+                          <span className="inline-flex items-center gap-1.5 text-[9px] sm:text-[10px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200/50 px-2.5 py-1 rounded-full shadow-xs">
                             Sınırsız Vitrin Yayını
                           </span>
                         </div>
@@ -2025,7 +2025,7 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                           setProdDescription("");
                           setProdImages([]);
                         }}
-                        className="text-[10px] font-black text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shrink-0 shadow-xs"
+                        className="text-xs font-black text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-3 py-2 rounded-lg flex items-center gap-2 cursor-pointer transition-all shrink-0 shadow-xs"
                       >
                         <RefreshCw className="h-3 w-3" />
                         Sıfırla
@@ -2052,9 +2052,9 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                                 key={tag}
                                 type="button"
                                 onClick={() => setProdCategory(tag)}
-                                className={`text-[9px] px-2 py-0.5 rounded-lg border font-bold transition-all cursor-pointer ${
-                                  prodCategory === tag 
-                                    ? "bg-emerald-700 text-white border-emerald-800 shadow-sm" 
+                                className={`text-[10px] sm:text-xs px-2.5 py-1 rounded-lg border font-bold transition-all cursor-pointer ${
+                                  prodCategory === tag
+                                    ? "bg-emerald-700 text-white border-emerald-800 shadow-sm"
                                     : "bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100"
                                 }`}
                               >
@@ -2114,12 +2114,12 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                       {/* Product Image Selection Section */}
                       <div className="border border-stone-200 rounded-2xl p-4 bg-stone-50/50 animate-fadeIn flex flex-col gap-3">
                         <div className="flex justify-between items-center text-stone-500">
-                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELLERİ EKLE (SINIRSIZ)</label>
+                          <label className="block text-xs uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELLERİ EKLE (SINIRSIZ)</label>
                           {prodImages.length > 0 && (
                             <button
                               type="button"
                               onClick={() => setProdImages([])}
-                              className="text-[10px] text-rose-600 hover:text-rose-700 font-extrabold flex items-center gap-0.5 cursor-pointer bg-red-50 px-2 py-0.5 rounded-lg border border-red-100 transition-all animate-fadeIn"
+                              className="text-xs text-rose-600 hover:text-rose-700 font-extrabold flex items-center gap-1 cursor-pointer bg-red-50 px-2.5 py-1 rounded-lg border border-red-100 transition-all animate-fadeIn"
                             >
                               Temizle
                             </button>
@@ -2133,8 +2133,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                             className="group flex flex-col items-center justify-center border-2 border-dashed border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/10 bg-white rounded-xl p-5 cursor-pointer transition-all gap-1.5 text-center my-auto"
                           >
                             <Smartphone className="h-6 w-6 text-stone-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
-                            <span className="text-xs font-black text-stone-800">Cihazdan Fotoğraf Yükle</span>
-                            <span className="text-[9px] text-stone-400 font-medium">Fotoğraf seçerek galeriye ekleyin</span>
+                            <span className="text-sm font-black text-stone-800">Cihazdan Fotoğraf Yükle</span>
+                            <span className="text-xs text-stone-400 font-medium">Fotoğraf seçerek galeriye ekleyin</span>
                             <input 
                               id="device-file-input" 
                               type="file" 
@@ -2146,17 +2146,17 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
 
                           {/* Preview box and manual URL Entry with "Ekle" button */}
                           <div className="bg-white border border-stone-150 rounded-xl p-3 flex flex-col justify-between gap-3 text-left">
-                            <div className="bg-stone-50 border border-stone-150 rounded-lg p-2 flex flex-col items-center justify-center text-stone-400 text-center">
-                              <span className="text-[10px] font-black text-stone-700">Toplam Yüklenen Fırsat Görseli:</span>
-                              <span className="text-[12px] text-indigo-650 font-black font-mono">{prodImages.length} Adet</span>
+                            <div className="bg-stone-50 border border-stone-150 rounded-lg p-3 flex flex-col items-center justify-center text-stone-400 text-center">
+                              <span className="text-xs font-black text-stone-700">Toplam Yüklenen Fırsat Görseli:</span>
+                              <span className="text-lg text-indigo-650 font-black font-mono">{prodImages.length} Adet</span>
                             </div>
 
-                            <div className="flex gap-1.5">
-                              <input 
+                            <div className="flex gap-2">
+                              <input
                                 id="manual-url-input"
                                 type="url"
                                 placeholder="Görsel web adresi (URL) yapıştırın..."
-                                className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-stone-950 font-bold placeholder:text-stone-300 focus:outline-none focus:border-stone-400 transition-all text-[10px]"
+                                className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 font-bold placeholder:text-stone-300 focus:outline-none focus:border-stone-400 transition-all text-xs"
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -2180,7 +2180,7 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                                     }
                                   }
                                 }}
-                                className="px-3 py-1 bg-stone-900 hover:bg-stone-950 text-white rounded-lg text-[10px] font-black cursor-pointer transition-colors shrink-0"
+                                className="px-4 py-2 bg-stone-900 hover:bg-stone-950 text-white rounded-lg text-xs font-black cursor-pointer transition-colors shrink-0"
                               >
                                 Ekle
                               </button>
@@ -2191,20 +2191,20 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                         {/* Interactive List of Loaded Images */}
                         {prodImages.length > 0 && (
                           <div className="mt-1 p-3 bg-white rounded-xl border border-stone-150 animate-fadeIn">
-                            <span className="block text-[9px] uppercase font-extrabold text-stone-500 mb-2">📋 Galeriye Eklenen Resimler (Sıralı):</span>
-                            <div className="flex flex-wrap gap-2 max-h-36 overflow-y-auto p-1.5 bg-stone-50 rounded-lg">
+                            <span className="block text-xs uppercase font-extrabold text-stone-500 mb-2">📋 Galeriye Eklenen Resimler (Sıralı):</span>
+                            <div className="flex flex-wrap gap-2.5 max-h-40 overflow-y-auto p-2 bg-stone-50 rounded-lg">
                               {prodImages.map((src, i) => (
-                                <div key={i} className="relative h-14 w-14 rounded-lg overflow-hidden border border-stone-200 group-hover:scale-95 transition-all">
+                                <div key={i} className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden border border-stone-200 group-hover:scale-95 transition-all">
                                   <img src={src} className="h-full w-full object-cover" alt="product thumbnail" referrerPolicy="no-referrer" />
                                   <button
                                     type="button"
                                     onClick={() => setProdImages(prev => prev.filter((_, idx) => idx !== i))}
-                                    className="absolute -top-1 -right-1 bg-red-650 hover:bg-red-700 text-white rounded-full p-0.5 h-4.5 w-4.5 flex items-center justify-center text-[10px] font-black shadow-sm transition-all cursor-pointer"
+                                    className="absolute -top-2 -right-2 bg-red-650 hover:bg-red-700 text-white rounded-full p-1 h-6 w-6 flex items-center justify-center text-sm font-black shadow-sm transition-all cursor-pointer"
                                     title="Görseli Kaldır"
                                   >
                                     ×
                                   </button>
-                                  <div className="absolute bottom-0 inset-x-0 bg-black/50 text-[7px] text-white font-black text-center py-0.2 leading-none">
+                                  <div className="absolute bottom-0 inset-x-0 bg-black/50 text-[8px] text-white font-black text-center py-0.5 leading-none">
                                     {i === 0 ? "Kapak" : `#${i + 1}`}
                                   </div>
                                 </div>
@@ -2215,8 +2215,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
 
                         {/* Stock Preset Selector Grid */}
                         <div>
-                          <span className="block text-[9px] uppercase font-bold text-stone-405 mb-2">Veya hazır görsel kütüphanesinden seçin (Çoklu Seçilebilir):</span>
-                          <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-5 gap-2 max-h-24 overflow-y-auto pr-1">
+                          <span className="block text-xs uppercase font-bold text-stone-405 mb-2">Veya hazır görsel kütüphanesinden seçin (Çoklu Seçilebilir):</span>
+                          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 max-h-28 overflow-y-auto pr-1">
                             {PRESET_IMAGES
                               .filter(img => {
                                 // Kategoriye göre filtrele
@@ -2234,9 +2234,9 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                                     setProdImages(prev => prev.filter(x => x !== img.url));
                                   }
                                 }}
-                                className={`group relative h-11 rounded-lg overflow-hidden border-2 text-left transition-all cursor-pointer shrink-0 ${
-                                  prodImages.includes(img.url) 
-                                    ? "border-emerald-600 ring-2 ring-emerald-500/20 scale-[0.98]" 
+                                className={`group relative h-14 sm:h-16 rounded-lg overflow-hidden border-2 text-left transition-all cursor-pointer shrink-0 ${
+                                  prodImages.includes(img.url)
+                                    ? "border-emerald-600 ring-2 ring-emerald-500/20 scale-[0.98]"
                                     : "border-stone-200 hover:border-stone-300"
                                 }`}
                               >
@@ -2447,7 +2447,7 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                   </div>
 
                   {/* Sidebar Preview */}
-                  <div className="lg:col-span-5 flex flex-col gap-6 sticky top-24">
+                  <div className="md:col-span-1 lg:col-span-5 flex flex-col gap-6 sticky top-24">
                     
                     <div className="bg-stone-900 text-white rounded-3xl p-6 shadow-xl border border-stone-850">
                       <div className="flex justify-between items-center mb-4 pb-2 border-b border-stone-800">
@@ -3105,14 +3105,14 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                         <button
                           type="button"
                           onClick={() => setActiveDetailSlide(prev => (prev - 1 + gallery.length) % gallery.length)}
-                          className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg transition-all cursor-pointer font-bold text-sm select-none z-10"
+                          className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white rounded-full h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center shadow-lg transition-all cursor-pointer font-bold text-base sm:text-lg select-none z-10"
                         >
                           ‹
                         </button>
                         <button
                           type="button"
                           onClick={() => setActiveDetailSlide(prev => (prev + 1) % gallery.length)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white rounded-full h-8 w-8 flex items-center justify-center shadow-lg transition-all cursor-pointer font-bold text-sm select-none z-10"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/90 text-white rounded-full h-10 w-10 sm:h-12 sm:w-12 flex items-center justify-center shadow-lg transition-all cursor-pointer font-bold text-base sm:text-lg select-none z-10"
                         >
                           ›
                         </button>

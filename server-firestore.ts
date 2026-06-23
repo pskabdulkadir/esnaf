@@ -341,6 +341,7 @@ app.post("/api/public-discounts", requireAuth, async (req: AuthRequest, res) => 
       seoDescription,
       seoKeywords: req.body.seoKeywords || "",
       openGraphImage: req.body.openGraphImage || "",
+      adCopy: req.body.adCopy || "",
       views: 0,
       shares: 0,
       isActive: true,
