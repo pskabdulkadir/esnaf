@@ -420,20 +420,18 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
 
     console.log(`🔍 GET /api/public-discounts - userId: ${userId}, slug: ${slug}, firebaseReady: ${firebaseReady}`);
 
-    // CRITICAL: userId is required for privacy/isolation UNLESS slug is provided
-    if (!userId && !slug) {
-      return res.status(400).json({ error: "userId veya slug parametresi zorunlu" });
-    }
-
-    // ⭐ ÖNEMLI:
-    // - Slug + userId varsa: userId'nin ürünlerinden slug'a göre bul
-    // - Slug yoksa: userId'nin tüm ürünlerini al
+    // ⭐ ÖNEMLI MANTIK:
+    // Her kullanıcı sadece KENDİ ürünlerini vitrininde görecek
+    // - userId varsa: userId'nin ürünlerini getir
+    // - slug varsa: slug'a ait ürünü getir (slug'un sahibini userId'den al)
 
     // If Firestore available, use it
     if (firebaseReady && firestoreDb && userId) {
       try {
         console.log(`🔥 Firestore'dan okuyuyor - users/${userId}/publicDiscounts`);
 
+        // ⭐ ÖNEMLI: slug varsa da, userId'nin TÜM ürünlerini getir
+        // slug detay olarak açılacak, vitrin tüm ürünleri gösterecek
         let query: any = firestoreDb
           .collection("users")
           .doc(userId)
@@ -448,10 +446,8 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
           ...doc.data(),
         }));
 
-        // ⭐ ÖNEMLI: Slug varsa sadece açılması için kullanılır, vitrin'de tüm ürünler gösterilir
-        // Tüm ürünleri döndür, frontend slug'a göre detaylı aç
         if (slug) {
-          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu (slug=${slug} detay aç, vitrin'de tüm göster)`);
+          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu (slug=${slug} detay aç, vitrin tüm ürünleri göster)`);
         } else {
           console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
         }
@@ -484,18 +480,19 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // ⭐ ÖNEMLI: Slug varsa sadece detay aç için kullanılır, vitrin'de tüm ürünler gösterilir
-    // Tüm userId'nin ürünlerini döndür
+    // ⭐ Her kullanıcı kendi ürünlerini görecek
+    // ⭐ ÖNEMLI: slug varsa, paylaşılan linktir
+    //   - userId'nin TÜM ürünlerini vitrinde göster
+    //   - slug ürünü detay olarak seç
     let userDiscounts = allDiscounts.filter((d: any) => {
       const isActive = d.isActive === true;
 
-      // slug varsa: tüm userId'nin ürünlerini gönder (frontend slug'a göre detaylı aç)
-      // slug yoksa: sadece userId'nin ürünleri
-      if (slug && userId) {
-        return isActive && d.userId === userId;
-      } else if (userId) {
+      if (userId) {
+        // userId varsa: her zaman userId'nin tüm ürünlerini göster
+        // (slug varsa bile, vitrin tüm ürünleri gösterecek, slug detay olarak aç)
         return isActive && d.userId === userId;
       } else if (slug) {
+        // Slug varsa ama userId yoksa: slug'u ara (fallback)
         return isActive && d.slug === slug;
       } else {
         return isActive;
@@ -503,11 +500,13 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
     });
 
     if (slug && userId) {
-      console.log(`✅ Fallback mod: slug=${slug} + userId=${userId} ile ${userDiscounts.length} indirim döndürülüyor (paylaşan kişinin vitrini)`);
+      console.log(`✅ Fallback mod: slug=${slug} + userId=${userId} ile ${userDiscounts.length} indirim döndürülüyor (slug detay aç)`);
     } else if (slug) {
       console.log(`✅ Fallback mod: slug=${slug} ile ${userDiscounts.length} indirim döndürülüyor`);
+    } else if (userId) {
+      console.log(`✅ Fallback mod: userId=${userId} ile ${userDiscounts.length} ürün döndürülüyor`);
     } else {
-      console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor (userId=${userId})`);
+      console.log(`✅ Fallback mod: ${userDiscounts.length} aktif indirim döndürülüyor`);
     }
 
     res.json(userDiscounts);
