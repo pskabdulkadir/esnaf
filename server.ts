@@ -411,6 +411,7 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
           .where("isActive", "==", true);
 
         const snapshot = await query.get();
+        console.log(`🔍 Firestore snapshot: ${snapshot.size} docs bulundu`);
 
         let discounts = snapshot.docs.map((doc: any) => ({
           id: doc.id,
@@ -565,6 +566,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
     const discountUrl = `${process.env.PRODUCTION_URL || "http://localhost:3000"}/?slug=${discountData.slug}&view=showcase&userId=${userId}`;
     notifyGoogleIndexing(discountUrl).catch(err => console.warn("Google notification failed:", err));
 
+    console.log(`✅ POST /api/public-discounts sonuç - ${writeSuccess ? 'Firestore' : 'Fallback'} başarılı`);
     res.status(201).json({ id: discountId, ...discountData });
   } catch (err) {
     console.error("Error creating discount:", err);
