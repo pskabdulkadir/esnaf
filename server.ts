@@ -717,11 +717,14 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
 
 app.post("/api/settings", async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "userId gerekli" });
+    }
+
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
-
-    const userId = req.user!.userId;
 
     const settingsData = {
       language: req.body.language || "tr",
