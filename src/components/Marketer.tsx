@@ -3248,7 +3248,7 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
               <button
                 type="button"
                 onClick={() => {
-                  const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${selectedDetailDiscount.slug}&view=showcase`;
+                  const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${selectedDetailDiscount.slug}&view=showcase&userId=${selectedDetailDiscount.userId}`;
                   copyToClipboard(shareUrl);
                   incrementShareCount(selectedDetailDiscount.id);
                   setCopiedId(selectedDetailDiscount.id);
