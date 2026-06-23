@@ -33,16 +33,49 @@ const CATEGORY_IMAGES: Record<string, string> = {
 };
 
 const PRESET_IMAGES = [
-  { name: "🥛 Süt & Şarküteri", url: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=650" },
-  { name: "🧀 Olgun Peynir", url: "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&q=80&w=650" },
-  { name: "🍞 Fırın Ekmeği", url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=650" },
-  { name: "🥐 Simit & Unlu", url: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=650" },
-  { name: "🍏 Taze Manav", url: "https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=650" },
-  { name: "🍊 Portakal & Sebze", url: "https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?auto=format&fit=crop&q=80&w=650" },
-  { name: "🍪 Baklava & Tatlı", url: "https://images.unsplash.com/photo-1508737693885-cb47dc312cf7?auto=format&fit=crop&q=80&w=650" },
-  { name: "🥩 Kasap & Et", url: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=650" },
-  { name: "🥤 Soğuk İçecek", url: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=650" },
-  { name: "📦 Genel Şarküteri", url: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=650" }
+  // 🥛 Süt & Kahvaltı
+  { name: "🥛 Süt & Şarküteri", url: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=650", category: "🥛 Süt ve Kahvaltılık" },
+  { name: "🧀 Olgun Peynir", url: "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&q=80&w=650", category: "🥛 Süt ve Kahvaltılık" },
+  { name: "🥛 Taze Süt", url: "https://images.unsplash.com/photo-1553530666-ba2a8e36cd12?auto=format&fit=crop&q=80&w=650", category: "🥛 Süt ve Kahvaltılık" },
+  { name: "🧈 Tereyağı", url: "https://images.unsplash.com/photo-1589985643453-a649cbbab0d7?auto=format&fit=crop&q=80&w=650", category: "🥛 Süt ve Kahvaltılık" },
+
+  // 🍞 Fırın & Unlu
+  { name: "🍞 Fırın Ekmeği", url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=650", category: "🍞 Fırın & Unlu Mamül" },
+  { name: "🥐 Simit & Unlu", url: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=650", category: "🍞 Fırın & Unlu Mamül" },
+  { name: "🥖 Baguette", url: "https://images.unsplash.com/photo-1535920527822-b0b3b57c51a1?auto=format&fit=crop&q=80&w=650", category: "🍞 Fırın & Unlu Mamül" },
+  { name: "🍰 Pasta & Kek", url: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=650", category: "🍞 Fırın & Unlu Mamül" },
+
+  // 🍎 Manav
+  { name: "🍏 Taze Manav", url: "https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=650", category: "🍎 Manav" },
+  { name: "🍊 Portakal & Sebze", url: "https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?auto=format&fit=crop&q=80&w=650", category: "🍎 Manav" },
+  { name: "🥬 Yeşil Sebzeler", url: "https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?auto=format&fit=crop&q=80&w=650", category: "🍎 Manav" },
+  { name: "🥒 Turşu & Konserve", url: "https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&q=80&w=650", category: "🍎 Manav" },
+
+  // 🍪 Tatlı & Atıştırmalık
+  { name: "🍪 Baklava & Tatlı", url: "https://images.unsplash.com/photo-1508737693885-cb47dc312cf7?auto=format&fit=crop&q=80&w=650", category: "🍪 Tatlı & Atıştırmalık" },
+  { name: "🍩 Donut & Çerez", url: "https://images.unsplash.com/photo-1585080823276-96419d50a680?auto=format&fit=crop&q=80&w=650", category: "🍪 Tatlı & Atıştırmalık" },
+  { name: "🌰 Kuruyemişler", url: "https://images.unsplash.com/photo-1585518419759-8bdf0d2e8818?auto=format&fit=crop&q=80&w=650", category: "🍪 Tatlı & Atıştırmalık" },
+  { name: "🍫 Çikolata", url: "https://images.unsplash.com/photo-1578985545062-69928b1d9587?auto=format&fit=crop&q=80&w=650", category: "🍪 Tatlı & Atıştırmalık" },
+
+  // 🍕 Dondurulmuş & Hazır Yemek
+  { name: "🍕 Dondurulmuş & Hazır Yemek", url: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=650", category: "🍕 Dondurulmuş & Hazır Yemek" },
+  { name: "🍔 Hazır Yemek", url: "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&q=80&w=650", category: "🍕 Dondurulmuş & Hazır Yemek" },
+  { name: "🧊 Dondurma", url: "https://images.unsplash.com/photo-1563805042-7684c019e157?auto=format&fit=crop&q=80&w=650", category: "🍕 Dondurulmuş & Hazır Yemek" },
+
+  // 🥩 Kasap & Et
+  { name: "🥩 Kasap & Et", url: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+  { name: "🍗 Tavuk", url: "https://images.unsplash.com/photo-1598103442097-8b74394b95c6?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+
+  // 🥤 İçecek
+  { name: "🥤 Soğuk İçecek", url: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+  { name: "☕ Kahve & Çay", url: "https://images.unsplash.com/photo-1556742112-d76694265947?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+  { name: "🧃 Meyve Suyu", url: "https://images.unsplash.com/photo-1553530666-ba2a8e36cd12?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+
+  // 📦 Genel & Dijital
+  { name: "📦 Genel Şarküteri", url: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+  { name: "🎁 Promosyon", url: "https://images.unsplash.com/photo-1549887534-50b736f0a299?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+  { name: "💳 Hizmet", url: "https://images.unsplash.com/photo-1552820728-8ac41f1ce891?auto=format&fit=crop&q=80&w=650", category: "Genel" },
+  { name: "🛍️ Alışveriş", url: "https://images.unsplash.com/photo-1483389127117-b6a2102724ae?auto=format&fit=crop&q=80&w=650", category: "Genel" }
 ];
 
 // Haversine formula to calculate distance in km between coordinates
@@ -2180,9 +2213,15 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
                         {/* Stock Preset Selector Grid */}
                         <div>
-                          <span className="block text-[9px] uppercase font-bold text-stone-405 mb-2">Veya hazır taze gıda kütüphanesinden seçin (Çoklu Seçilebilir):</span>
+                          <span className="block text-[9px] uppercase font-bold text-stone-405 mb-2">Veya hazır görsel kütüphanesinden seçin (Çoklu Seçilebilir):</span>
                           <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-5 gap-2 max-h-24 overflow-y-auto pr-1">
-                            {PRESET_IMAGES.map((img) => (
+                            {PRESET_IMAGES
+                              .filter(img => {
+                                // Kategoriye göre filtrele
+                                if (!prodCategory || prodCategory === "Genel") return true;
+                                return img.category === prodCategory;
+                              })
+                              .map((img) => (
                               <button
                                 key={img.url}
                                 type="button"
