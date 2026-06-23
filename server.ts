@@ -7,21 +7,13 @@ dotenv.config();
 
 // Firebase Admin SDK - CommonJS require
 let firebaseAdmin: any = null;
+let getFirestore: any = null;
+
 try {
   firebaseAdmin = require("firebase-admin");
+  getFirestore = require("firebase-admin/firestore").getFirestore;
   console.log("✅ firebase-admin require başarılı");
-
-  // Firebase-admin v14+: credential object olarak hazırla
-  // (cert direkten exports'ta, credential.cert değil)
-  if (!firebaseAdmin.credential) {
-    firebaseAdmin.credential = {
-      cert: firebaseAdmin.cert || function(serviceAccount: any) {
-        return firebaseAdmin.initializeApp({
-          credential: firebaseAdmin.cert(serviceAccount)
-        });
-      }
-    };
-  }
+  console.log("✅ firebase-admin/firestore getFirestore başarılı");
 } catch (err) {
   console.warn("⚠️ firebase-admin require başarısız:", err);
 }
@@ -86,19 +78,21 @@ async function initializeFirebase() {
 
     if (!firebaseAdmin.apps || firebaseAdmin.apps.length === 0) {
       console.log("🔧 Firebase initializeApp çağrılıyor...");
-      // Firebase-admin v14+: firebaseAdmin.cert() direkt kullan
-      const credential = firebaseAdmin.cert ?
-        firebaseAdmin.cert(serviceAccount) :
-        firebaseAdmin.credential.cert(serviceAccount);
-
       firebaseAdmin.initializeApp({
-        credential: credential,
+        credential: firebaseAdmin.cert(serviceAccount),
       });
       console.log("✅ Firebase initializeApp başarılı");
     }
 
-    firestoreDb = firebaseAdmin.firestore();
-    console.log("📝 Firestore instance alındı");
+    // Firebase-admin v14+: getFirestore() kullan
+    if (!getFirestore) {
+      console.warn("⚠️ getFirestore fonksiyonu bulunamadı");
+      firebaseReady = false;
+      return;
+    }
+
+    firestoreDb = getFirestore();
+    console.log("📝 Firestore instance alındı (via getFirestore)");
 
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
     console.log("✅ Firestore health test başarılı");
