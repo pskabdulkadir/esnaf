@@ -85,6 +85,22 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 app.use(express.json());
 
 // ============================================
+// STATIC FILES & SPA FALLBACK
+// ============================================
+
+// Serve frontend static files (built by Vite)
+app.use(express.static(path.join(__dirname, "../dist")));
+
+// SPA Fallback: Non-API routes go to index.html
+app.get("*", (req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith("/api")) {
+    res.sendFile(path.join(__dirname, "../dist/index.html"));
+  } else {
+    next();
+  }
+});
+
+// ============================================
 // MIDDLEWARE: Authentication
 // ============================================
 
