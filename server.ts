@@ -442,16 +442,12 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
     const userId = req.query.userId as string || req.user?.userId;
     const { id } = req.params;
 
-    console.log(`🗑️ DELETE /api/public-discounts/${id} - userId: ${userId}`);
-
     if (!userId) {
-      console.error("🗑️ DELETE failed: userId zorunlu");
       return res.status(400).json({ error: "userId zorunlu" });
     }
 
     // If Firestore available, use it
     if (firebaseReady && firestoreDb) {
-      console.log("🗑️ Deleting from Firestore...");
       await firestoreDb
         .collection("users")
         .doc(userId)
@@ -459,45 +455,33 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
         .doc(id)
         .delete();
 
-      console.log("✅ Deleted from Firestore");
       return res.json({ success: true });
     }
 
     // Fallback mode: delete from db_data.json
     try {
       const dbPath = path.join(process.cwd(), "db_data.json");
-      console.log(`🗑️ Fallback mode - deleting from: ${dbPath}`);
-
       let dbData: any = { products: [], campaigns: [], publicDiscounts: [], settings: {} };
 
       if (fs.existsSync(dbPath)) {
         const content = fs.readFileSync(dbPath, "utf-8");
         dbData = JSON.parse(content);
-        console.log(`🗑️ Loaded ${dbData.publicDiscounts.length} discounts from db_data.json`);
       }
 
       if (!dbData.publicDiscounts) dbData.publicDiscounts = [];
 
       // Find and remove the discount (only if it belongs to this user)
       const initialLength = dbData.publicDiscounts.length;
-      console.log(`🗑️ Before filter: ${initialLength} discounts`);
-      console.log(`🗑️ Looking for: id=${id}, userId=${userId}`);
-      console.log(`🗑️ Discounts in db:`, dbData.publicDiscounts.map((d: any) => ({ id: d.id, userId: d.userId })));
-
       dbData.publicDiscounts = dbData.publicDiscounts.filter(
         (d: any) => !(d.id === id && d.userId === userId)
       );
 
-      console.log(`🗑️ After filter: ${dbData.publicDiscounts.length} discounts`);
-
       // If nothing was deleted, return 404
       if (dbData.publicDiscounts.length === initialLength) {
-        console.error(`🗑️ Discount not found: id=${id}, userId=${userId}`);
         return res.status(404).json({ error: "İndirim bulunamadı" });
       }
 
       fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
-      console.log("✅ Deleted from db_data.json successfully");
       res.json({ success: true });
     } catch (writeErr) {
       console.error("db_data.json delete failed:", writeErr);
