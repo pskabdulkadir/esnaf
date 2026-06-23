@@ -29,6 +29,13 @@ async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
 
+    // Check if Firebase Admin SDK is available
+    if (!firebaseAdmin || !firebaseAdmin.credential) {
+      console.warn("⚠️  Firebase Admin SDK not available - fallback to file-based mode");
+      firebaseReady = false;
+      return;
+    }
+
     const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
       privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
@@ -45,7 +52,7 @@ async function initializeFirebase() {
       return;
     }
 
-    if (firebaseAdmin.apps.length === 0) {
+    if (!firebaseAdmin.apps || firebaseAdmin.apps.length === 0) {
       firebaseAdmin.initializeApp({
         credential: firebaseAdmin.credential.cert(serviceAccount),
       });
