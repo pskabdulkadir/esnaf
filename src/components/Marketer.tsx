@@ -986,9 +986,10 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
   const deleteCampaign = async (pubId: string) => {
     try {
-      const userId = localStorage.getItem("userId") || "unknown";
-      const deleteUrl = `/api/public-discounts/${pubId}?userId=${encodeURIComponent(userId)}`;
-      console.log("🗑️ Silme isteği - URL:", deleteUrl, "userId:", userId);
+      // ⭐ userId App props'undan al, localStorage fallback
+      const finalUserId = userId || localStorage.getItem("userId") || "unknown";
+      const deleteUrl = `/api/public-discounts/${pubId}?userId=${encodeURIComponent(finalUserId)}`;
+      console.log("🗑️ Silme isteği - URL:", deleteUrl, "userId:", finalUserId);
       const response = await fetch(deleteUrl, { method: "DELETE" });
 
       console.log("🗑️ Silme yanıtı - Status:", response.status);
