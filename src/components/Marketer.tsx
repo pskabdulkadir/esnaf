@@ -745,6 +745,9 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         if (selectedDetailDiscount?.id === id) {
           setSelectedDetailDiscount(updatedDiscount);
         }
+      } else {
+        const errorBody = await response.text();
+        console.error(`👁️ View count update failed - HTTP ${response.status}:`, errorBody);
       }
     } catch (err) {
       console.error("View count update failed:", err);
@@ -776,6 +779,9 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         if (selectedDetailDiscount?.id === id) {
           setSelectedDetailDiscount(updatedDiscount);
         }
+      } else {
+        const errorBody = await response.text();
+        console.error(`📤 Share count update failed - HTTP ${response.status}:`, errorBody);
       }
     } catch (err) {
       console.error("Share count update failed:", err);
