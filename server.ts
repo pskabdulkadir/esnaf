@@ -356,21 +356,32 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "userId query parametresi zorunlu (veri gizliliği)" });
     }
 
+    console.log(`🔍 GET /api/public-discounts - userId: ${userId}, firebaseReady: ${firebaseReady}`);
+
     // If Firestore available, use it
     if (firebaseReady && firestoreDb) {
-      const snapshot = await firestoreDb
-        .collection("users")
-        .doc(userId)
-        .collection("publicDiscounts")
-        .where("isActive", "==", true)
-        .get();
+      try {
+        console.log(`🔥 Firestore'dan okuyuyor - users/${userId}/publicDiscounts`);
+        const snapshot = await firestoreDb
+          .collection("users")
+          .doc(userId)
+          .collection("publicDiscounts")
+          .where("isActive", "==", true)
+          .get();
 
-      const discounts = snapshot.docs.map((doc: any) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+        const discounts = snapshot.docs.map((doc: any) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
 
-      return res.json(discounts);
+        console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
+        return res.json(discounts);
+      } catch (fsErr) {
+        console.error(`❌ Firestore read hatası:`, fsErr);
+        console.warn("Fallback mode'a geçiliyor...");
+      }
+    } else {
+      console.warn(`⚠️ Firestore hazır değil, fallback mode kullanılıyor`);
     }
 
     // Fallback mode: read from db_data.json
@@ -382,9 +393,12 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
         const content = fs.readFileSync(dbPath, "utf-8");
         const dbData = JSON.parse(content);
         allDiscounts = dbData.publicDiscounts || [];
+        console.log(`📄 db_data.json'dan ${allDiscounts.length} toplam indirim okundu`);
       } catch (readErr) {
         console.warn("Error reading db_data.json:", readErr);
       }
+    } else {
+      console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
     // CRITICAL: STRICT filtering by userId - only return user's own discounts
@@ -392,6 +406,7 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       (d: any) => d.isActive === true && d.userId === userId
     );
 
+    console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor`);
     res.json(userDiscounts);
   } catch (err) {
     console.error("Error fetching discounts:", err);
@@ -433,9 +448,18 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       updatedAt: new Date().toISOString(),
     };
 
+    console.log(`📝 POST /api/public-discounts - İndirim ekleniyor:`, {
+      id: discountId,
+      userId,
+      productName,
+      firebaseReady,
+      timestamp: new Date().toISOString()
+    });
+
     // If Firestore available, write there
     if (firebaseReady && firestoreDb) {
       try {
+        console.log(`🔥 Firestore'a yazılıyor - users/${userId}/publicDiscounts/${discountId}`);
         await firestoreDb
           .collection("users")
           .doc(req.user?.userId || "unknown")
@@ -447,9 +471,13 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
             createdAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
             updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
           });
+        console.log(`✅ Firestore'a başarıyla yazıldı!`);
       } catch (fsErr) {
-        console.warn("Firestore write failed, using fallback:", fsErr);
+        console.error(`❌ Firestore write hatası:`, fsErr);
+        console.warn("Fallback mode'a geçiliyor...");
       }
+    } else {
+      console.warn(`⚠️ Firestore hazır değil (firebaseReady=${firebaseReady}), fallback mode kullanılacak`);
     }
 
     // Fallback: write to db_data.json if not Firestore
@@ -619,12 +647,22 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`\n✅ Production Server running on port ${PORT}`);
+  console.log(`\n${"=".repeat(60)}`);
+  console.log(`✅ Production Server running on port ${PORT}`);
   console.log(`📍 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`🔥 Database: ${firebaseReady ? "Firestore (siftah-app-v1)" : "FALLBACK MODE"}\n`);
+  console.log(`🔥 Database Mode: ${firebaseReady ? "✅ FIRESTORE (siftah-app-v1)" : "⚠️  FALLBACK MODE"}`);
+  console.log(`⏰ Startup Time: ${new Date().toISOString()}`);
+  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+  console.log(`${"=".repeat(60)}\n`);
 
-  if (!firebaseReady) {
-    console.warn("⚠️  WARNING: Firestore not initialized - using fallback mode");
+  if (firebaseReady) {
+    console.log("🎉 Firebase Firestore bağlantısı BAŞARILI!");
+    console.log("   ✅ Tüm veriler Firestore'a yazılacak");
+    console.log("   ✅ Server restart'ta veriler kaybolmayacak\n");
+  } else {
+    console.warn("⚠️  WARNING: Firestore initialize olmadı!");
+    console.warn("   📄 Veriler db_data.json'a yazılacak (geçici)");
+    console.warn("   ⚠️  Server restart'ta veriler kaybolabilir\n");
   }
 });
 
