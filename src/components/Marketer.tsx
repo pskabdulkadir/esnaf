@@ -407,6 +407,7 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [expandedShareId, setExpandedShareId] = useState<string | null>(null);
+  const [selectedDeleteIds, setSelectedDeleteIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ message, type });
@@ -959,6 +960,59 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
           : "Kampanya kaldırılırken hata oluştu.",
         "error"
       );
+    }
+  };
+
+  const deleteBulkCampaigns = async () => {
+    if (selectedDeleteIds.size === 0) {
+      showToast("Lütfen silmek için ürün seçin", "error");
+      return;
+    }
+
+    const userId = localStorage.getItem("userId") || "unknown";
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const id of selectedDeleteIds) {
+      try {
+        const response = await fetch(`/api/public-discounts/${id}?userId=${encodeURIComponent(userId)}`, {
+          method: "DELETE"
+        });
+
+        if (response.ok) {
+          successCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (err) {
+        console.error(`Silme hatası (${id}):`, err);
+        errorCount++;
+      }
+    }
+
+    setSelectedDeleteIds(new Set());
+    showToast(
+      `${successCount} ürün silindi${errorCount > 0 ? `, ${errorCount} hata` : ""}. ✅`,
+      errorCount > 0 ? "error" : "success"
+    );
+    fetchData();
+  };
+
+  const toggleSelectDelete = (id: string) => {
+    const newSet = new Set(selectedDeleteIds);
+    if (newSet.has(id)) {
+      newSet.delete(id);
+    } else {
+      newSet.add(id);
+    }
+    setSelectedDeleteIds(newSet);
+  };
+
+  const selectAllDelete = () => {
+    if (selectedDeleteIds.size === publicDiscounts.length) {
+      setSelectedDeleteIds(new Set());
+    } else {
+      setSelectedDeleteIds(new Set(publicDiscounts.map(d => d.id)));
     }
   };
 
@@ -2428,6 +2482,28 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
                       </div>
                     </div>
 
+                    {publicDiscounts.length > 0 && (
+                      <div className="mb-4 flex items-center gap-2 p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
+                        <input
+                          type="checkbox"
+                          checked={selectedDeleteIds.size === publicDiscounts.length && publicDiscounts.length > 0}
+                          onChange={selectAllDelete}
+                          className="w-4 h-4 cursor-pointer rounded border-indigo-300"
+                        />
+                        <span className="text-xs font-bold text-indigo-900">
+                          {selectedDeleteIds.size > 0 ? `${selectedDeleteIds.size}/${publicDiscounts.length} seçili` : "Tüm ürünleri seç"}
+                        </span>
+                        {selectedDeleteIds.size > 0 && (
+                          <button
+                            onClick={deleteBulkCampaigns}
+                            className="ml-auto px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black flex items-center gap-1 transition-all cursor-pointer"
+                          >
+                            <Trash2 className="h-3 w-3" /> {selectedDeleteIds.size} Ürünü Sil
+                          </button>
+                        )}
+                      </div>
+                    )}
+
                     {publicDiscounts.length === 0 ? (
                       <div className="text-center py-24 flex flex-col items-center justify-center gap-3 border border-dashed border-stone-200 bg-stone-50 rounded-2xl max-w-xl mx-auto my-10">
                         <div className="p-3 bg-stone-100 rounded-full text-stone-400">
@@ -2448,8 +2524,15 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
                           const fullUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${item.slug}&view=showcase`;
 
                           return (
-                            <div key={item.id} className="bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-all flex flex-col">
-                              
+                            <div key={item.id} className={`bg-stone-50 border rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-all flex flex-col ${selectedDeleteIds.has(item.id) ? 'border-rose-400 bg-rose-50' : 'border-stone-200'}`}>
+
+                              <input
+                                type="checkbox"
+                                checked={selectedDeleteIds.has(item.id)}
+                                onChange={() => toggleSelectDelete(item.id)}
+                                className="absolute top-3 left-3 w-4 h-4 cursor-pointer rounded border-stone-300 z-10"
+                              />
+
                               <span className="absolute top-3 right-3 bg-red-650 text-white font-mono font-black text-[9px] py-1 px-2 rounded-md">
                                 %{discountPercentage}
                               </span>
@@ -2643,32 +2726,34 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
                                     )}
                                   </button>
                                   
-                                  {confirmDeleteId === item.id ? (
-                                    <div className="flex gap-1.5 w-full animate-fadeIn">
+                                  <div className="border-t border-stone-200 pt-3 mt-3 flex gap-2">
+                                    {confirmDeleteId === item.id ? (
+                                      <div className="flex gap-1.5 w-full animate-fadeIn">
+                                        <button
+                                          onClick={() => {
+                                            deleteCampaign(item.id);
+                                            setConfirmDeleteId(null);
+                                          }}
+                                          className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer"
+                                        >
+                                          <Check className="h-3.5 w-3.5" /> Evet, Sil
+                                        </button>
+                                        <button
+                                          onClick={() => setConfirmDeleteId(null)}
+                                          className="flex-1 py-2 bg-stone-200 hover:bg-stone-300 text-stone-700 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer"
+                                        >
+                                          <X className="h-3.5 w-3.5" /> İptal
+                                        </button>
+                                      </div>
+                                    ) : (
                                       <button
-                                        onClick={() => {
-                                          deleteCampaign(item.id);
-                                          setConfirmDeleteId(null);
-                                        }}
-                                        className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer"
+                                        onClick={() => setConfirmDeleteId(item.id)}
+                                        className="flex-1 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer"
                                       >
-                                        <Check className="h-3.5 w-3.5" /> Sil
+                                        <Trash2 className="h-3.5 w-3.5" /> Bu Ürünü Sil
                                       </button>
-                                      <button
-                                        onClick={() => setConfirmDeleteId(null)}
-                                        className="flex-1 py-1.5 bg-stone-150 hover:bg-stone-200 text-stone-605 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-250"
-                                      >
-                                        <X className="h-3.5 w-3.5" /> İptal
-                                      </button>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => setConfirmDeleteId(item.id)}
-                                      className="py-1.5 w-full bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer border border-rose-150"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" /> Kampanyayı Kaldır
-                                    </button>
-                                  )}
+                                    )}
+                                  </div>
                                 </div>
                               </div>
                             </div>
