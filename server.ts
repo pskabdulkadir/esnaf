@@ -10,6 +10,15 @@ let firebaseAdmin: any = null;
 try {
   firebaseAdmin = require("firebase-admin");
   console.log("✅ firebase-admin require başarılı");
+  console.log("📦 firebase-admin exports:", Object.keys(firebaseAdmin || {}).slice(0, 20));
+
+  // Eğer credential doğrudan export değilse, başka yoldan bul
+  if (!firebaseAdmin.credential) {
+    console.warn("⚠️ firebase-admin.credential undefined, credential modülünü separe olarak yüklemeye çalışıyorum...");
+    const credentialModule = require("firebase-admin/lib/credential");
+    firebaseAdmin.credential = credentialModule;
+    console.log("✅ firebase-admin credential modülü ayrıca yüklendi");
+  }
 } catch (err) {
   console.warn("⚠️ firebase-admin require başarısız:", err);
 }
