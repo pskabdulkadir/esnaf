@@ -718,11 +718,37 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
   };
 
   // Update metrics (local tracking only - API endpoints removed)
-  const incrementViewCount = (id: string) => {
-    console.log(`👁️ View recorded for discount ${id}`);
+  const incrementViewCount = async (id: string) => {
+    try {
+      const finalUserId = userId || localStorage.getItem("userId") || "unknown";
+      const response = await fetch(`/api/public-discounts/${id}/views?userId=${encodeURIComponent(finalUserId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (response.ok) {
+        console.log(`👁️ View recorded for discount ${id}`);
+        fetchData();
+      }
+    } catch (err) {
+      console.error("View count update failed:", err);
+    }
   };
 
-  const incrementShareCount = (id: string) => {
+  const incrementShareCount = async (id: string) => {
+    try {
+      const finalUserId = userId || localStorage.getItem("userId") || "unknown";
+      const response = await fetch(`/api/public-discounts/${id}/shares?userId=${encodeURIComponent(finalUserId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" }
+      });
+      if (response.ok) {
+        console.log(`📤 Share recorded for discount ${id}`);
+        fetchData();
+      }
+    } catch (err) {
+      console.error("Share count update failed:", err);
+    }
+
     const finalAdsId = settings.googleAdsId || localStorage.getItem('adsConversionId') || "AW-384910248";
     const finalAdsLabel = settings.googleAdsLabel || localStorage.getItem('adsLabel') || "conversion_whatsapp_click";
     const nowStr = new Date().toLocaleTimeString("tr-TR");
@@ -3025,12 +3051,17 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                       </div>
 
                       <div className="flex items-center justify-between mt-2 pt-3 border-t border-stone-100 font-mono">
-                        <div className="flex items-baseline gap-2">
-                          <span className="text-[11px] text-stone-400 line-through">
-                            {item.originalPrice} TL
-                          </span>
-                          <span className="text-emerald-700 font-black text-sm text-base">
-                            {item.discountPrice} TL
+                        <div className="flex flex-col items-start gap-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="text-[11px] text-stone-400 line-through">
+                              {item.originalPrice} TL
+                            </span>
+                            <span className="text-emerald-700 font-black text-sm text-base">
+                              {item.discountPrice} TL
+                            </span>
+                          </div>
+                          <span className="text-[8px] text-stone-400 font-mono">
+                            👁️ {item.views || 0} • 📤 {item.shares || 0}
                           </span>
                         </div>
 

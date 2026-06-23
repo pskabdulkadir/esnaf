@@ -202,11 +202,37 @@ app.get("/api/health", async (req: Request, res: Response) => {
 
 async function notifyGoogleIndexing(url: string): Promise<boolean> {
   try {
-    // Google Indexing API sadece özel domain'lerde çalışır
-    // Fallback: URL'i Google Search Console'a manuel ekleme şekli olmasa da,
-    // en azından log'a yazıp başarı döneceğiz (mock)
-    console.log(`📡 Google Indexing notification sent for: ${url}`);
-    return true;
+    // Google Indexing API endpoint
+    const endpoint = "https://www.googleapis.com/indexing/v3/urlNotifications:publish";
+    const apiKey = process.env.GOOGLE_INDEXING_API_KEY;
+
+    if (!apiKey) {
+      console.warn(`⚠️ GOOGLE_INDEXING_API_KEY env variable yok, mock mod kullanılıyor`);
+      console.log(`📡 [MOCK] Google Indexing notification logged for: ${url}`);
+      return true;
+    }
+
+    const requestBody = {
+      url: url,
+      type: "URL_UPDATED"
+    };
+
+    const response = await fetch(`${endpoint}?key=${apiKey}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (response.ok) {
+      console.log(`✅ Google Indexing API: URL başarıyla gönderildi: ${url}`);
+      return true;
+    } else {
+      const errorData = await response.json().catch(() => ({}));
+      console.warn(`⚠️ Google Indexing API error (${response.status}):`, errorData);
+      return false;
+    }
   } catch (err) {
     console.error("Google Indexing API error:", err);
     return false;
@@ -673,6 +699,126 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
   } catch (err) {
     console.error("❌ DELETE endpoint hatası:", err);
     res.status(500).json({ error: "İndirim silinemedi" });
+  }
+});
+
+app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId as string || req.user?.userId;
+
+    let updated = false;
+
+    // Try Firestore first
+    if (firebaseReady && firestoreDb) {
+      try {
+        const discountRef = firestoreDb
+          .collectionGroup("publicDiscounts")
+          .where("id", "==", id);
+
+        const snapshot = await discountRef.get();
+        if (!snapshot.empty) {
+          snapshot.docs.forEach(async (doc) => {
+            await doc.ref.update({
+              views: (doc.data().views || 0) + 1,
+              updatedAt: new Date().toISOString()
+            });
+          });
+          updated = true;
+        }
+      } catch (err) {
+        console.warn("⚠️ Firestore views update failed:", err);
+      }
+    }
+
+    // Fallback: update in db_data.json
+    if (!updated) {
+      try {
+        const dbPath = path.join(process.cwd(), "db_data.json");
+        let dbData: any = { publicDiscounts: [] };
+
+        if (fs.existsSync(dbPath)) {
+          const content = fs.readFileSync(dbPath, "utf-8");
+          dbData = JSON.parse(content);
+        }
+
+        const discount = dbData.publicDiscounts?.find((d: any) => d.id === id);
+        if (discount) {
+          discount.views = (discount.views || 0) + 1;
+          discount.updatedAt = new Date().toISOString();
+          fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+          res.json(discount);
+          return;
+        }
+      } catch (err) {
+        console.error("❌ db_data.json views update failed:", err);
+      }
+    }
+
+    res.status(updated ? 200 : 404).json({ success: updated });
+  } catch (err) {
+    console.error("Error updating views:", err);
+    res.status(500).json({ error: "Views güncellenemedi" });
+  }
+});
+
+app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.query.userId as string || req.user?.userId;
+
+    let updated = false;
+
+    // Try Firestore first
+    if (firebaseReady && firestoreDb) {
+      try {
+        const discountRef = firestoreDb
+          .collectionGroup("publicDiscounts")
+          .where("id", "==", id);
+
+        const snapshot = await discountRef.get();
+        if (!snapshot.empty) {
+          snapshot.docs.forEach(async (doc) => {
+            await doc.ref.update({
+              shares: (doc.data().shares || 0) + 1,
+              updatedAt: new Date().toISOString()
+            });
+          });
+          updated = true;
+        }
+      } catch (err) {
+        console.warn("⚠️ Firestore shares update failed:", err);
+      }
+    }
+
+    // Fallback: update in db_data.json
+    if (!updated) {
+      try {
+        const dbPath = path.join(process.cwd(), "db_data.json");
+        let dbData: any = { publicDiscounts: [] };
+
+        if (fs.existsSync(dbPath)) {
+          const content = fs.readFileSync(dbPath, "utf-8");
+          dbData = JSON.parse(content);
+        }
+
+        const discount = dbData.publicDiscounts?.find((d: any) => d.id === id);
+        if (discount) {
+          discount.shares = (discount.shares || 0) + 1;
+          discount.updatedAt = new Date().toISOString();
+          fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+          res.json(discount);
+          return;
+        }
+      } catch (err) {
+        console.error("❌ db_data.json shares update failed:", err);
+      }
+    }
+
+    res.status(updated ? 200 : 404).json({ success: updated });
+  } catch (err) {
+    console.error("Error updating shares:", err);
+    res.status(500).json({ error: "Shares güncellenemedi" });
   }
 });
 
