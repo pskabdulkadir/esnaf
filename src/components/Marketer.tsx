@@ -588,11 +588,19 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
   // ⭐ URL parametreleri değişince fetchData'yı çalıştır (share link açıldığında slug değişir)
   useEffect(() => {
+    console.log('📍 useEffect çağrıldı - URL:', window.location.href);
+    fetchData();
+  }, [userId]); // userId değişince veya sayfa yüklenince çalışır
+
+  // ⭐ URL slug parametresi değişirse fetchData çalıştır (share link tıklanırsa)
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const currentSlug = urlParams.get("slug");
-    const currentView = urlParams.get("view");
-    fetchData();
-  }, [userId, window.location.search]); // userId veya URL parametreleri değişince
+    if (currentSlug) {
+      console.log('🔗 Share link detected - slug parametresi var:', currentSlug);
+      fetchData();
+    }
+  }, []); // Sayfa yüklenişte bir kez çalıştır
 
   // Fetch sitemap data for Google Search Console
   const fetchSitemapData = async () => {
