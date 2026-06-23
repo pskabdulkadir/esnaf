@@ -17,19 +17,16 @@ const DATA_FILE = path.join(process.cwd(), "db_data.json");
 const INITIAL_DATA = {
   products: [],
   customers: [],
-  campaigns: []
+  campaigns: [],
+  publicDiscounts: []
 };
 
 // Ensure data file exists
 function readDatabase() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      const initialWithPublic = {
-        ...INITIAL_DATA,
-        publicDiscounts: []
-      };
-      fs.writeFileSync(DATA_FILE, JSON.stringify(initialWithPublic, null, 2), "utf8");
-      return initialWithPublic;
+      fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_DATA, null, 2), "utf8");
+      return INITIAL_DATA;
     }
     const data = fs.readFileSync(DATA_FILE, "utf8");
     const db = JSON.parse(data);
@@ -40,7 +37,7 @@ function readDatabase() {
     return db;
   } catch (err) {
     console.error("Error reading database file", err);
-    return { ...INITIAL_DATA, publicDiscounts: [] };
+    return INITIAL_DATA;
   }
 }
 

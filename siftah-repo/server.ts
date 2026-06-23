@@ -113,39 +113,16 @@ const INITIAL_DATA = {
         "19/06/2026 11:15:12 - Kampanya başarıyla tamamlandı. Toplam Alıcı: 2"
       ]
     }
-  ]
+  ],
+  publicDiscounts: []
 };
 
 // Ensure data file exists
 function readDatabase() {
   try {
     if (!fs.existsSync(DATA_FILE)) {
-      const initialWithPublic = {
-        ...INITIAL_DATA,
-        publicDiscounts: [
-          {
-            id: "pub-1",
-            productId: "prod-1",
-            productName: "Tam Yağlı Günlük Süt (1L)",
-            slug: "tam-yagli-gunluk-sut-1l",
-            originalPrice: 34.00,
-            discountPrice: 24.00,
-            category: "Süt ve Kahvaltılık",
-            merchantName: "Bizim Mahalle Bakkalı",
-            merchantPhone: "+905321112233",
-            seoTitle: "Kadıköy Günlük Süt İndirimi - Bizim Mahalle Bakkalı %30 Ucuz Süt",
-            seoDescription: "Kadıköy'de taptaze günlük sütte dev fırsat! Akşam yemeğine yetişsin diye Tam Yağlı Süt sadece 24 TL. Bizim Mahalle Bakkalı güvencesiyle taze taze sofranızda.",
-            seoKeywords: "kadıköy ucuz süt, mahalle bakkalı indirimli süt, taze günlük süt fiyatı, süt kampanyası",
-            openGraphImage: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=600",
-            views: 142,
-            shares: 34,
-            isActive: true,
-            publishedAt: "2026-06-19T10:30:00.000Z"
-          }
-        ]
-      };
-      fs.writeFileSync(DATA_FILE, JSON.stringify(initialWithPublic, null, 2), "utf8");
-      return initialWithPublic;
+      fs.writeFileSync(DATA_FILE, JSON.stringify(INITIAL_DATA, null, 2), "utf8");
+      return INITIAL_DATA;
     }
     const data = fs.readFileSync(DATA_FILE, "utf8");
     const db = JSON.parse(data);
@@ -176,7 +153,7 @@ function readDatabase() {
     return db;
   } catch (err) {
     console.error("Error reading database file", err);
-    return { ...INITIAL_DATA, publicDiscounts: [] };
+    return INITIAL_DATA;
   }
 }
 
