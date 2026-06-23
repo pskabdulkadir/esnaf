@@ -422,10 +422,10 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
           ...doc.data(),
         }));
 
-        // Filter by slug if provided
+        // ⭐ ÖNEMLI: Slug varsa sadece açılması için kullanılır, vitrin'de tüm ürünler gösterilir
+        // Tüm ürünleri döndür, frontend slug'a göre detaylı aç
         if (slug) {
-          discounts = discounts.filter((d: any) => d.slug === slug);
-          console.log(`✅ Firestore'dan slug=${slug} ile ${discounts.length} indirim okundu`);
+          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu (slug=${slug} detay aç, vitrin'de tüm göster)`);
         } else {
           console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
         }
@@ -458,22 +458,21 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // ⭐ ÖNEMLI: Slug varsa:
-    // - Slug'a göre bulunan ürünü göster
-    // - + Aynı userId'nin TÜM ürünlerini göster
-    // Slug yoksa: sadece userId'nin ürünleri
+    // ⭐ ÖNEMLI: Slug varsa sadece detay aç için kullanılır, vitrin'de tüm ürünler gösterilir
+    // Tüm userId'nin ürünlerini döndür
     let userDiscounts = allDiscounts.filter((d: any) => {
       const isActive = d.isActive === true;
 
+      // slug varsa: tüm userId'nin ürünlerini gönder (frontend slug'a göre detaylı aç)
+      // slug yoksa: sadece userId'nin ürünleri
       if (slug && userId) {
-        // Public share: slug match VEYA aynı userId'nin ürünü
-        return isActive && (d.slug === slug || d.userId === userId);
+        return isActive && d.userId === userId;
+      } else if (userId) {
+        return isActive && d.userId === userId;
       } else if (slug) {
-        // Slug varsa ama userId yoksa: sadece slug match
         return isActive && d.slug === slug;
       } else {
-        // Admin panel: sadece userId match
-        return isActive && (!userId || d.userId === userId);
+        return isActive;
       }
     });
 
