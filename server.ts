@@ -29,10 +29,21 @@ let firebaseReady = false;
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
+    console.log("📋 Env variables kontrol:");
+    console.log("  - FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID ? "✅" : "❌");
+    console.log("  - FIREBASE_PRIVATE_KEY_ID:", process.env.FIREBASE_PRIVATE_KEY_ID ? "✅" : "❌");
+    console.log("  - FIREBASE_PRIVATE_KEY:", process.env.FIREBASE_PRIVATE_KEY ? `✅ (${process.env.FIREBASE_PRIVATE_KEY.length} chars)` : "❌");
+    console.log("  - FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL ? "✅" : "❌");
+    console.log("  - FIREBASE_CLIENT_ID:", process.env.FIREBASE_CLIENT_ID ? "✅" : "❌");
 
     // Check if Firebase Admin SDK is available
+    console.log("🔍 Firebase Admin SDK kontrol:");
+    console.log("  - firebaseAdmin type:", typeof firebaseAdmin);
+    console.log("  - firebaseAdmin.credential:", typeof firebaseAdmin?.credential);
+
     if (!firebaseAdmin || !firebaseAdmin.credential) {
       console.warn("⚠️  Firebase Admin SDK not available - fallback to file-based mode");
+      console.warn("  Firebase Admin SDK bulunamadı. Mevcut firebaseAdmin:", firebaseAdmin ? "Var ama credential yok" : "Tamamen boş");
       firebaseReady = false;
       return;
     }
@@ -49,6 +60,9 @@ async function initializeFirebase() {
 
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
+      console.warn("  - projectId:", serviceAccount.projectId ? "✅" : "❌");
+      console.warn("  - privateKey:", serviceAccount.privateKey ? "✅" : "❌");
+      console.warn("  - clientEmail:", serviceAccount.clientEmail ? "✅" : "❌");
       firebaseReady = false;
       return;
     }
