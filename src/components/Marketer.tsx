@@ -362,7 +362,7 @@ const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
   }
 };
 
-export default function Marketer({ brandName, language, userId }: { brandName?: string; language?: "tr" | "en" | "de"; userId?: string }) {
+export default function Marketer({ brandName, language, userId, initialSlug }: { brandName?: string; language?: "tr" | "en" | "de"; userId?: string; initialSlug?: string }) {
   // Is this visitor on the 100% Isolated Public URL?
   const [isPublicUrlLocked, setIsPublicUrlLocked] = useState(false);
   const [isCustomerShowcase, setIsCustomerShowcase] = useState(false);
@@ -508,7 +508,7 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const discountId = urlParams.get("discountId");
-        const slug = urlParams.get("slug");
+        const slug = urlParams.get("slug") || initialSlug;  // ⭐ initialSlug'ı fallback olarak kullan
         const merchantId = urlParams.get("merchantId") || urlParams.get("userId");
 
         // ⭐ userId veya URL parametrelerini query parameter olarak ekle

@@ -1752,6 +1752,7 @@ export default function App() {
                 brandName={brandName}
                 language={language}
                 userId={userId}
+                initialSlug={new URLSearchParams(window.location.search).get("slug") || undefined}
               />
             </Suspense>
           )}
