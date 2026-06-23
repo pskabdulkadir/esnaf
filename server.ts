@@ -10,14 +10,17 @@ let firebaseAdmin: any = null;
 try {
   firebaseAdmin = require("firebase-admin");
   console.log("✅ firebase-admin require başarılı");
-  console.log("📦 firebase-admin exports:", Object.keys(firebaseAdmin || {}).slice(0, 20));
 
-  // Eğer credential doğrudan export değilse, başka yoldan bul
+  // Firebase-admin v14+: credential object olarak hazırla
+  // (cert direkten exports'ta, credential.cert değil)
   if (!firebaseAdmin.credential) {
-    console.warn("⚠️ firebase-admin.credential undefined, credential modülünü separe olarak yüklemeye çalışıyorum...");
-    const credentialModule = require("firebase-admin/lib/credential");
-    firebaseAdmin.credential = credentialModule;
-    console.log("✅ firebase-admin credential modülü ayrıca yüklendi");
+    firebaseAdmin.credential = {
+      cert: firebaseAdmin.cert || function(serviceAccount: any) {
+        return firebaseAdmin.initializeApp({
+          credential: firebaseAdmin.cert(serviceAccount)
+        });
+      }
+    };
   }
 } catch (err) {
   console.warn("⚠️ firebase-admin require başarısız:", err);
@@ -82,14 +85,23 @@ async function initializeFirebase() {
     }
 
     if (!firebaseAdmin.apps || firebaseAdmin.apps.length === 0) {
+      console.log("🔧 Firebase initializeApp çağrılıyor...");
+      // Firebase-admin v14+: firebaseAdmin.cert() direkt kullan
+      const credential = firebaseAdmin.cert ?
+        firebaseAdmin.cert(serviceAccount) :
+        firebaseAdmin.credential.cert(serviceAccount);
+
       firebaseAdmin.initializeApp({
-        credential: firebaseAdmin.credential.cert(serviceAccount),
+        credential: credential,
       });
+      console.log("✅ Firebase initializeApp başarılı");
     }
 
     firestoreDb = firebaseAdmin.firestore();
+    console.log("📝 Firestore instance alındı");
 
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
+    console.log("✅ Firestore health test başarılı");
 
     console.log("✅ Firestore initialized successfully");
     firebaseReady = true;
