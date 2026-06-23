@@ -10,3 +10,23 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Database and backups
+db_data.json
+.backups/
+*.backup.json
+logs/
+
+# Render artifacts
+.render/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

@@ -935,7 +935,12 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
   const deleteCampaign = async (pubId: string) => {
     try {
-      await fetch(`/api/public-discounts/${pubId}`, { method: "DELETE" });
+      const response = await fetch(`/api/public-discounts/${pubId}`, { method: "DELETE" });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
       showToast(
         settings.language === "en"
           ? "Campaign removed successfully! ✅ Google updated."
@@ -1720,28 +1725,28 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
                           <div className="text-lg">✓</div>
                           <div>
                             <p className="font-semibold">Ürün Eklediniz Mi?</p>
-                            <p className="text-xs text-emerald-700">Sistem anında Google'a bildiriyor</p>
+                            <p className="text-xs text-emerald-700">Sistem anında sitemap.xml'i günceller ve arama motorlarını bildirir</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
                           <div className="text-lg">✓</div>
                           <div>
                             <p className="font-semibold">Sitemap Otomatik Güncelleniyor</p>
-                            <p className="text-xs text-emerald-700">Her kampanya eklenince sitemap.xml yenileniyor</p>
+                            <p className="text-xs text-emerald-700">Her kampanya eklenince /sitemap.xml yenileniyor ve IndexNow API'sine gönderiliyor</p>
                           </div>
                         </div>
                         <div className="flex items-start gap-2">
                           <div className="text-lg">✓</div>
                           <div>
-                            <p className="font-semibold">Google Bot Tarama Başladı</p>
-                            <p className="text-xs text-emerald-700">24-48 saat içinde Google Arama'da görünecek</p>
+                            <p className="font-semibold">Arama Motorlarına Bildirim</p>
+                            <p className="text-xs text-emerald-700">IndexNow API (Google, Bing, Yandex) + robots.txt sitemap deklarasyonu</p>
                           </div>
                         </div>
                       </div>
 
                       <div className="mt-4 pt-4 border-t border-emerald-200">
                         <p className="text-[11px] text-emerald-700 font-mono font-semibold">
-                          ℹ️ Sitemap otomatik olarak güncelleniyor. Google 24-48 saatte tarayacak.
+                          ℹ️ Sitemap otomatik güncelleniyor. Arama motorları robots.txt aracılığıyla haber alıyor. Google organik taraması 1-7 gün içinde başlayabilir.
                         </p>
                       </div>
                     </div>

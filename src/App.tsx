@@ -839,12 +839,13 @@ export default function App() {
       let campaignsList = [];
       
       try {
-        const pdRes = await fetch("/api/public-discounts");
+        // ⭐ FIX: Include userId so backend returns campaigns for this user
+        const pdRes = await fetch(`/api/public-discounts?userId=${encodeURIComponent(userId)}`);
         if (pdRes.ok) publicDiscountsList = await pdRes.json();
-        
+
         const setRes = await fetch("/api/settings");
         if (setRes.ok) storeSettings = await setRes.json();
-        
+
         const campRes = await fetch("/api/campaigns");
         if (campRes.ok) campaignsList = await campRes.json();
       } catch (err) {
@@ -976,20 +977,46 @@ export default function App() {
         }
 
         // Bulk restore server marketing data, settings, and campaigns
-        if (backupData.publicDiscounts || backupData.settings || backupData.campaigns) {
+        // ⭐ Only send if data actually exists to avoid wiping out existing campaigns
+        const hasMarketingData = (
+          (Array.isArray(backupData.publicDiscounts) && backupData.publicDiscounts.length > 0) ||
+          (backupData.settings && Object.keys(backupData.settings).length > 0) ||
+          (Array.isArray(backupData.campaigns) && backupData.campaigns.length > 0)
+        );
+
+        if (hasMarketingData) {
           try {
-            await fetch("/api/restore-marketing", {
+            // ⭐ ÖNEMLI: Restore sırasında publicDiscounts'ın userId'sini güncelle
+            // Böylece farklı cihazdan restore edildiğinde de kampanyalar erişilebilir kalır
+            let restoredPublicDiscounts = backupData.publicDiscounts || [];
+            if (Array.isArray(restoredPublicDiscounts) && restoredPublicDiscounts.length > 0) {
+              restoredPublicDiscounts = restoredPublicDiscounts.map((pd: any) => ({
+                ...pd,
+                userId: userId // ⭐ Yeni cihazın userId'sini ata
+              }));
+            }
+
+            const mktRes = await fetch("/api/restore-marketing", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                publicDiscounts: backupData.publicDiscounts || [],
+                publicDiscounts: restoredPublicDiscounts,
                 settings: backupData.settings || {},
-                campaigns: backupData.campaigns || []
+                campaigns: backupData.campaigns && backupData.campaigns.length > 0 ? backupData.campaigns : []
               })
             });
+
+            if (!mktRes.ok) {
+              throw new Error(`Marketing restore failed: HTTP ${mktRes.status}`);
+            }
+
             showToast("Pazarlama & ayarlar verileri başarıyla entegre edildi! 📣", "success");
           } catch (mErr) {
             console.error("Marketing bulk restore failed", mErr);
+            showToast(
+              "Pazarlama verileri entegre edilirken hata oluştu. Lütfen tekrar deneyin.",
+              "warning"
+            );
           }
         }
 

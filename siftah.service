@@ -1,0 +1,27 @@
+[Unit]
+Description=Siftah Marketing Application
+After=network.target
+
+[Service]
+Type=simple
+User=siftah
+WorkingDirectory=/opt/siftah
+Environment="NODE_ENV=production"
+Environment="PORT=3000"
+Environment="PRODUCTION_URL=http://localhost:3000"
+ExecStart=/usr/bin/node /opt/siftah/dist/server.cjs
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=siftah
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/siftah/db_data.json /opt/siftah/.backups
+
+[Install]
+WantedBy=multi-user.target

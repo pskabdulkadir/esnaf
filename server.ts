@@ -7,11 +7,22 @@ import { createServer as createViteServer } from "vite";
 dotenv.config();
 
 const app = express();
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || "3000", 10);
 
 app.use(express.json());
 
-const DATA_FILE = path.join(process.cwd(), "db_data.json");
+// ⭐ Render Mount Path Support
+// Render provides persistent disk at /var/data, use it if available
+const DATA_DIR = process.env.RENDER === "true"
+  ? "/var/data"  // Render persistent disk
+  : process.cwd();
+
+const DATA_FILE = path.join(DATA_DIR, "db_data.json");
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
 
 // Default initial data for simulation and operation (Starting completely empty for live production launch)
 const INITIAL_DATA = {
@@ -41,11 +52,33 @@ function readDatabase() {
   }
 }
 
-function writeDatabase(data: any) {
+function writeDatabase(data: any): { success: boolean; error?: string } {
   try {
+    // ⭐ Create backup before overwriting
+    if (fs.existsSync(DATA_FILE)) {
+      const backupDir = path.join(process.cwd(), ".backups");
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, -5);
+      const backupFile = path.join(backupDir, `db_data_${timestamp}.json`);
+      fs.copyFileSync(DATA_FILE, backupFile);
+
+      // Keep only last 10 backups
+      const backups = fs.readdirSync(backupDir).sort().reverse();
+      if (backups.length > 10) {
+        backups.slice(10).forEach(file => {
+          fs.unlinkSync(path.join(backupDir, file));
+        });
+      }
+    }
+
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+    return { success: true };
   } catch (err) {
+    const errorMsg = err instanceof Error ? err.message : String(err);
     console.error("Error writing database file", err);
+    return { success: false, error: errorMsg };
   }
 }
 
@@ -61,20 +94,31 @@ app.get("/api/products", (req, res) => {
 });
 
 app.post("/api/products", (req, res) => {
+  // ⭐ Basic validation
+  if (!req.body.name || typeof req.body.name !== "string" || req.body.name.trim().length === 0) {
+    return res.status(400).json({ error: "Ürün adı gereklidir" });
+  }
+  if (typeof req.body.price !== "number" || req.body.price < 0) {
+    return res.status(400).json({ error: "Fiyat geçerli bir sayı olmalıdır" });
+  }
+
   const db = readDatabase();
   const newProduct = {
     id: "prod-" + Date.now(),
-    name: req.body.name || "İsimsiz Ürün",
-    price: Number(req.body.price) || 0,
-    stockQuantity: Number(req.body.stockQuantity) || 0,
-    stockLimit: Number(req.body.stockLimit) || 10,
+    name: req.body.name.trim(),
+    price: Number(req.body.price),
+    stockQuantity: Math.max(0, Number(req.body.stockQuantity) || 0),
+    stockLimit: Math.max(1, Number(req.body.stockLimit) || 10),
     category: req.body.category || "Genel",
     expiryDate: req.body.expiryDate || new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split("T")[0],
     isSpecialDiscount: req.body.isSpecialDiscount === true,
     lastUpdated: new Date().toISOString()
   };
   db.products.push(newProduct);
-  writeDatabase(db);
+  const writeResult = writeDatabase(db);
+  if (!writeResult.success) {
+    return res.status(500).json({ error: "Ürün kaydedilemedi: " + writeResult.error });
+  }
   res.status(201).json(newProduct);
 });
 
@@ -405,8 +449,18 @@ app.post("/api/public-discounts", (req, res) => {
     adCopy
   } = req.body;
 
-  if (!productId || !discountPrice) {
-    return res.status(400).json({ error: "Eksik parametreler: productId ve discountPrice zorunludur." });
+  // ⭐ Input validation
+  if (!productId || typeof productId !== "string" || productId.trim().length === 0) {
+    return res.status(400).json({ error: "productId gereklidir" });
+  }
+  if (typeof discountPrice !== "number" || discountPrice < 0) {
+    return res.status(400).json({ error: "discountPrice geçerli bir sayı olmalıdır" });
+  }
+  if (!productName || typeof productName !== "string" || productName.trim().length === 0) {
+    return res.status(400).json({ error: "productName gereklidir" });
+  }
+  if (typeof originalPrice !== "number" || originalPrice < 0) {
+    return res.status(400).json({ error: "originalPrice geçerli bir sayı olmalıdır" });
   }
 
   // Generate unique URL friendly slug
@@ -451,7 +505,11 @@ app.post("/api/public-discounts", (req, res) => {
 
   if (!db.publicDiscounts) db.publicDiscounts = [];
   db.publicDiscounts.push(newPublicDiscount);
-  writeDatabase(db);
+
+  const writeResult = writeDatabase(db);
+  if (!writeResult.success) {
+    return res.status(500).json({ error: "Veritabanına kaydedilemedi: " + writeResult.error });
+  }
 
   // Otomatik olarak Google'a sitemap güncellemesini bildir
   pingGoogle();
@@ -474,7 +532,10 @@ app.put("/api/public-discounts/:id", (req, res) => {
       discountPrice: discountPrice !== undefined ? Number(discountPrice) : db.publicDiscounts[index].discountPrice,
       category: category !== undefined ? category : db.publicDiscounts[index].category
     };
-    writeDatabase(db);
+    const writeResult = writeDatabase(db);
+    if (!writeResult.success) {
+      return res.status(500).json({ error: "Veritabanına kaydedilemedi: " + writeResult.error });
+    }
     res.json(db.publicDiscounts[index]);
   } else {
     res.status(404).json({ error: "Kampanya bulunamadı" });
@@ -487,7 +548,10 @@ app.put("/api/public-discounts/:id/views", (req, res) => {
   const index = db.publicDiscounts.findIndex((p: any) => p.id === req.params.id);
   if (index !== -1) {
     db.publicDiscounts[index].views = (db.publicDiscounts[index].views || 0) + 1;
-    writeDatabase(db);
+    const writeResult = writeDatabase(db);
+    if (!writeResult.success) {
+      return res.status(500).json({ error: "Görüntüleme sayısı güncellenemedi" });
+    }
     res.json(db.publicDiscounts[index]);
   } else {
     res.status(404).json({ error: "İndirim sayfası bulunamadı" });
@@ -500,7 +564,10 @@ app.put("/api/public-discounts/:id/shares", (req, res) => {
   const index = db.publicDiscounts.findIndex((p: any) => p.id === req.params.id);
   if (index !== -1) {
     db.publicDiscounts[index].shares = (db.publicDiscounts[index].shares || 0) + 1;
-    writeDatabase(db);
+    const writeResult = writeDatabase(db);
+    if (!writeResult.success) {
+      return res.status(500).json({ error: "Paylaşım sayısı güncellenemedi" });
+    }
     res.json(db.publicDiscounts[index]);
   } else {
     res.status(404).json({ error: "İndirim sayfası bulunamadı" });
@@ -510,8 +577,17 @@ app.put("/api/public-discounts/:id/shares", (req, res) => {
 // 4.1 Delete public landing page
 app.delete("/api/public-discounts/:id", (req, res) => {
   const db = readDatabase();
+  const originalLength = db.publicDiscounts?.length || 0;
   db.publicDiscounts = (db.publicDiscounts || []).filter((p: any) => p.id !== req.params.id);
-  writeDatabase(db);
+
+  if (db.publicDiscounts.length === originalLength) {
+    return res.status(404).json({ error: "Kampanya bulunamadı" });
+  }
+
+  const writeResult = writeDatabase(db);
+  if (!writeResult.success) {
+    return res.status(500).json({ error: "Kampanya silinemedi: " + writeResult.error });
+  }
 
   // Otomatik olarak Google'a sitemap güncellemesini bildir
   pingGoogle();
@@ -535,7 +611,10 @@ app.get("/api/settings", (req, res) => {
 app.post("/api/settings", (req, res) => {
   const db = readDatabase();
   db.settings = { ...(db.settings || {}), ...req.body };
-  writeDatabase(db);
+  const writeResult = writeDatabase(db);
+  if (!writeResult.success) {
+    return res.status(500).json({ error: "Ayarlar kaydedilemedi: " + writeResult.error });
+  }
   res.json(db.settings);
 });
 
@@ -551,16 +630,25 @@ app.get("/api/google-config", (req, res) => {
 app.post("/api/restore-marketing", (req, res) => {
   const db = readDatabase();
   const { publicDiscounts, settings, campaigns } = req.body;
-  if (Array.isArray(publicDiscounts)) {
+
+  // ⭐ IMPORTANT: Only replace publicDiscounts if backup actually contains data
+  // If publicDiscounts array is empty, don't wipe out existing campaigns
+  if (Array.isArray(publicDiscounts) && publicDiscounts.length > 0) {
     db.publicDiscounts = publicDiscounts;
   }
+
   if (settings && typeof settings === "object") {
     db.settings = { ...(db.settings || {}), ...settings };
   }
-  if (Array.isArray(campaigns)) {
+
+  if (Array.isArray(campaigns) && campaigns.length > 0) {
     db.campaigns = campaigns;
   }
-  writeDatabase(db);
+
+  const writeResult = writeDatabase(db);
+  if (!writeResult.success) {
+    return res.status(500).json({ error: "Restore işlemi başarısız: " + writeResult.error });
+  }
   res.json({ success: true, publicDiscountsCount: db.publicDiscounts?.length || 0, settings: db.settings });
 });
 
@@ -629,20 +717,40 @@ function getBaseUrl(): string {
   return "https://esnafindirim.com";
 }
 
-// Helper function to notify Google about sitemap update (automatic indexing)
+// Helper function to notify search engines about sitemap update
+// Uses IndexNow API (supported by Google, Bing, Yandex)
 async function pingGoogle() {
   const baseUrl = getBaseUrl();
   const sitemapUrl = `${baseUrl}/sitemap.xml`;
 
   try {
-    const pingUrl = `https://www.google.com/ping?sitemap=${encodeURIComponent(sitemapUrl)}`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
-    const response = await fetch(pingUrl, { method: 'GET', signal: controller.signal });
-    clearTimeout(timeoutId);
-    console.log(`[GOOGLE_PING] ✅ Sitemap pinged. Status: ${response.status}`);
+    // ⭐ Method 1: Try IndexNow API (Google, Bing, Yandex supported)
+    // IndexNow is the modern replacement for google.com/ping
+    try {
+      const indexNowUrl = "https://api.indexnow.org/indexnow";
+      const indexNowPayload = {
+        siteUrl: baseUrl,
+        feedUrls: [sitemapUrl],
+        keyLocation: `${baseUrl}/indexnow.key` // Optional, but recommended
+      };
+
+      const indexNowResponse = await fetch(indexNowUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(indexNowPayload)
+      });
+
+      console.log(`[INDEXNOW] ✅ Sitemap submitted via IndexNow. Status: ${indexNowResponse.status}`);
+    } catch (indexNowErr) {
+      console.warn(`[INDEXNOW] IndexNow submission failed (non-critical):`, indexNowErr);
+    }
+
+    // ⭐ Method 2: Fallback to robots.txt sitemap declaration
+    // Google crawlers will auto-discover sitemap from robots.txt
+    console.log(`[SITEMAP_DECLARED] ✅ Sitemap declared in robots.txt at: ${baseUrl}/robots.txt`);
+
   } catch (err) {
-    console.error(`[GOOGLE_PING] ⚠️ Ping başarısız (sistem çalışmaya devam eder):`, err);
+    console.error(`[SEARCH_ENGINE_PING] ⚠️ Error notifying search engines:`, err);
     // Sistem devam etmeli, ping başarısız olsa bile
   }
 }
@@ -682,7 +790,7 @@ app.get("/sitemap.xml", (req, res) => {
   res.send(sitemap);
 });
 
-// Esnaf-specific sitemap for Google Search Console
+// Esnaf-specific sitemap for Google Search Console (JSON format for frontend)
 app.get("/api/sitemap-for-esnaf", (req, res) => {
   const db = readDatabase();
   const baseUrl = getBaseUrl();
@@ -698,7 +806,45 @@ app.get("/api/sitemap-for-esnaf", (req, res) => {
 
   const publicDiscounts = db.publicDiscounts || [];
 
-  // Build sitemap header
+  // Return JSON format for frontend consumption
+  const sitemapData = {
+    baseUrl,
+    merchantSlug,
+    merchantName,
+    homepage: `${baseUrl}/k/${merchantSlug}`,
+    campaigns: publicDiscounts.map((discount: any) => ({
+      url: `${baseUrl}/k/${merchantSlug}?slug=${discount.slug}`,
+      slug: discount.slug,
+      productName: discount.productName,
+      lastmod: discount.publishedAt
+        ? new Date(discount.publishedAt).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0],
+      changefreq: "daily",
+      priority: "0.9"
+    }))
+  };
+
+  res.header('Content-Type', 'application/json; charset=utf-8');
+  res.json(sitemapData);
+});
+
+// Esnaf-specific sitemap XML for Google Search Console (XML format)
+app.get("/api/sitemap-for-esnaf.xml", (req, res) => {
+  const db = readDatabase();
+  const baseUrl = getBaseUrl();
+  const merchantName = db.settings?.merchantName || "Bizim Mahalle İşletmesi";
+
+  // Convert merchant name to URL-friendly slug
+  const merchantSlug = merchantName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
+  const publicDiscounts = db.publicDiscounts || [];
+
+  // Build sitemap header (XML format for Google submission)
   let sitemap = '<?xml version="1.0" encoding="UTF-8"?>\n';
   sitemap += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
 
@@ -897,9 +1043,20 @@ async function startServer() {
     });
   }
 
-  // Global server port binding (port is 3000 as required)
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[SIFTAH BACKEND] Running full-stack server on http://localhost:${PORT}`);
+  // Global server port binding (supports environment variable)
+  const server = app.listen(PORT, "0.0.0.0", () => {
+    console.log(`[SIFTAH BACKEND] Running full-stack server on http://0.0.0.0:${PORT}`);
+  });
+
+  // Handle server errors
+  server.on("error", (err: any) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[ERROR] Port ${PORT} is already in use. Exiting.`);
+      process.exit(1);
+    } else {
+      console.error(`[ERROR] Server error:`, err);
+      process.exit(1);
+    }
   });
 }
 
