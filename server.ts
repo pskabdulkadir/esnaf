@@ -7,13 +7,10 @@ dotenv.config();
 
 // Firebase Admin SDK - CommonJS require
 let firebaseAdmin: any = null;
-let getFirestore: any = null;
 
 try {
   firebaseAdmin = require("firebase-admin");
-  getFirestore = require("firebase-admin/firestore").getFirestore;
   console.log("✅ firebase-admin require başarılı");
-  console.log("✅ firebase-admin/firestore getFirestore başarılı");
 } catch (err) {
   console.warn("⚠️ firebase-admin require başarısız:", err);
 }
@@ -50,14 +47,15 @@ async function initializeFirebase() {
     console.log("  - firebaseAdmin type:", typeof firebaseAdmin);
     console.log("  - firebaseAdmin.cert type:", typeof firebaseAdmin?.cert);
     console.log("  - firebaseAdmin.initializeApp type:", typeof firebaseAdmin?.initializeApp);
-    console.log("  - getFirestore type:", typeof getFirestore);
+    console.log("  - firebaseAdmin.firestore type:", typeof firebaseAdmin?.firestore);
 
-    if (!firebaseAdmin || !firebaseAdmin.cert || !getFirestore) {
+    if (!firebaseAdmin || !firebaseAdmin.cert || !firebaseAdmin.initializeApp || !firebaseAdmin.firestore) {
       console.warn("⚠️  Firebase Admin SDK not available - fallback to file-based mode");
       console.warn("  Firebase Admin SDK eksik özellikleri:", {
         hasFirebaseAdmin: !!firebaseAdmin,
         hasCert: !!firebaseAdmin?.cert,
-        hasGetFirestore: !!getFirestore
+        hasInitializeApp: !!firebaseAdmin?.initializeApp,
+        hasFirestore: !!firebaseAdmin?.firestore
       });
       firebaseReady = false;
       return;
@@ -90,15 +88,9 @@ async function initializeFirebase() {
       console.log("✅ Firebase initializeApp başarılı");
     }
 
-    // Firebase-admin v14+: getFirestore() kullan
-    if (!getFirestore) {
-      console.warn("⚠️ getFirestore fonksiyonu bulunamadı");
-      firebaseReady = false;
-      return;
-    }
-
-    firestoreDb = getFirestore();
-    console.log("📝 Firestore instance alındı (via getFirestore)");
+    // Firestore instance al
+    firestoreDb = firebaseAdmin.firestore();
+    console.log("📝 Firestore instance alındı (via firebaseAdmin.firestore())");
 
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
     console.log("✅ Firestore health test başarılı");
@@ -306,8 +298,8 @@ app.post("/api/products", async (req: AuthRequest, res: Response) => {
       category: req.body.category || "Genel",
       expiryDate: req.body.expiryDate || "",
       isSpecialDiscount: req.body.isSpecialDiscount === true,
-      lastUpdated: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
-      createdAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+      lastUpdated: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
     };
 
     await firestoreDb
@@ -346,7 +338,7 @@ app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
 
     const updateData = {
       ...req.body,
-      lastUpdated: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+      lastUpdated: new Date().toISOString(),
     };
 
     await docRef.update(updateData);
@@ -525,10 +517,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
         console.log(`   ✍️  set() çağrılıyor...`);
 
         await docRef.set({
-          ...discountData,
-          publishedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
-          createdAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
-          updatedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+          ...discountData
         });
 
         console.log(`   ✅ Firestore'a başarıyla yazıldı!`);
@@ -709,7 +698,7 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantName: req.body.merchantName,
       merchantPhone: req.body.merchantPhone,
       merchantWhatsApp: req.body.merchantWhatsApp,
-      updatedAt: firebaseAdmin.firestore().FieldValue.serverTimestamp(),
+      updatedAt: new Date().toISOString(),
     };
 
     await firestoreDb
