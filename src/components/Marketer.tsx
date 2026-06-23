@@ -586,21 +586,16 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     }
   };
 
-  // ⭐ URL parametreleri değişince fetchData'yı çalıştır (share link açıldığında slug değişir)
-  useEffect(() => {
-    console.log('📍 useEffect çağrıldı - URL:', window.location.href);
-    fetchData();
-  }, [userId]); // userId değişince veya sayfa yüklenince çalışır
-
-  // ⭐ URL slug parametresi değişirse fetchData çalıştır (share link tıklanırsa)
+  // ⭐ Component mount olduğunda window.location'dan slug oku
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const currentSlug = urlParams.get("slug");
-    if (currentSlug) {
-      console.log('🔗 Share link detected - slug parametresi var:', currentSlug);
-      fetchData();
-    }
-  }, []); // Sayfa yüklenişte bir kez çalıştır
+    const slugFromUrl = urlParams.get("slug");
+    console.log('📍 Component mounted - window.location.search:', window.location.search);
+    console.log('📍 slug from URL:', slugFromUrl);
+
+    // Slug varsa fetchData'yı çalıştır
+    fetchData();
+  }, [userId]);
 
   // Fetch sitemap data for Google Search Console
   const fetchSitemapData = async () => {
