@@ -451,19 +451,29 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // ⭐ ÖNEMLI FARK:
-    // - Slug varsa (public share): tüm kullanıcılardan ara (userId göz ardı et)
-    // - Slug yoksa (admin panel): sadece bu userId'nin ürünlerini ara
+    // ⭐ ÖNEMLI: Slug varsa:
+    // - Slug'a göre bulunan ürünü göster
+    // - + Aynı userId'nin TÜM ürünlerini göster
+    // Slug yoksa: sadece userId'nin ürünleri
     let userDiscounts = allDiscounts.filter((d: any) => {
       const isActive = d.isActive === true;
-      const userMatch = isPublicShare ? true : (!userId || d.userId === userId);
-      return isActive && userMatch;
+
+      if (slug && userId) {
+        // Public share: slug match VEYA aynı userId'nin ürünü
+        return isActive && (d.slug === slug || d.userId === userId);
+      } else if (slug) {
+        // Slug varsa ama userId yoksa: sadece slug match
+        return isActive && d.slug === slug;
+      } else {
+        // Admin panel: sadece userId match
+        return isActive && (!userId || d.userId === userId);
+      }
     });
 
-    // Filter by slug if provided
-    if (slug) {
-      userDiscounts = userDiscounts.filter((d: any) => d.slug === slug);
-      console.log(`✅ Fallback mod: slug=${slug} ile ${userDiscounts.length} indirim döndürülüyor (cross-user search)`);
+    if (slug && userId) {
+      console.log(`✅ Fallback mod: slug=${slug} + userId=${userId} ile ${userDiscounts.length} indirim döndürülüyor (paylaşan kişinin vitrini)`);
+    } else if (slug) {
+      console.log(`✅ Fallback mod: slug=${slug} ile ${userDiscounts.length} indirim döndürülüyor`);
     } else {
       console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor (userId=${userId})`);
     }
