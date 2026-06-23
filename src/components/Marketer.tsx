@@ -519,9 +519,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         // ⭐ ÖNEMLI: slug varsa her zaman gönder (public share için)
         if (slug) {
           queryParams.append("slug", slug);
-          // Slug'la birlikte userId de gönder (paylaşan kişinin kendi ürünlerini görmesi için)
-          const finalUserId = urlUserId || userId;  // ⭐ URL'deki userId'yi tercih et
-          if (finalUserId) queryParams.append("userId", finalUserId);
+          // ⭐ KRITIK: Share link'te URL'deki userId kullan (paylaşan kişinin vitrini göstermek için)
+          // url'deki userId ZORUNLU, eğer yoksa current user'ı kullan
+          const shareUserId = urlUserId || userId;
+          if (shareUserId) queryParams.append("userId", shareUserId);
         } else if (userId) {
           // Slug yoksa userId gönder (admin panel)
           queryParams.append("userId", userId);
