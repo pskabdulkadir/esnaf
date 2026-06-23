@@ -597,62 +597,6 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
   }
 });
 
-// ============================================
-// API: DISCOUNT STATS (Views & Shares)
-// ============================================
-
-app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = (req.query.userId as string) || (req.body.userId as string);
-    const { id } = req.params;
-
-    // Stats önemli değil, hata olsa da success döndür
-    if (!userId || !firebaseReady || !firestoreDb) {
-      return res.json({ success: true });
-    }
-
-    const FieldValue = firebaseAdmin.firestore.FieldValue;
-    await firestoreDb
-      .collection("users")
-      .doc(userId)
-      .collection("publicDiscounts")
-      .doc(id)
-      .update({ views: FieldValue.increment(1) });
-
-    res.json({ success: true });
-  } catch (err) {
-    // Stats critical değil, error logla ama 200 döndür
-    console.warn("Views update hatası:", err);
-    res.json({ success: true });
-  }
-});
-
-app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Response) => {
-  try {
-    const userId = (req.query.userId as string) || (req.body.userId as string);
-    const { id } = req.params;
-
-    // Stats önemli değil, hata olsa da success döndür
-    if (!userId || !firebaseReady || !firestoreDb) {
-      return res.json({ success: true });
-    }
-
-    const FieldValue = firebaseAdmin.firestore.FieldValue;
-    await firestoreDb
-      .collection("users")
-      .doc(userId)
-      .collection("publicDiscounts")
-      .doc(id)
-      .update({ shares: FieldValue.increment(1) });
-
-    res.json({ success: true });
-  } catch (err) {
-    // Stats critical değil, error logla ama 200 döndür
-    console.warn("Shares update hatası:", err);
-    res.json({ success: true });
-  }
-});
-
 app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.query.userId as string || req.user?.userId;
