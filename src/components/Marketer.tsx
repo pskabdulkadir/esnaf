@@ -3283,7 +3283,12 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                 href={`https://wa.me/${selectedDetailDiscount.merchantWhatsApp?.replace(/[^0-9+]/g, "") || selectedDetailDiscount.merchantPhone.replace(/[^0-9+]/g, "")}?text=Merhaba%20${encodeURIComponent(selectedDetailDiscount.merchantName)},%20%C4%B0ndirim%20Vitrini%20uygulamas%C4%B1nda%2520g%C3%B6rd%C3%BC%C4%9F%C3%BCm%2520%22${encodeURIComponent(selectedDetailDiscount.productName)}%22%2520%C3%BCr%C3%BCn%C3%BCn%C3%BCz%2520i%C3%A7in%2520${selectedDetailDiscount.discountPrice}%2520TL%2520kampanya%2520fiyat%C4%B1ndan%2520bilgi%2520almak%2520istiyorum.`}
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={() => incrementShareCount(selectedDetailDiscount.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  incrementShareCount(selectedDetailDiscount.id).then(() => {
+                    window.open(e.currentTarget.href, '_blank');
+                  });
+                }}
                 className="py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-center font-black text-xs sm:text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm uppercase cursor-pointer"
               >
                 <Smartphone className="h-4 w-4" />
@@ -3293,7 +3298,12 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
               {/* Direct dial button */}
               <a
                 href={`tel:${selectedDetailDiscount.merchantPhone}`}
-                onClick={() => incrementShareCount(selectedDetailDiscount.id)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  incrementShareCount(selectedDetailDiscount.id).then(() => {
+                    window.location.href = e.currentTarget.href;
+                  });
+                }}
                 className="py-3.5 bg-stone-900 hover:bg-black text-white rounded-xl text-center font-black text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm uppercase cursor-pointer"
               >
                 <Phone className="h-4 w-4" />
