@@ -3,11 +3,16 @@ import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
 
-// Firebase Admin SDK
-// @ts-ignore - Dynamic import for ESM compatibility
-import firebaseAdmin from "firebase-admin";
-
 dotenv.config();
+
+// Firebase Admin SDK - CommonJS require
+let firebaseAdmin: any = null;
+try {
+  firebaseAdmin = require("firebase-admin");
+  console.log("✅ firebase-admin require başarılı");
+} catch (err) {
+  console.warn("⚠️ firebase-admin require başarısız:", err);
+}
 
 // ============================================
 // TYPES
