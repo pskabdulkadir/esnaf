@@ -513,13 +513,15 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       timestamp: new Date().toISOString()
     });
 
+    let writeSuccess = false;
+
     // If Firestore available, write there
     if (firebaseReady && firestoreDb) {
       try {
         console.log(`🔥 Firestore'a yazılıyor - users/${userId}/publicDiscounts/${discountId}`);
         await firestoreDb
           .collection("users")
-          .doc(userId)  // ✅ DÜZELTILDI: userId değişkenini kullan
+          .doc(userId)
           .collection("publicDiscounts")
           .doc(discountId)
           .set({
@@ -529,6 +531,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
             updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
           });
         console.log(`✅ Firestore'a başarıyla yazıldı!`);
+        writeSuccess = true;
       } catch (fsErr) {
         console.error(`❌ Firestore write hatası:`, fsErr);
         console.warn("Fallback mode'a geçiliyor...");
@@ -537,8 +540,8 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       console.warn(`⚠️ Firestore hazır değil (firebaseReady=${firebaseReady}), fallback mode kullanılacak`);
     }
 
-    // Fallback: write to db_data.json if not Firestore
-    if (!firebaseReady) {
+    // Fallback: write to db_data.json if Firestore write failed or not ready
+    if (!writeSuccess) {
       try {
         const dbPath = path.join(process.cwd(), "db_data.json");
         let dbData: any = { products: [], campaigns: [], publicDiscounts: [], settings: {} };
@@ -552,8 +555,9 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
         dbData.publicDiscounts.push(discountData);
 
         fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+        console.log(`✅ db_data.json'a başarıyla yazıldı!`);
       } catch (writeErr) {
-        console.warn("db_data.json write failed:", writeErr);
+        console.error(`❌ db_data.json write hatası:`, writeErr);
       }
     }
 
@@ -647,17 +651,24 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
 
 app.get("/api/settings", async (req: AuthRequest, res: Response) => {
   try {
+    const defaultSettings = {
+      language: "tr",
+      merchantName: "İşletmem",
+      merchantPhone: "",
+      merchantWhatsApp: "",
+    };
+
     if (!firebaseReady || !firestoreDb) {
       // Fallback: return default settings
-      return res.json({
-        language: "tr",
-        merchantName: "İşletmem",
-        merchantPhone: "",
-        merchantWhatsApp: "",
-      });
+      return res.json(defaultSettings);
     }
 
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
+      return res.json(defaultSettings);
+    }
+
     const doc = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -665,19 +676,17 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       .doc("user_data")
       .get();
 
-    const settings = doc.exists
-      ? doc.data()
-      : {
-          language: "tr",
-          merchantName: "İşletmem",
-          merchantPhone: "",
-          merchantWhatsApp: "",
-        };
-
+    const settings = doc.exists ? doc.data() : defaultSettings;
     res.json(settings);
   } catch (err) {
     console.error("Error fetching settings:", err);
-    res.status(500).json({ error: "Ayarlar alınamadı" });
+    // Fallback: return default settings on error
+    res.json({
+      language: "tr",
+      merchantName: "İşletmem",
+      merchantPhone: "",
+      merchantWhatsApp: "",
+    });
   }
 });
 
