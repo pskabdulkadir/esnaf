@@ -935,7 +935,8 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
 
   const deleteCampaign = async (pubId: string) => {
     try {
-      const response = await fetch(`/api/public-discounts/${pubId}`, { method: "DELETE" });
+      const userId = localStorage.getItem("userId") || "unknown";
+      const response = await fetch(`/api/public-discounts/${pubId}?userId=${encodeURIComponent(userId)}`, { method: "DELETE" });
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
