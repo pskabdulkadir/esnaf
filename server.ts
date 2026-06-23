@@ -707,24 +707,31 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
     const { id } = req.params;
     const userId = req.query.userId as string || req.user?.userId;
 
+    console.log(`📊 PUT /api/public-discounts/${id}/views - userId: ${userId}`);
+
     let updated = false;
 
     // Try Firestore first
-    if (firebaseReady && firestoreDb) {
+    if (firebaseReady && firestoreDb && userId) {
       try {
-        const discountRef = firestoreDb
-          .collectionGroup("publicDiscounts")
-          .where("id", "==", id);
+        console.log(`  🔥 Firestore'da aranıyor...`);
+        // Firestore'da userId koleksiyonunun altında ara
+        const docRef = firestoreDb
+          .collection("users")
+          .doc(userId)
+          .collection("publicDiscounts")
+          .doc(id);
 
-        const snapshot = await discountRef.get();
-        if (!snapshot.empty) {
-          snapshot.docs.forEach(async (doc) => {
-            await doc.ref.update({
-              views: (doc.data().views || 0) + 1,
-              updatedAt: new Date().toISOString()
-            });
+        const doc = await docRef.get();
+        console.log(`  📝 Firestore doc bulundu: ${doc.exists}`);
+
+        if (doc.exists) {
+          await doc.ref.update({
+            views: (doc.data().views || 0) + 1,
+            updatedAt: new Date().toISOString()
           });
           updated = true;
+          console.log(`  ✅ Firestore'da güncellendi`);
         }
       } catch (err) {
         console.warn("⚠️ Firestore views update failed:", err);
@@ -735,20 +742,30 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
     if (!updated) {
       try {
         const dbPath = path.join(process.cwd(), "db_data.json");
+        console.log(`  📄 db_data.json aranıyor: ${dbPath}`);
+
         let dbData: any = { publicDiscounts: [] };
 
         if (fs.existsSync(dbPath)) {
           const content = fs.readFileSync(dbPath, "utf-8");
           dbData = JSON.parse(content);
+          console.log(`  📋 db_data.json'da ${dbData.publicDiscounts?.length || 0} indirim var`);
+        } else {
+          console.warn(`  ⚠️ db_data.json bulunamadı`);
         }
 
         const discount = dbData.publicDiscounts?.find((d: any) => d.id === id);
+        console.log(`  🔍 İndirim ara - id: ${id}, bulundu: ${!!discount}`);
+
         if (discount) {
           discount.views = (discount.views || 0) + 1;
           discount.updatedAt = new Date().toISOString();
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+          console.log(`  ✅ db_data.json'da güncellendi (views: ${discount.views})`);
           res.json(discount);
           return;
+        } else {
+          console.warn(`  ❌ İndirim bulunamadı: ${id}`);
         }
       } catch (err) {
         console.error("❌ db_data.json views update failed:", err);
@@ -767,24 +784,31 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
     const { id } = req.params;
     const userId = req.query.userId as string || req.user?.userId;
 
+    console.log(`📊 PUT /api/public-discounts/${id}/shares - userId: ${userId}`);
+
     let updated = false;
 
     // Try Firestore first
-    if (firebaseReady && firestoreDb) {
+    if (firebaseReady && firestoreDb && userId) {
       try {
-        const discountRef = firestoreDb
-          .collectionGroup("publicDiscounts")
-          .where("id", "==", id);
+        console.log(`  🔥 Firestore'da aranıyor...`);
+        // Firestore'da userId koleksiyonunun altında ara
+        const docRef = firestoreDb
+          .collection("users")
+          .doc(userId)
+          .collection("publicDiscounts")
+          .doc(id);
 
-        const snapshot = await discountRef.get();
-        if (!snapshot.empty) {
-          snapshot.docs.forEach(async (doc) => {
-            await doc.ref.update({
-              shares: (doc.data().shares || 0) + 1,
-              updatedAt: new Date().toISOString()
-            });
+        const doc = await docRef.get();
+        console.log(`  📝 Firestore doc bulundu: ${doc.exists}`);
+
+        if (doc.exists) {
+          await doc.ref.update({
+            shares: (doc.data().shares || 0) + 1,
+            updatedAt: new Date().toISOString()
           });
           updated = true;
+          console.log(`  ✅ Firestore'da güncellendi`);
         }
       } catch (err) {
         console.warn("⚠️ Firestore shares update failed:", err);
@@ -795,20 +819,30 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
     if (!updated) {
       try {
         const dbPath = path.join(process.cwd(), "db_data.json");
+        console.log(`  📄 db_data.json aranıyor: ${dbPath}`);
+
         let dbData: any = { publicDiscounts: [] };
 
         if (fs.existsSync(dbPath)) {
           const content = fs.readFileSync(dbPath, "utf-8");
           dbData = JSON.parse(content);
+          console.log(`  📋 db_data.json'da ${dbData.publicDiscounts?.length || 0} indirim var`);
+        } else {
+          console.warn(`  ⚠️ db_data.json bulunamadı`);
         }
 
         const discount = dbData.publicDiscounts?.find((d: any) => d.id === id);
+        console.log(`  🔍 İndirim ara - id: ${id}, bulundu: ${!!discount}`);
+
         if (discount) {
           discount.shares = (discount.shares || 0) + 1;
           discount.updatedAt = new Date().toISOString();
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+          console.log(`  ✅ db_data.json'da güncellendi (shares: ${discount.shares})`);
           res.json(discount);
           return;
+        } else {
+          console.warn(`  ❌ İndirim bulunamadı: ${id}`);
         }
       } catch (err) {
         console.error("❌ db_data.json shares update failed:", err);
