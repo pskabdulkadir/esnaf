@@ -556,14 +556,20 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
           if (slug) {
             const matched = discountsData.find((d: any) => d.slug === slug);
             if (matched) {
+              console.log('🎯 fetchData: Slug eşleşti, ürün açılıyor:', matched.productName);
               setSelectedDetailDiscount(matched);
               incrementViewCount(matched.id);
+            } else {
+              console.warn('⚠️ fetchData: Slug bulunamadı:', slug);
             }
           } else if (discountId) {
             const matched = discountsData.find((d: any) => d.id === discountId);
             if (matched) {
+              console.log('🎯 fetchData: Discount ID eşleşti, ürün açılıyor:', matched.productName);
               setSelectedDetailDiscount(matched);
               incrementViewCount(matched.id);
+            } else {
+              console.warn('⚠️ fetchData: Discount ID bulunamadı:', discountId);
             }
           }
         } else {
