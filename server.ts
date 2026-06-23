@@ -111,10 +111,7 @@ async function initializeFirebase() {
   }
 }
 
-// Initialize Firebase on startup (not at module level)
-initializeFirebase().catch(err => {
-  console.warn("Firebase init warning:", err);
-});
+// Firebase initialization will be done before server starts
 
 // ============================================
 // EXPRESS APP
@@ -731,6 +728,12 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
+// Start server after Firebase initialization completes
+(async () => {
+  console.log("\n🚀 Firebase initialization başlatılıyor...");
+  await initializeFirebase();
+  console.log("✅ Firebase initialization tamamlandı.\n");
+
 const server = app.listen(PORT, () => {
   console.log(`\n${"=".repeat(60)}`);
   console.log(`✅ Production Server running on port ${PORT}`);
@@ -758,5 +761,6 @@ process.on("SIGTERM", () => {
     process.exit(0);
   });
 });
+})();
 
 export default app;
