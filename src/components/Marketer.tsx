@@ -2538,7 +2538,7 @@ export default function Marketer({ brandName, language, userId }: { brandName?: 
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
                         {publicDiscounts.map((item) => {
                           const discountPercentage = Math.round(((item.originalPrice - item.discountPrice) / item.originalPrice) * 100);
-                          const fullUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${item.slug}&view=showcase`;
+                          const fullUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${item.slug}&userId=${item.userId}&view=showcase`;
 
                           return (
                             <div key={item.id} className={`bg-stone-50 border rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-all flex flex-col ${selectedDeleteIds.has(item.id) ? 'border-rose-400 bg-rose-50' : 'border-stone-200'}`}>

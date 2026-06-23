@@ -350,31 +350,41 @@ app.delete("/api/products/:id", async (req: AuthRequest, res: Response) => {
 app.get("/api/public-discounts", async (req: Request, res: Response) => {
   try {
     const userId = req.query.userId as string;
+    const slug = req.query.slug as string;
 
-    // CRITICAL: userId is required for privacy/isolation
-    if (!userId) {
-      return res.status(400).json({ error: "userId query parametresi zorunlu (veri gizliliği)" });
+    console.log(`🔍 GET /api/public-discounts - userId: ${userId}, slug: ${slug}, firebaseReady: ${firebaseReady}`);
+
+    // CRITICAL: userId is required for privacy/isolation UNLESS slug is provided
+    if (!userId && !slug) {
+      return res.status(400).json({ error: "userId veya slug parametresi zorunlu" });
     }
-
-    console.log(`🔍 GET /api/public-discounts - userId: ${userId}, firebaseReady: ${firebaseReady}`);
 
     // If Firestore available, use it
     if (firebaseReady && firestoreDb) {
       try {
         console.log(`🔥 Firestore'dan okuyuyor - users/${userId}/publicDiscounts`);
-        const snapshot = await firestoreDb
+
+        let query: any = firestoreDb
           .collection("users")
           .doc(userId)
           .collection("publicDiscounts")
-          .where("isActive", "==", true)
-          .get();
+          .where("isActive", "==", true);
 
-        const discounts = snapshot.docs.map((doc: any) => ({
+        const snapshot = await query.get();
+
+        let discounts = snapshot.docs.map((doc: any) => ({
           id: doc.id,
           ...doc.data(),
         }));
 
-        console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
+        // If slug provided, filter by slug
+        if (slug) {
+          discounts = discounts.filter((d: any) => d.slug === slug);
+          console.log(`✅ Firestore'dan slug=${slug} ile ${discounts.length} indirim okundu`);
+        } else {
+          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
+        }
+
         return res.json(discounts);
       } catch (fsErr) {
         console.error(`❌ Firestore read hatası:`, fsErr);
@@ -401,12 +411,19 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // CRITICAL: STRICT filtering by userId - only return user's own discounts
-    const userDiscounts = allDiscounts.filter(
-      (d: any) => d.isActive === true && d.userId === userId
+    // CRITICAL: STRICT filtering by userId - only return user's own discounts (if userId provided)
+    let userDiscounts = allDiscounts.filter(
+      (d: any) => d.isActive === true && (!userId || d.userId === userId)
     );
 
-    console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor`);
+    // Filter by slug if provided
+    if (slug) {
+      userDiscounts = userDiscounts.filter((d: any) => d.slug === slug);
+      console.log(`✅ Fallback mod: slug=${slug} ile ${userDiscounts.length} indirim döndürülüyor`);
+    } else {
+      console.log(`✅ Fallback mod: ${userDiscounts.length} filtrelenmiş indirim döndürülüyor`);
+    }
+
     res.json(userDiscounts);
   } catch (err) {
     console.error("Error fetching discounts:", err);
