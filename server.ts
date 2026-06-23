@@ -399,12 +399,12 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "userId veya slug parametresi zorunlu" });
     }
 
-    // ⭐ ÖNEMLI: Slug varsa (paylaşım linki) userId'den bağımsız tüm kullanıcılardan ara
-    // userId varsa (admin panel) sadece o kullanıcının ürünlerini döndür
-    const isPublicShare = !!slug;
+    // ⭐ ÖNEMLI:
+    // - Slug + userId varsa: userId'nin ürünlerinden slug'a göre bul
+    // - Slug yoksa: userId'nin tüm ürünlerini al
 
-    // If Firestore available, use it (but skip if public share with slug - use fallback for cross-user search)
-    if (firebaseReady && firestoreDb && !isPublicShare) {
+    // If Firestore available, use it
+    if (firebaseReady && firestoreDb && userId) {
       try {
         console.log(`🔥 Firestore'dan okuyuyor - users/${userId}/publicDiscounts`);
 
@@ -422,16 +422,23 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
           ...doc.data(),
         }));
 
-        console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
+        // Filter by slug if provided
+        if (slug) {
+          discounts = discounts.filter((d: any) => d.slug === slug);
+          console.log(`✅ Firestore'dan slug=${slug} ile ${discounts.length} indirim okundu`);
+        } else {
+          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
+        }
+
         return res.json(discounts);
       } catch (fsErr) {
         console.error(`❌ Firestore read hatası:`, fsErr);
         console.warn("Fallback mode'a geçiliyor...");
       }
-    } else if (isPublicShare) {
-      console.log(`🔍 Public share detected (slug=${slug}) - fallback mode kullanılacak (cross-user search)`);
+    } else if (!userId && slug) {
+      console.log(`🔍 Public share detected (slug=${slug} without userId) - fallback mode kullanılacak`);
     } else {
-      console.warn(`⚠️ Firestore hazır değil, fallback mode kullanılıyor`);
+      console.warn(`⚠️ Firestore hazır değil veya userId yok, fallback mode kullanılıyor`);
     }
 
     // Fallback mode: read from db_data.json
