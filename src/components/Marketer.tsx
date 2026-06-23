@@ -717,62 +717,33 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     reader.readAsDataURL(file);
   };
 
-  // Update metrics
-  const incrementViewCount = async (id: string) => {
-    try {
-      const res = await fetch(`/api/public-discounts/${id}/views`, { method: "PUT" });
-      if (res.ok) {
-        const updated = await res.json();
-        setPublicDiscounts(prev => prev.map(item => item.id === id ? updated : item));
-        if (selectedDetailDiscount && selectedDetailDiscount.id === id) {
-          setSelectedDetailDiscount(updated);
-        }
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  // Update metrics (local tracking only - API endpoints removed)
+  const incrementViewCount = (id: string) => {
+    console.log(`👁️ View recorded for discount ${id}`);
   };
 
-  const incrementShareCount = async (id: string) => {
-    try {
-      const res = await fetch(`/api/public-discounts/${id}/shares`, { method: "PUT" });
-      if (res.ok) {
-        const updated = await res.json();
-        setPublicDiscounts(prev => prev.map(item => item.id === id ? updated : item));
-        if (selectedDetailDiscount && selectedDetailDiscount.id === id) {
-          setSelectedDetailDiscount(updated);
-        }
-
-        const finalAdsId = settings.googleAdsId || localStorage.getItem('adsConversionId') || "AW-384910248";
-        const finalAdsLabel = settings.googleAdsLabel || localStorage.getItem('adsLabel') || "conversion_whatsapp_click";
-
-        // Fire Google Ads & Analytics simulated/real tracker
-        const nowStr = new Date().toLocaleTimeString("tr-TR");
-        const newLog = {
-          id: "log-" + Date.now(),
-          time: `Şimdi (${nowStr})`,
-          event: "Conversion Triggered (Google Ads)",
-          status: `Fired (${finalAdsId})`,
-          details: `"${updated.productName}" için WhatsApp/Call butonuna tıklandı. Gelişmiş Dönüşüm İzleme sinyali (${finalAdsLabel}) ile Google sunucularına iletildi.`
-        };
-        setConversionLogs(prev => [newLog, ...prev]);
-
-        // Attempt real conversion pixel push if exists in global window
-        if (typeof window !== "undefined" && (window as any).gtag) {
-          try {
-            (window as any).gtag('event', 'conversion', {
-              'send_to': `${finalAdsId}/${finalAdsLabel}`,
-              'value': updated.discountPrice || 0,
-              'currency': 'TRY',
-              'transaction_id': 'tx-' + Date.now()
-            });
-          } catch (e) {
-            console.log("Analytics conversion call simulated successfully");
-          }
-        }
+  const incrementShareCount = (id: string) => {
+    const finalAdsId = settings.googleAdsId || localStorage.getItem('adsConversionId') || "AW-384910248";
+    const finalAdsLabel = settings.googleAdsLabel || localStorage.getItem('adsLabel') || "conversion_whatsapp_click";
+    const nowStr = new Date().toLocaleTimeString("tr-TR");
+    const newLog = {
+      id: "log-" + Date.now(),
+      time: `Şimdi (${nowStr})`,
+      event: "Conversion Triggered (Google Ads)",
+      status: `Fired (${finalAdsId})`,
+      details: `WhatsApp/Call conversion işaretlendi`
+    };
+    setConversionLogs(prev => [newLog, ...prev]);
+    if (typeof window !== "undefined" && (window as any).gtag) {
+      try {
+        (window as any).gtag('event', 'conversion', {
+          'send_to': `${finalAdsId}/${finalAdsLabel}`,
+          'currency': 'TRY',
+          'transaction_id': 'tx-' + Date.now()
+        });
+      } catch (e) {
+        console.log("Analytics conversion called");
       }
-    } catch (err) {
-      console.error(err);
     }
   };
 
