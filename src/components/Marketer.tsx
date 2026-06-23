@@ -593,8 +593,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const slugFromUrl = urlParams.get("slug");
+    const userIdFromUrl = urlParams.get("userId");
     console.log('📍 Component mounted - window.location.search:', window.location.search);
     console.log('📍 slug from URL:', slugFromUrl);
+    console.log('📍 userId from URL:', userIdFromUrl);
 
     // Slug varsa fetchData'yı çalıştır
     fetchData();
@@ -720,7 +722,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
   // Update metrics (local tracking only - API endpoints removed)
   const incrementViewCount = async (id: string) => {
     try {
-      const finalUserId = userId || localStorage.getItem("userId") || "unknown";
+      // URL'den userId al, yoksa state'deki userId'yi kullan
+      const urlParams = new URLSearchParams(window.location.search);
+      const userIdFromUrl = urlParams.get("userId");
+      const finalUserId = userIdFromUrl || userId || localStorage.getItem("userId") || "unknown";
       const response = await fetch(`/api/public-discounts/${id}/views?userId=${encodeURIComponent(finalUserId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" }
@@ -748,7 +753,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
 
   const incrementShareCount = async (id: string) => {
     try {
-      const finalUserId = userId || localStorage.getItem("userId") || "unknown";
+      // URL'den userId al, yoksa state'deki userId'yi kullan
+      const urlParams = new URLSearchParams(window.location.search);
+      const userIdFromUrl = urlParams.get("userId");
+      const finalUserId = userIdFromUrl || userId || localStorage.getItem("userId") || "unknown";
       const response = await fetch(`/api/public-discounts/${id}/shares?userId=${encodeURIComponent(finalUserId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" }
