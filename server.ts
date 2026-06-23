@@ -307,30 +307,54 @@ app.delete("/api/products/:id", async (req: AuthRequest, res: Response) => {
 
 app.get("/api/public-discounts", async (req: Request, res: Response) => {
   try {
-    // Public endpoint - no auth required
-    if (!firebaseReady || !firestoreDb) {
-      // Fallback mode: return empty array
-      return res.json([]);
-    }
-
     const userId = req.query.userId as string;
-    if (!userId) {
-      return res.status(400).json({ error: "userId query parametresi gerekli" });
+
+    // If Firestore available, use it
+    if (firebaseReady && firestoreDb) {
+      if (!userId) {
+        return res.status(400).json({ error: "userId query parametresi gerekli" });
+      }
+
+      const snapshot = await firestoreDb
+        .collection("users")
+        .doc(userId)
+        .collection("publicDiscounts")
+        .where("isActive", "==", true)
+        .get();
+
+      const discounts = snapshot.docs.map((doc: any) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return res.json(discounts);
     }
 
-    const snapshot = await firestoreDb
-      .collection("users")
-      .doc(userId)
-      .collection("publicDiscounts")
-      .where("isActive", "==", true)
-      .get();
+    // Fallback mode: read from db_data.json
+    const dbPath = path.join(process.cwd(), "db_data.json");
+    let allDiscounts: any[] = [];
 
-    const discounts = snapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    if (fs.existsSync(dbPath)) {
+      try {
+        const content = fs.readFileSync(dbPath, "utf-8");
+        const dbData = JSON.parse(content);
+        allDiscounts = dbData.publicDiscounts || [];
+      } catch (readErr) {
+        console.warn("Error reading db_data.json:", readErr);
+      }
+    }
 
-    res.json(discounts);
+    // If userId provided, filter by it; otherwise return all active
+    if (userId) {
+      const filtered = allDiscounts.filter(
+        (d: any) => d.isActive === true && (!d.userId || d.userId === userId)
+      );
+      return res.json(filtered);
+    }
+
+    // No userId: return all active discounts
+    const active = allDiscounts.filter((d: any) => d.isActive === true);
+    res.json(active);
   } catch (err) {
     console.error("Error fetching discounts:", err);
     res.json([]);
