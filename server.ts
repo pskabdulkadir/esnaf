@@ -439,21 +439,55 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
 
 app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) => {
   try {
-    if (!firebaseReady || !firestoreDb) {
-      return res.status(503).json({ error: "Database not available in fallback mode" });
+    const userId = req.query.userId as string || req.user?.userId;
+
+    if (!userId) {
+      return res.status(400).json({ error: "userId zorunlu" });
     }
 
-    const userId = req.user!.userId;
     const { id } = req.params;
 
-    await firestoreDb
-      .collection("users")
-      .doc(userId)
-      .collection("publicDiscounts")
-      .doc(id)
-      .delete();
+    // If Firestore available, use it
+    if (firebaseReady && firestoreDb) {
+      await firestoreDb
+        .collection("users")
+        .doc(userId)
+        .collection("publicDiscounts")
+        .doc(id)
+        .delete();
 
-    res.json({ success: true });
+      return res.json({ success: true });
+    }
+
+    // Fallback mode: delete from db_data.json
+    try {
+      const dbPath = path.join(process.cwd(), "db_data.json");
+      let dbData: any = { products: [], campaigns: [], publicDiscounts: [], settings: {} };
+
+      if (fs.existsSync(dbPath)) {
+        const content = fs.readFileSync(dbPath, "utf-8");
+        dbData = JSON.parse(content);
+      }
+
+      if (!dbData.publicDiscounts) dbData.publicDiscounts = [];
+
+      // Find and remove the discount (only if it belongs to this user)
+      const initialLength = dbData.publicDiscounts.length;
+      dbData.publicDiscounts = dbData.publicDiscounts.filter(
+        (d: any) => !(d.id === id && d.userId === userId)
+      );
+
+      // If nothing was deleted, return 404
+      if (dbData.publicDiscounts.length === initialLength) {
+        return res.status(404).json({ error: "İndirim bulunamadı" });
+      }
+
+      fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+      res.json({ success: true });
+    } catch (writeErr) {
+      console.error("db_data.json delete failed:", writeErr);
+      res.status(500).json({ error: "İndirim silinemedi" });
+    }
   } catch (err) {
     console.error("Error deleting discount:", err);
     res.status(500).json({ error: "İndirim silinemedi" });
