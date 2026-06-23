@@ -726,20 +726,19 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         headers: { "Content-Type": "application/json" }
       });
       if (response.ok) {
-        console.log(`👁️ View recorded for discount ${id}`);
+        const updatedDiscount = await response.json();
+        console.log(`👁️ View recorded for discount ${id}:`, updatedDiscount);
         // Sunucu tarafında güncellendi, şimdi local state'i güncelle
         setPublicDiscounts(prev =>
           prev.map(d =>
             d.id === id
-              ? { ...d, views: (d.views || 0) + 1 }
+              ? { ...updatedDiscount }
               : d
           )
         );
         // selectedDetailDiscount'ı da güncelle
         if (selectedDetailDiscount?.id === id) {
-          setSelectedDetailDiscount(prev =>
-            prev ? { ...prev, views: (prev.views || 0) + 1 } : null
-          );
+          setSelectedDetailDiscount(updatedDiscount);
         }
       }
     } catch (err) {
@@ -755,20 +754,19 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         headers: { "Content-Type": "application/json" }
       });
       if (response.ok) {
-        console.log(`📤 Share recorded for discount ${id}`);
+        const updatedDiscount = await response.json();
+        console.log(`📤 Share recorded for discount ${id}:`, updatedDiscount);
         // Sunucu tarafında güncellendi, şimdi local state'i güncelle
         setPublicDiscounts(prev =>
           prev.map(d =>
             d.id === id
-              ? { ...d, shares: (d.shares || 0) + 1 }
+              ? { ...updatedDiscount }
               : d
           )
         );
         // selectedDetailDiscount'ı da güncelle
         if (selectedDetailDiscount?.id === id) {
-          setSelectedDetailDiscount(prev =>
-            prev ? { ...prev, shares: (prev.shares || 0) + 1 } : null
-          );
+          setSelectedDetailDiscount(updatedDiscount);
         }
       }
     } catch (err) {

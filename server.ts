@@ -726,11 +726,15 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
         console.log(`  📝 Firestore doc bulundu: ${doc.exists}`);
 
         if (doc.exists) {
-          await doc.ref.update({
+          const updatedData = {
+            ...doc.data(),
             views: (doc.data().views || 0) + 1,
             updatedAt: new Date().toISOString()
-          });
+          };
+          await doc.ref.update(updatedData);
           updated = true;
+          res.json(updatedData);
+          return;
           console.log(`  ✅ Firestore'da güncellendi`);
         }
       } catch (err) {
@@ -803,11 +807,15 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
         console.log(`  📝 Firestore doc bulundu: ${doc.exists}`);
 
         if (doc.exists) {
-          await doc.ref.update({
+          const updatedData = {
+            ...doc.data(),
             shares: (doc.data().shares || 0) + 1,
             updatedAt: new Date().toISOString()
-          });
+          };
+          await doc.ref.update(updatedData);
           updated = true;
+          res.json(updatedData);
+          return;
           console.log(`  ✅ Firestore'da güncellendi`);
         }
       } catch (err) {
