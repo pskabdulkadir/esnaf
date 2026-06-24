@@ -9,7 +9,9 @@ dotenv.config();
 const app = express();
 const PORT = parseInt(process.env.PORT || "3000", 10);
 
-app.use(express.json());
+// Increase JSON payload limit for images (up to 50MB for base64 images)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
 const DATA_FILE = path.join(process.cwd(), "db_data.json");
 

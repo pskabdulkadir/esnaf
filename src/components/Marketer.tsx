@@ -689,7 +689,7 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     }
   };
 
-  // Device file uploader to base64 DataURL
+  // Device file uploader to base64 DataURL with optimization
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -709,12 +709,47 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     const reader = new FileReader();
     reader.onloadend = () => {
       if (typeof reader.result === "string") {
-        setProdImages(prev => {
-          const newImages = [...prev, reader.result as string];
-          console.log(`🖼️ Dosya yüklendi - Yeni toplam: ${newImages.length}`);
-          showToast(`✅ "${file.name}" galeriye eklendi (${newImages.length}/${newImages.length})`, "success");
-          return newImages;
-        });
+        // Optimize image by compressing if it's too large
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            let width = img.naturalWidth;
+            let height = img.naturalHeight;
+
+            // Reduce if larger than 2000px on longest side
+            const maxDimension = 2000;
+            if (width > maxDimension || height > maxDimension) {
+              const ratio = Math.min(maxDimension / width, maxDimension / height);
+              width = Math.round(width * ratio);
+              height = Math.round(height * ratio);
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, width, height);
+              // Compress JPEG quality to 0.85
+              const optimizedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+              setProdImages(prev => {
+                const newImages = [...prev, optimizedDataUrl];
+                console.log(`🖼️ Dosya yüklendi ve optimize edildi - Yeni toplam: ${newImages.length}`);
+                showToast(`✅ "${file.name}" galeriye eklendi ve optimize edildi`, "success");
+                return newImages;
+              });
+            }
+          } catch (err) {
+            console.error("Optimization error:", err);
+            // Fallback: use original
+            setProdImages(prev => {
+              const newImages = [...prev, reader.result as string];
+              console.log(`🖼️ Dosya yüklendi (optimize başarısız) - Yeni toplam: ${newImages.length}`);
+              return newImages;
+            });
+          }
+        };
+        img.src = reader.result;
 
         // Push notification log to active conversion list
         const log = {
