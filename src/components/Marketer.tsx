@@ -694,7 +694,13 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate size (Maks 5MB)
+    // Validate image format
+    if (!file.type.startsWith('image/')) {
+      showToast("Hata: Lütfen geçerli bir resim dosyası seçiniz (JPG, PNG, GIF, WebP vb.)", "error");
+      return;
+    }
+
+    // Validate size (Maks 5MB per image)
     if (file.size > 5 * 1024 * 1024) {
       showToast("Hata: Yüklemek istediğiniz resim boyutu 5MB sınırını aşmaktadır!", "error");
       return;
@@ -703,8 +709,13 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     const reader = new FileReader();
     reader.onloadend = () => {
       if (typeof reader.result === "string") {
-        setProdImages(prev => [...prev, reader.result as string]);
-        
+        setProdImages(prev => {
+          const newImages = [...prev, reader.result as string];
+          console.log(`🖼️ Dosya yüklendi - Yeni toplam: ${newImages.length}`);
+          showToast(`✅ "${file.name}" galeriye eklendi (${newImages.length}/${newImages.length})`, "success");
+          return newImages;
+        });
+
         // Push notification log to active conversion list
         const log = {
           id: "upload-" + Date.now(),
@@ -715,6 +726,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         };
         setConversionLogs(prev => [log, ...prev]);
       }
+    };
+    reader.onerror = () => {
+      console.error("❌ FileReader Error:", reader.error);
+      showToast("Hata: Resim dosyası okunamadı. Lütfen tekrar deneyin.", "error");
     };
     reader.readAsDataURL(file);
   };
@@ -982,6 +997,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         ? prodImages.join("|")
         : (CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"]);
 
+      console.log(`📸 Kampanya yayınlanıyor - Görseller: ${prodImages.length}, finalImg length: ${finalImg.length}`);
+
       const pubResponse = await fetch("/api/public-discounts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1025,13 +1042,14 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
           console.warn("⚠️ Google notification hatası:", googleErr);
         }
 
+        const imageCount = prodImages.length;
         setProdName("");
         setProdPrice("");
         setProdDiscountPrice("");
         setProdDescription("");
         setProdAdCopy("");
         setProdImages([]);
-        showToast("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀\n✅ Google'a otomatik olarak bildirildi!", "success");
+        showToast(`Tebrikler! 🚀 ${imageCount > 0 ? `📸 ${imageCount} görselle ` : ''}kampanyanız vitrine çıkdı! ✅`, "success");
         fetchData();
         setActiveTab("catalogue");
       }
@@ -2178,17 +2196,23 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                       {/* Product Image Selection Section */}
                       <div className="border border-stone-200 rounded-2xl p-4 bg-stone-50/50 animate-fadeIn flex flex-col gap-3">
                         <div className="flex justify-between items-center text-stone-500">
-                          <label className="block text-xs uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELLERİ EKLE (SINIRSIZ)</label>
+                          <label className="block text-xs uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELLERİ EKLE (SINIRSIZ ✓)</label>
                           {prodImages.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => setProdImages([])}
+                              onClick={() => {
+                                setProdImages([]);
+                                showToast("📸 Tüm görseller temizlendi", "info");
+                              }}
                               className="text-xs text-rose-600 hover:text-rose-700 font-extrabold flex items-center gap-1 cursor-pointer bg-red-50 px-2.5 py-1 rounded-lg border border-red-100 transition-all animate-fadeIn"
                             >
                               Temizle
                             </button>
                           )}
                         </div>
+                        <p className="text-[11px] text-stone-600 bg-blue-50 border border-blue-100 rounded-lg p-2 leading-relaxed">
+                          💡 <strong>İpucu:</strong> Her türlü görsel formattan (JPG, PNG, WebP vb.) istediğiniz kadar fotoğraf ekleyebilirsiniz. Dosyada URL yapıştırarak veya cihazdan seçerek ekleyin.
+                        </p>
 
                         {/* Interactive File Drag & Drop + Direct URL Select / Preview */}
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2198,7 +2222,7 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                           >
                             <Smartphone className="h-6 w-6 text-stone-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
                             <span className="text-sm font-black text-stone-800">Cihazdan Fotoğraf Yükle</span>
-                            <span className="text-xs text-stone-400 font-medium">Fotoğraf seçerek galeriye ekleyin</span>
+                            <span className="text-xs text-stone-400 font-medium">Fotoğraf seçerek galeriye ekleyin (Sınırsız)</span>
                             <input 
                               id="device-file-input" 
                               type="file" 
@@ -2218,17 +2242,25 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                             <div className="flex gap-2">
                               <input
                                 id="manual-url-input"
-                                type="url"
-                                placeholder="Görsel web adresi (URL) yapıştırın..."
+                                type="text"
+                                placeholder="Görsel web adresi (URL) yapıştırın... (Her türlü format)"
                                 className="flex-1 bg-stone-50 border border-stone-200 rounded-lg px-3 py-2 text-stone-950 font-bold placeholder:text-stone-300 focus:outline-none focus:border-stone-400 transition-all text-xs"
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     e.preventDefault();
                                     const val = (e.currentTarget as HTMLInputElement).value.trim();
-                                    if (val && !prodImages.includes(val)) {
-                                      setProdImages(prev => [...prev, val]);
-                                      (e.currentTarget as HTMLInputElement).value = "";
+                                    if (!val) {
+                                      showToast("Lütfen bir görsel URL'si girin", "error");
+                                      return;
                                     }
+                                    if (prodImages.includes(val)) {
+                                      showToast("Bu görsel zaten galeriye eklenmiş", "info");
+                                      return;
+                                    }
+                                    setProdImages(prev => [...prev, val]);
+                                    (e.currentTarget as HTMLInputElement).value = "";
+                                    console.log(`🖼️ Görsel eklendi - Toplam: ${prodImages.length + 1}`);
+                                    showToast("✅ Görsel başarıyla galeriye eklendi", "success");
                                   }
                                 }}
                               />
@@ -2238,10 +2270,19 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                                   const input = document.getElementById('manual-url-input') as HTMLInputElement;
                                   if (input) {
                                     const val = input.value.trim();
-                                    if (val && !prodImages.includes(val)) {
-                                      setProdImages(prev => [...prev, val]);
-                                      input.value = "";
+                                    if (!val) {
+                                      showToast("Lütfen bir görsel URL'si girin", "error");
+                                      return;
                                     }
+                                    if (prodImages.includes(val)) {
+                                      showToast("Bu görsel zaten galeriye eklenmiş", "info");
+                                      return;
+                                    }
+                                    setProdImages(prev => [...prev, val]);
+                                    const newCount = prodImages.length + 1;
+                                    console.log(`🖼️ Görsel eklendi - Toplam: ${newCount}`);
+                                    input.value = "";
+                                    showToast(`✅ Görsel başarıyla galeriye eklendi (${newCount}/${newCount})`, "success");
                                   }
                                 }}
                                 className="px-4 py-2 bg-stone-900 hover:bg-stone-950 text-white rounded-lg text-xs font-black cursor-pointer transition-colors shrink-0"
@@ -2255,14 +2296,20 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
                         {/* Interactive List of Loaded Images */}
                         {prodImages.length > 0 && (
                           <div className="mt-1 p-3 bg-white rounded-xl border border-stone-150 animate-fadeIn">
-                            <span className="block text-xs uppercase font-extrabold text-stone-500 mb-2">📋 Galeriye Eklenen Resimler (Sıralı):</span>
-                            <div className="flex flex-wrap gap-2.5 max-h-40 overflow-y-auto p-2 bg-stone-50 rounded-lg">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-xs uppercase font-extrabold text-stone-500">📋 Galeriye Eklenen Resimler (Sıralı):</span>
+                              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded">🖼️ {prodImages.length} Görsel</span>
+                            </div>
+                            <div className="flex flex-wrap gap-2.5 max-h-52 overflow-y-auto p-2 bg-stone-50 rounded-lg">
                               {prodImages.map((src, i) => (
                                 <div key={i} className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-lg overflow-hidden border border-stone-200 group-hover:scale-95 transition-all">
                                   <img src={src} className="h-full w-full object-cover" alt="product thumbnail" referrerPolicy="no-referrer" />
                                   <button
                                     type="button"
-                                    onClick={() => setProdImages(prev => prev.filter((_, idx) => idx !== i))}
+                                    onClick={() => {
+                                      setProdImages(prev => prev.filter((_, idx) => idx !== i));
+                                      showToast("🗑️ Görsel galeriden kaldırıldı", "info");
+                                    }}
                                     className="absolute -top-2 -right-2 bg-red-650 hover:bg-red-700 text-white rounded-full p-1 h-6 w-6 flex items-center justify-center text-sm font-black shadow-sm transition-all cursor-pointer"
                                     title="Görseli Kaldır"
                                   >
