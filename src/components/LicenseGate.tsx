@@ -261,6 +261,7 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
         // ⭐ KRITIK: Lisansı tüm seviyelerde hemen kaydet
         const licenseJSON = JSON.stringify(licenseData);
         const timestamp = new Date().getTime();
+        let savedSuccessfully = false;
 
         // SEVIYE 1: localStorage (SENKRON - AYNI ANDA)
         try {
@@ -269,8 +270,9 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
           localStorage.setItem('isLicenseValid', 'true');
           localStorage.setItem('license_backup_' + timestamp, licenseJSON);
           console.log('✅ localStorage\'a kaydedildi');
+          savedSuccessfully = true;
         } catch (e) {
-          console.error('localStorage kaydetme hatası:', e);
+          console.warn('⚠️ localStorage kaydetme başarısız (private mode olabilir):', e);
         }
 
         // SEVIYE 2: sessionStorage (SENKRON)
@@ -278,8 +280,9 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
           sessionStorage.setItem('license_data_session', licenseJSON);
           sessionStorage.setItem('license_valid_session', 'true');
           console.log('✅ sessionStorage\'a kaydedildi');
+          savedSuccessfully = true;
         } catch (e) {
-          console.error('sessionStorage kaydetme hatası:', e);
+          console.warn('⚠️ sessionStorage kaydetme başarısız:', e);
         }
 
         // SEVIYE 3: Memory (SENKRON)
@@ -290,8 +293,22 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
             valid: true
           };
           console.log('✅ Memory\'e kaydedildi');
+          savedSuccessfully = true;
         } catch (e) {
-          console.error('Memory kaydetme hatası:', e);
+          console.warn('⚠️ Memory kaydı başarısız:', e);
+        }
+
+        if (!savedSuccessfully) {
+          setValidationMessage({
+            text: language === 'tr'
+              ? '⚠️ Uyarı: Lisans bellek erişimi başarısız. Lütfen tarayıcı ayarlarınızı kontrol edin.'
+              : language === 'de'
+              ? '⚠️ Warnung: Lizenzspeicherzugriff fehlgeschlagen. Bitte überprüfen Sie Ihre Browsereinstellungen.'
+              : '⚠️ Warning: License storage access failed. Please check your browser settings.',
+            type: 'error'
+          });
+          setIsLoading(false);
+          return;
         }
 
         // ⭐ SEVIYE 4 + 5: IndexedDB + Kullanılan Lisans Kaydı (ASYNC - SERI OLARAK)
@@ -301,16 +318,20 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
             const success = await saveLicenseToIndexedDB(machineId, licenseData, machineId);
             if (success) {
               console.log('🔒 Lisans IndexedDB\'ye kaydedildi (Cihaz tanımlaması)');
+            } else {
+              console.warn('⚠️ IndexedDB kaydı başarısız');
             }
 
             // SEVIYE 5: Kullanılan lisans anahtarını kaydet (tek seferlik kullanım için)
             const recordSuccess = await recordUsedLicense(machineId, licenseKey);
             if (recordSuccess) {
               console.log('📝 Lisans kullanımı kaydedildi (tek seferlik)');
+            } else {
+              console.warn('⚠️ Lisans kullanımı kaydı başarısız');
             }
 
             // ⭐ TAMAMLANINCA: Şifre ekranına git
-            console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
+            console.log('✅ Lisans kaydedildi:', licenseData);
             setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
 
             setTimeout(() => {
@@ -319,9 +340,9 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
               setPasswordMessage(null);
             }, 500);
           } catch (e) {
-            console.error('IndexedDB kaydetme hatası:', e);
-            // Hata olsa da devam et, localStorage vardır
-            console.log('✅ Lisans tüm seviyelerde kaydedildi:', licenseData);
+            console.warn('⚠️ Async saklama hatası (devam ediliyor):', e);
+            // Hata olsa da devam et, en az sessionStorage/Memory vardır
+            console.log('✅ Lisans kaydedildi:', licenseData);
             setValidationMessage({ text: t.keySubmittedSuccess, type: 'success' });
 
             setTimeout(() => {
@@ -452,9 +473,38 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
         <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-800/50 rounded-3xl shadow-2xl p-8 md:p-10 space-y-8 animate-scale-up">
 
           {!licenseValidated ? (
-            <>
-              {/* Instructions */}
-              <div className="bg-slate-950/50 border border-slate-800/30 rounded-2xl p-6 space-y-3">
+        <>
+          {/* iOS Private Mode Warning */}
+          {typeof window !== 'undefined' && (() => {
+            try {
+              localStorage.setItem('_test', '1');
+              localStorage.removeItem('_test');
+              return null; // localStorage çalışıyor
+            } catch (e) {
+              return (
+                <div className="mb-6 bg-yellow-950/40 border border-yellow-600/30 rounded-2xl p-4 space-y-2 animate-fade-in">
+                  <p className="text-yellow-300 font-semibold text-sm flex items-center gap-2">
+                    <span>⚠️</span>
+                    {language === 'tr'
+                      ? 'Safari Private Mode Algılandı'
+                      : language === 'de'
+                      ? 'Safari Private Modus erkannt'
+                      : 'Safari Private Mode Detected'}
+                  </p>
+                  <p className="text-yellow-200 text-xs">
+                    {language === 'tr'
+                      ? 'Lisansınız sessionStorage ve bellek\'te saklanacak. Tarayıcı kapatılırsa lisansı yeniden giriş yapmanız gerekebilir. Normal modda kullanmayı önerilir.'
+                      : language === 'de'
+                      ? 'Ihre Lizenz wird im sessionStorage und im Speicher gespeichert. Wenn Sie den Browser schließen, müssen Sie die Lizenz möglicherweise erneut eingeben. Es wird empfohlen, den normalen Modus zu verwenden.'
+                      : 'Your license will be stored in sessionStorage and memory. If you close the browser, you may need to re-enter the license. Normal mode is recommended.'}
+                  </p>
+                </div>
+              );
+            }
+          })()}
+
+          {/* Instructions */}
+          <div className="bg-slate-950/50 border border-slate-800/30 rounded-2xl p-6 space-y-3">
                 <p className="text-slate-300 font-semibold text-sm flex items-center gap-2">
                   <span className="text-indigo-400">ℹ️</span>
                   {t.instructions}

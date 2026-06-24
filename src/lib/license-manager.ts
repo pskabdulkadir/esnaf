@@ -19,7 +19,43 @@ export function loadLicenseData(): LicenseData | null {
       return JSON.parse(licenseDataStr);
     }
   } catch (e) {
-    console.error('Lisans verisi yükleme hatası:', e);
+    console.warn('localStorage okuma hatası:', e);
+  }
+  return null;
+}
+
+/**
+ * IndexedDB'den lisans verilerini yükle (localStorage fallback)
+ */
+export async function loadLicenseDataFromIndexedDB(): Promise<LicenseData | null> {
+  try {
+    const db = await new Promise<IDBDatabase>((resolve, reject) => {
+      const request = indexedDB.open('esnaf_db', 1);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      request.onupgradeneeded = (e) => {
+        const db = (e.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains('license_data')) {
+          db.createObjectStore('license_data');
+        }
+      };
+    });
+
+    const licenseStr = await new Promise<string | undefined>((resolve, reject) => {
+      const tx = db.transaction('license_data', 'readonly');
+      const store = tx.objectStore('license_data');
+      const request = store.get('current');
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+    });
+
+    db.close();
+
+    if (licenseStr) {
+      return JSON.parse(licenseStr);
+    }
+  } catch (e) {
+    console.warn('IndexedDB okuma hatası:', e);
   }
   return null;
 }
@@ -205,20 +241,22 @@ export function loadAndValidatePersistentLicense(): {
 /**
  * Lisans kalıcılığını sağla
  * Tarayıcı sıfırlanırsa bile geri yüklenebilir
- * ÇOKLU BACKUP SEVİYESİ: localStorage + sessionStorage + JSON string
+ * ÇOKLU BACKUP SEVİYESİ: localStorage + sessionStorage + Memory + IndexedDB
  */
 export function ensureLicensePersistency(licenseData: LicenseData): void {
   try {
     const timestamp = new Date().getTime();
     const jsonStr = JSON.stringify(licenseData);
+    let savedCount = 0;
 
     // SEVIYE 1: localStorage'a kaydet (Ana saklama)
     try {
       saveLicenseData(licenseData);
       localStorage.setItem('isLicenseValid', 'true');
       console.log('✅ localStorage\'a kaydedildi');
+      savedCount++;
     } catch (e1) {
-      console.warn('localStorage kaydı başarısız:', e1);
+      console.warn('⚠️ localStorage kaydı başarısız (private mode olabilir):', e1);
     }
 
     // SEVIYE 2: Zaman damgalı backup localStorage'da
@@ -226,7 +264,7 @@ export function ensureLicensePersistency(licenseData: LicenseData): void {
       localStorage.setItem('license_backup_' + timestamp, jsonStr);
       console.log('✅ localStorage backup\'ı kaydedildi');
     } catch (e2) {
-      console.warn('localStorage backup kaydı başarısız:', e2);
+      console.warn('⚠️ localStorage backup kaydı başarısız:', e2);
     }
 
     // SEVIYE 3: sessionStorage'a kaydet (Sayfa yenilemede kalır, tarayıcı kapatılırsa silinir)
@@ -234,8 +272,9 @@ export function ensureLicensePersistency(licenseData: LicenseData): void {
       sessionStorage.setItem('license_data_session', jsonStr);
       sessionStorage.setItem('license_valid_session', 'true');
       console.log('✅ sessionStorage\'a kaydedildi');
+      savedCount++;
     } catch (e3) {
-      console.warn('sessionStorage kaydı başarısız:', e3);
+      console.warn('⚠️ sessionStorage kaydı başarısız:', e3);
     }
 
     // SEVIYE 4: Window objesine kaydet (RAM'de, en hızlı erişim)
@@ -246,11 +285,46 @@ export function ensureLicensePersistency(licenseData: LicenseData): void {
         valid: true
       };
       console.log('✅ Memory\'ye kaydedildi');
+      savedCount++;
     } catch (e4) {
-      console.warn('Memory kaydı başarısız:', e4);
+      console.warn('⚠️ Memory kaydı başarısız:', e4);
     }
 
-    console.log('🔒 Lisans çoklu seviyelerde kalıcı olarak saklandı');
+    // SEVIYE 5: IndexedDB'ye kaydet (async, non-blocking)
+    (async () => {
+      try {
+        const db = await new Promise<IDBDatabase>((resolve, reject) => {
+          const request = indexedDB.open('esnaf_db', 1);
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve(request.result);
+          request.onupgradeneeded = (e) => {
+            const db = (e.target as IDBOpenDBRequest).result;
+            if (!db.objectStoreNames.contains('license_data')) {
+              db.createObjectStore('license_data');
+            }
+          };
+        });
+
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction('license_data', 'readwrite');
+          const store = tx.objectStore('license_data');
+          const request = store.put(jsonStr, 'current');
+          request.onerror = () => reject(request.error);
+          request.onsuccess = () => resolve();
+        });
+
+        db.close();
+        console.log('✅ IndexedDB\'ye kaydedildi');
+      } catch (e5) {
+        console.warn('⚠️ IndexedDB kaydı başarısız:', e5);
+      }
+    })();
+
+    if (savedCount >= 2) {
+      console.log(`🔒 Lisans ${savedCount} seviyelerde kalıcı olarak saklandı (2+ gerekli)`);
+    } else {
+      console.warn(`⚠️ Lisans sadece ${savedCount} seviyede kaydedildi (en az 2 gerekli)`);
+    }
   } catch (e) {
     console.error('Lisans kalıcılık sağlama hatası:', e);
   }
