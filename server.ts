@@ -2,36 +2,28 @@ import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
-import { createRequire } from "module";
 
 dotenv.config();
-
-// ESM'de require() simulate et
-const require = createRequire(import.meta.url);
 
 // ESM/CJS uyumlu __dirname tanımı
 const __dirname = process.cwd();
 
-// Firebase Admin SDK - CommonJS require ile yükle
+// Firebase Admin SDK - Dynamic import (async)
 let firebaseAdmin: any = null;
+let firebaseImported = false;
 
-function loadFirebaseAdminSDK() {
-  if (firebaseAdmin) return firebaseAdmin;
+async function loadFirebaseAdminSDK() {
+  if (firebaseImported) return firebaseAdmin;
+  firebaseImported = true;
 
   try {
-    // CommonJS require ile yükle (ESM'de de çalışır)
-    firebaseAdmin = require("firebase-admin");
-    console.log("✅ firebase-admin (CommonJS) yüklendi başarılı");
-
-    // Kontrol et
-    if (!firebaseAdmin.credential || !firebaseAdmin.firestore || !firebaseAdmin.initializeApp) {
-      console.warn("⚠️ Firebase exports eksik - fallback mode");
-      return null;
-    }
-
+    // Dynamic ESM import
+    const admin = await import("firebase-admin");
+    firebaseAdmin = admin.default || admin;
+    console.log("✅ firebase-admin import başarılı");
     return firebaseAdmin;
   } catch (err) {
-    console.warn("⚠️ firebase-admin yükleme başarısız:", err);
+    console.warn("⚠️ firebase-admin import başarısız:", err);
     return null;
   }
 }
@@ -57,8 +49,8 @@ async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
 
-    // Firebase Admin SDK'yı yükle (CommonJS require)
-    const admin = loadFirebaseAdminSDK();
+    // Firebase Admin SDK'yı async import et
+    const admin = await loadFirebaseAdminSDK();
     if (!admin) {
       console.warn("⚠️  Firebase Admin SDK yüklenemedi - fallback to file-based mode");
       firebaseReady = false;
