@@ -2,26 +2,41 @@ import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { fileURLToPath } from "url";
 
 dotenv.config();
 
-// Firebase Admin SDK - CommonJS require
+// ESM'de __dirname tanımı
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Firebase Admin SDK - Lazy import
 let firebaseAdmin: any = null;
-let FirestoreModule: any = null;
 
-try {
-  firebaseAdmin = require("firebase-admin");
-  console.log("✅ firebase-admin require başarılı");
+// Firebase'i gerektiğinde import etmeyi dene (async)
+async function loadFirebaseAdminSDK() {
+  if (firebaseAdmin) return firebaseAdmin;
 
-  // Firestore module'ü ayrı import et
   try {
-    FirestoreModule = require("firebase-admin/firestore");
-    console.log("✅ firebase-admin/firestore module başarılı");
+    // ESM import - default export almak için .default kullan
+    const module = await import("firebase-admin");
+    firebaseAdmin = module.default || module;
+    console.log("✅ firebase-admin import başarılı");
+
+    // Kontrol et
+    if (!firebaseAdmin.credential || !firebaseAdmin.firestore) {
+      console.warn("⚠️ Firebase exports bozuk, alternatif yol deneniyor...");
+      // Fallback: doğrudan module'ü kullan
+      if (module.credential && module.firestore) {
+        firebaseAdmin = module;
+      }
+    }
+
+    return firebaseAdmin;
   } catch (err) {
-    console.warn("⚠️ firebase-admin/firestore require başarısız:", err);
+    console.warn("⚠️ firebase-admin import başarısız:", err);
+    return null;
   }
-} catch (err) {
-  console.warn("⚠️ firebase-admin require başarısız:", err);
 }
 
 // ============================================
@@ -44,6 +59,15 @@ let firebaseReady = false;
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
+
+    // Firebase Admin SDK'yı yükle (gerekirse)
+    const admin = await loadFirebaseAdminSDK();
+    if (!admin) {
+      console.warn("⚠️  Firebase Admin SDK yüklenemedi - fallback to file-based mode");
+      firebaseReady = false;
+      return;
+    }
+
     console.log("📋 Env variables kontrol:");
     console.log("  - FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID ? "✅" : "❌");
     console.log("  - FIREBASE_PRIVATE_KEY_ID:", process.env.FIREBASE_PRIVATE_KEY_ID ? "✅" : "❌");
@@ -51,23 +75,15 @@ async function initializeFirebase() {
     console.log("  - FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL ? "✅" : "❌");
     console.log("  - FIREBASE_CLIENT_ID:", process.env.FIREBASE_CLIENT_ID ? "✅" : "❌");
 
-    // Check if Firebase Admin SDK is available
+    // Check if Firebase Admin SDK has required methods
     console.log("🔍 Firebase Admin SDK kontrol:");
-    console.log("  - firebaseAdmin type:", typeof firebaseAdmin);
-    console.log("  - firebaseAdmin.cert type:", typeof firebaseAdmin?.cert);
-    console.log("  - firebaseAdmin.initializeApp type:", typeof firebaseAdmin?.initializeApp);
-    console.log("  - FirestoreModule type:", typeof FirestoreModule);
-    console.log("  - FirestoreModule.getFirestore type:", typeof FirestoreModule?.getFirestore);
+    console.log("  - admin.credential type:", typeof admin?.credential);
+    console.log("  - admin.credential.cert type:", typeof admin?.credential?.cert);
+    console.log("  - admin.initializeApp type:", typeof admin?.initializeApp);
+    console.log("  - admin.firestore type:", typeof admin?.firestore);
 
-    if (!firebaseAdmin || !firebaseAdmin.cert || !firebaseAdmin.initializeApp || !FirestoreModule?.getFirestore) {
-      console.warn("⚠️  Firebase Admin SDK not available - fallback to file-based mode");
-      console.warn("  Firebase Admin SDK eksik özellikleri:", {
-        hasFirebaseAdmin: !!firebaseAdmin,
-        hasCert: !!firebaseAdmin?.cert,
-        hasInitializeApp: !!firebaseAdmin?.initializeApp,
-        hasFirestoreModule: !!FirestoreModule,
-        hasGetFirestore: !!FirestoreModule?.getFirestore
-      });
+    if (!admin?.credential?.cert || !admin?.initializeApp || !admin?.firestore) {
+      console.warn("⚠️  Firebase Admin SDK eksik metotlar - fallback to file-based mode");
       firebaseReady = false;
       return;
     }
@@ -91,17 +107,17 @@ async function initializeFirebase() {
       return;
     }
 
-    if (!firebaseAdmin.apps || firebaseAdmin.apps.length === 0) {
+    if (!admin.apps || admin.apps.length === 0) {
       console.log("🔧 Firebase initializeApp çağrılıyor...");
-      firebaseAdmin.initializeApp({
-        credential: firebaseAdmin.cert(serviceAccount),
+      admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
       });
       console.log("✅ Firebase initializeApp başarılı");
     }
 
     // Firestore instance al
-    firestoreDb = FirestoreModule.getFirestore();
-    console.log("📝 Firestore instance alındı (via FirestoreModule.getFirestore())");
+    firestoreDb = admin.firestore();
+    console.log("📝 Firestore instance alındı");
 
     await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
     console.log("✅ Firestore health test başarılı");
@@ -946,6 +962,243 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
 // ============================================
 // ERROR HANDLING & SERVER START
 // ============================================
+
+// ============================================
+// API: RECOVERY & DIAGNOSTICS
+// ============================================
+
+// ⭐ YENİ: Tüm discountları userId'ye göre listele (diagnostic amaçlı)
+app.get("/api/admin/list-all-discounts", async (req: Request, res: Response) => {
+  try {
+    const queryUserId = req.query.userId as string;
+    const machinePrefix = req.query.machinePrefix as string;
+
+    if (!queryUserId && !machinePrefix) {
+      return res.status(400).json({
+        error: "userId veya machinePrefix parametresi gerekli",
+        example: "/api/admin/list-all-discounts?userId=license_AE3C8E03B175FA2A_unknown"
+      });
+    }
+
+    console.log(`\n📊 Admin: Tüm discountları listele - userId: ${queryUserId}, prefix: ${machinePrefix}`);
+
+    if (firebaseReady && firestoreDb) {
+      try {
+        const usersSnapshot = await firestoreDb.collection("users").get();
+        const allDiscounts: any[] = [];
+
+        for (const userDoc of usersSnapshot.docs) {
+          const userId = userDoc.id;
+
+          // MachinePrefix ile match et
+          if (machinePrefix && !userId.includes(machinePrefix)) {
+            continue;
+          }
+
+          // userId ile match et
+          if (queryUserId && userId !== queryUserId) {
+            continue;
+          }
+
+          const discountsSnapshot = await userDoc.ref.collection("publicDiscounts").get();
+
+          for (const discountDoc of discountsSnapshot.docs) {
+            const discount = discountDoc.data();
+            allDiscounts.push({
+              currentUserId: userId,
+              storedUserId: discount.userId,
+              id: discountDoc.id,
+              productName: discount.productName,
+              slug: discount.slug,
+              isActive: discount.isActive,
+              views: discount.views || 0,
+              shares: discount.shares || 0,
+              publishedAt: discount.publishedAt,
+            });
+          }
+        }
+
+        console.log(`✅ ${allDiscounts.length} discount bulundu`);
+        return res.json({
+          count: allDiscounts.length,
+          discounts: allDiscounts
+        });
+      } catch (err) {
+        console.error("Firestore list error:", err);
+        return res.status(500).json({ error: "Firestore error", details: String(err) });
+      }
+    } else {
+      // Fallback mode: db_data.json'dan oku
+      console.log("📄 Fallback mode - db_data.json'dan okuyoruz");
+      const dbPath = path.join(process.cwd(), "db_data.json");
+
+      if (!fs.existsSync(dbPath)) {
+        return res.status(404).json({
+          error: "db_data.json bulunamadı",
+          discounts: []
+        });
+      }
+
+      try {
+        const dbContent = fs.readFileSync(dbPath, "utf-8");
+        const dbData = JSON.parse(dbContent);
+        const allDiscounts = dbData.publicDiscounts || [];
+
+        // machinePrefix ile filtrele
+        const filtered = allDiscounts.filter((d: any) => {
+          if (machinePrefix && !d.userId?.includes(machinePrefix)) {
+            return false;
+          }
+          if (queryUserId && d.userId !== queryUserId) {
+            return false;
+          }
+          return true;
+        });
+
+        console.log(`✅ ${filtered.length} discount bulundu (fallback mode)`);
+        return res.json({
+          count: filtered.length,
+          discounts: filtered,
+          mode: "fallback"
+        });
+      } catch (parseErr) {
+        return res.status(500).json({
+          error: "db_data.json parse error",
+          discounts: []
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Admin list error:", err);
+    res.status(500).json({ error: "Internal error", details: String(err) });
+  }
+});
+
+// ⭐ YENİ: Recovery - eski userId'deki discountları yeni userId'ye taşı
+app.post("/api/admin/recover-discounts", async (req: AuthRequest, res: Response) => {
+  try {
+    const { oldUserId, newUserId } = req.body;
+
+    if (!oldUserId || !newUserId) {
+      return res.status(400).json({
+        error: "oldUserId ve newUserId parametreleri gerekli",
+        example: {
+          oldUserId: "license_AE3C8E03B175FA2A_unknown",
+          newUserId: "user_4956C39550333A28_zeqn03ik0"
+        }
+      });
+    }
+
+    console.log(`\n🔧 Admin: Recovery başlıyor - ${oldUserId} → ${newUserId}`);
+
+    if (firebaseReady && firestoreDb) {
+      try {
+        // Eski userId'deki tüm discountları bul
+        const oldUserRef = firestoreDb.collection("users").doc(oldUserId);
+        const discountsSnapshot = await oldUserRef.collection("publicDiscounts").get();
+
+        console.log(`📦 ${discountsSnapshot.size} discount taşınacak (Firestore)`);
+
+        let movedCount = 0;
+        for (const discountDoc of discountsSnapshot.docs) {
+          const discountData = discountDoc.data();
+
+          // Yeni location'da oluştur
+          const newDocRef = firestoreDb
+            .collection("users")
+            .doc(newUserId)
+            .collection("publicDiscounts")
+            .doc(discountDoc.id);
+
+          const updatedDiscount = {
+            ...discountData,
+            userId: newUserId,
+            recoveredAt: new Date().toISOString(),
+            recoveredFrom: oldUserId,
+          };
+
+          await newDocRef.set(updatedDiscount);
+          console.log(`  ✅ "${discountData.productName}" taşındı`);
+
+          // Eski location'dan sil
+          await discountDoc.ref.delete();
+          movedCount++;
+        }
+
+        console.log(`✅ Recovery tamamlandı - ${movedCount} discount taşındı`);
+
+        return res.json({
+          success: true,
+          message: `${movedCount} discount başarıyla taşındı`,
+          oldUserId,
+          newUserId,
+          movedCount
+        });
+      } catch (err) {
+        console.error("Recovery error:", err);
+        return res.status(500).json({
+          error: "Recovery failed",
+          details: String(err)
+        });
+      }
+    } else {
+      // Fallback mode: db_data.json'da işlem yap
+      console.log("📄 Fallback mode - db_data.json'da işlem yapılıyor");
+      const dbPath = path.join(process.cwd(), "db_data.json");
+
+      if (!fs.existsSync(dbPath)) {
+        return res.status(404).json({
+          error: "db_data.json bulunamadı",
+          success: false
+        });
+      }
+
+      try {
+        const dbContent = fs.readFileSync(dbPath, "utf-8");
+        const dbData = JSON.parse(dbContent);
+        const allDiscounts = dbData.publicDiscounts || [];
+
+        // Eski userId'deki discountları bul
+        const discountsToMove = allDiscounts.filter((d: any) => d.userId === oldUserId);
+
+        console.log(`📦 ${discountsToMove.length} discount taşınacak (fallback mode)`);
+
+        // Yeni userId ile güncelle
+        let movedCount = 0;
+        for (const discount of discountsToMove) {
+          discount.userId = newUserId;
+          discount.recoveredAt = new Date().toISOString();
+          discount.recoveredFrom = oldUserId;
+          console.log(`  ✅ "${discount.productName}" taşındı`);
+          movedCount++;
+        }
+
+        // Dosyaya yaz
+        fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
+
+        console.log(`✅ Recovery tamamlandı - ${movedCount} discount taşındı (fallback)`);
+
+        return res.json({
+          success: true,
+          message: `${movedCount} discount başarıyla taşındı (fallback mode)`,
+          oldUserId,
+          newUserId,
+          movedCount,
+          mode: "fallback"
+        });
+      } catch (fileErr) {
+        console.error("Fallback recovery error:", fileErr);
+        return res.status(500).json({
+          error: "Recovery failed in fallback mode",
+          details: String(fileErr)
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Recovery endpoint error:", err);
+    res.status(500).json({ error: "Internal error", details: String(err) });
+  }
+});
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   console.error("Unhandled error:", err);

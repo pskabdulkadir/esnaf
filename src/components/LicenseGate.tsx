@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Copy, CheckCircle } from 'lucide-react';
 import { getOrCreateMachineId } from '../lib/machine-id';
 import { ensureLicensePersistency, restoreFromBackup, validateLicenseFormat, isLicenseExpired } from '../lib/license-manager';
-import { saveLicenseToIndexedDB, initLicenseDB, isLicenseAlreadyUsed, recordUsedLicense } from '../lib/license-db';
+import { saveLicenseToIndexedDB, initLicenseDB, isLicenseAlreadyUsed, recordUsedLicense, getAllLicensesFromIndexedDB } from '../lib/license-db';
 
 interface LicenseGateProps {
   onLicenseValid: () => void;
@@ -101,6 +101,40 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
         }
       } catch (e4) {
         console.warn('Backup kontrol hatası:', e4);
+      }
+
+      // ⭐ SEVIYE 5: IndexedDB'deki ANY lisansı tara (cihaz ID değişse bile)
+      try {
+        console.log('🔍 LicenseGate: IndexedDB\'deki TÜM lisanslar taranıyor (cihaz değiştiyse bile)...');
+        await initLicenseDB();
+        const allLicenses = await getAllLicensesFromIndexedDB();
+
+        if (allLicenses && allLicenses.length > 0) {
+          console.log(`📊 ${allLicenses.length} lisans IndexedDB\'de bulundu`);
+
+          // Geçerli bir lisans var mı kontrol et
+          for (const stored of allLicenses) {
+            if (stored.licenseData && !isLicenseExpired(stored.licenseData.exp)) {
+              console.log(`🎯 Geçerli lisans bulundu: ${stored.licenseData.exp}`);
+              const dataStr = JSON.stringify(stored.licenseData);
+              localStorage.setItem('license_data', dataStr);
+              localStorage.setItem('isLicenseValid', 'true');
+              sessionStorage.setItem('license_data_session', dataStr);
+              (window as any).__AKN_LICENSE__ = {
+                data: stored.licenseData,
+                timestamp: new Date().getTime(),
+                valid: true
+              };
+              console.log('✅ LicenseGate: IndexedDB\'deki geçerli lisans geri yüklendi');
+              onLicenseValid();
+              return;
+            }
+          }
+        } else {
+          console.log('ℹ️ IndexedDB\'de lisans bulunamadı');
+        }
+      } catch (e5) {
+        console.warn('IndexedDB tama hatası:', e5);
       }
 
       console.warn('❌ LicenseGate: Hiçbir seviyede geçerli lisans bulunamadı');
