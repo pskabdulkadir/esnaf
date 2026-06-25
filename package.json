@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
-    "start": "tsx server.ts",
+    "start": "node --loader tsx/esm --no-warnings server.mjs",
     "lint": "tsc --noEmit",
     "migrate-firestore": "tsx scripts/migrate-to-firestore.ts",
     "fix-discounts": "node scripts/fix-discounts-api.cjs",
