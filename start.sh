@@ -1,2 +1,2 @@
 #!/bin/bash
-exec node --loader tsx/esm --no-warnings server.js
+exec node --import tsx/esm --no-warnings server.js
