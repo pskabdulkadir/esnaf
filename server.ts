@@ -8,22 +8,26 @@ dotenv.config();
 // ESM/CJS uyumlu __dirname tanımı
 const __dirname = process.cwd();
 
-// Firebase Admin SDK - Dynamic import (async)
+// Firebase Admin SDK - Node.js require (CJS)
 let firebaseAdmin: any = null;
 let firebaseImported = false;
 
-async function loadFirebaseAdminSDK() {
+function loadFirebaseAdminSDK() {
   if (firebaseImported) return firebaseAdmin;
   firebaseImported = true;
 
   try {
-    // Dynamic ESM import
-    const admin = await import("firebase-admin");
-    firebaseAdmin = admin.default || admin;
-    console.log("✅ firebase-admin import başarılı");
+    // Use require for Node.js runtime (esbuild outputs CJS)
+    // This avoids ESM/CJS mismatch in Render environment
+    const admin = require("firebase-admin");
+    firebaseAdmin = admin;
+    console.log("✅ firebase-admin require başarılı");
+    console.log(`   - admin.credential type: ${typeof admin.credential}`);
+    console.log(`   - admin.initializeApp type: ${typeof admin.initializeApp}`);
+    console.log(`   - admin.firestore type: ${typeof admin.firestore}`);
     return firebaseAdmin;
   } catch (err) {
-    console.warn("⚠️ firebase-admin import başarısız:", err);
+    console.warn("⚠️ firebase-admin require başarısız:", err);
     return null;
   }
 }
@@ -45,12 +49,12 @@ interface AuthRequest extends Request {
 let firestoreDb: any = null;
 let firebaseReady = false;
 
-async function initializeFirebase() {
+function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
 
-    // Firebase Admin SDK'yı async import et
-    const admin = await loadFirebaseAdminSDK();
+    // Firebase Admin SDK'yı require et
+    const admin = loadFirebaseAdminSDK();
     if (!admin) {
       console.warn("⚠️  Firebase Admin SDK yüklenemedi - fallback to file-based mode");
       firebaseReady = false;
@@ -108,8 +112,9 @@ async function initializeFirebase() {
     firestoreDb = admin.firestore();
     console.log("📝 Firestore instance alındı");
 
-    await firestoreDb.collection("_health").doc("test").set({ timestamp: new Date() });
-    console.log("✅ Firestore health test başarılı");
+    // Sync health test - don't use await in sync context
+    // Health check happens asynchronously when first query runs
+    console.log("✅ Firestore instance ready (health check on first query)");
 
     console.log("✅ Firestore initialized successfully");
     firebaseReady = true;
@@ -1205,10 +1210,9 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server after Firebase initialization completes
-(async () => {
-  console.log("\n🚀 Firebase initialization başlatılıyor...");
-  await initializeFirebase();
-  console.log("✅ Firebase initialization tamamlandı.\n");
+console.log("\n🚀 Firebase initialization başlatılıyor...");
+initializeFirebase();
+console.log("✅ Firebase initialization tamamlandı.\n");
 
 const server = app.listen(PORT, () => {
   console.log(`\n${"=".repeat(60)}`);
@@ -1237,6 +1241,5 @@ process.on("SIGTERM", () => {
     process.exit(0);
   });
 });
-})();
 
 export default app;
