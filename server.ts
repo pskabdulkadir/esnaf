@@ -18,8 +18,15 @@ function loadFirebaseAdminSDK() {
 
   try {
     // Use require for Node.js runtime (esbuild outputs CJS)
-    // This avoids ESM/CJS mismatch in Render environment
-    const admin = require("firebase-admin");
+    // Try multiple strategies to handle firebase-admin export
+    let admin = require("firebase-admin");
+
+    // If admin.default exists, use it (ESM interop)
+    if (admin.default && !admin.credential) {
+      console.log("🔄 Using admin.default (ESM interop)");
+      admin = admin.default;
+    }
+
     firebaseAdmin = admin;
     console.log("✅ firebase-admin require başarılı");
     console.log(`   - admin.credential type: ${typeof admin.credential}`);
