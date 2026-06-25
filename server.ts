@@ -148,12 +148,22 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 // ============================================
 
 // Serve frontend static files (built by Vite)
-app.use(express.static(path.join(__dirname, "../dist")));
+// __dirname = process.cwd(), so dist is at ./dist or ../dist depending on runtime
+const distPath = (() => {
+  // Development: dist is in project root
+  // Production: dist is in project root after build
+  const p1 = path.join(__dirname, "dist");
+  if (fs.existsSync(p1)) return p1;
+  // Fallback for legacy paths
+  return path.join(__dirname, "../dist");
+})();
+
+app.use(express.static(distPath));
 
 // SPA Fallback: Non-API routes go to index.html
 app.get("*", (req: Request, res: Response, next: NextFunction) => {
   if (!req.path.startsWith("/api")) {
-    res.sendFile(path.join(__dirname, "../dist/index.html"));
+    res.sendFile(path.join(distPath, "index.html"));
   } else {
     next();
   }
