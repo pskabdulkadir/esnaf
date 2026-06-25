@@ -21,14 +21,32 @@ async function loadFirebaseAdminSDK() {
   firebasePromise = (async () => {
     try {
       console.log("📥 Firestore Admin SDK'yı dinamik import etmeye başlıyor...");
-      // Use async dynamic import for proper ESM interop
-      const admin = await import("firebase-admin");
+      // Try ESM submodule imports first
+      try {
+        const appModule = await import("firebase-admin/lib/app");
+        const credentialModule = await import("firebase-admin/lib/credential");
+        const firestoreModule = await import("firebase-admin/lib/firestore-namespace");
 
-      // Handle both default export and named exports
-      firebaseAdmin = admin.default || admin;
+        // Extract actual exports
+        const initializeApp = appModule.default?.initializeApp || appModule.initializeApp || appModule.default;
+        const credential = credentialModule.default || credentialModule;
+        const firestore = firestoreModule.default?.firestore || firestoreModule.firestore || firestoreModule.default;
+
+        firebaseAdmin = {
+          credential,
+          initializeApp,
+          firestore,
+          apps: appModule.default?.apps || appModule.apps || []
+        };
+      } catch (subErr) {
+        console.log("   Submodule import failed, trying main export...");
+        const admin = await import("firebase-admin");
+        firebaseAdmin = admin.default || admin;
+      }
+
       firebaseImported = true;
 
-      console.log("✅ firebase-admin dynamic import başarılı");
+      console.log("✅ firebase-admin import başarılı");
       console.log(`   - admin.credential type: ${typeof firebaseAdmin.credential}`);
       console.log(`   - admin.initializeApp type: ${typeof firebaseAdmin.initializeApp}`);
       console.log(`   - admin.firestore type: ${typeof firebaseAdmin.firestore}`);
