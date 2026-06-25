@@ -2,39 +2,36 @@ import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
+import { createRequire } from "module";
 
 dotenv.config();
 
+// ESM'de require() simulate et
+const require = createRequire(import.meta.url);
+
 // ESM/CJS uyumlu __dirname tanımı
-// Production'da CJS build commonJS'e çevrildiğinde import.meta.url undefined olur
-// Bu nedenle fallback olarak process.cwd() kullan
 const __dirname = process.cwd();
 
-// Firebase Admin SDK - Lazy import
+// Firebase Admin SDK - CommonJS require ile yükle
 let firebaseAdmin: any = null;
 
-// Firebase'i gerektiğinde import etmeyi dene (async)
-async function loadFirebaseAdminSDK() {
+function loadFirebaseAdminSDK() {
   if (firebaseAdmin) return firebaseAdmin;
 
   try {
-    // ESM import - default export almak için .default kullan
-    const module = await import("firebase-admin");
-    firebaseAdmin = module.default || module;
-    console.log("✅ firebase-admin import başarılı");
+    // CommonJS require ile yükle (ESM'de de çalışır)
+    firebaseAdmin = require("firebase-admin");
+    console.log("✅ firebase-admin (CommonJS) yüklendi başarılı");
 
     // Kontrol et
-    if (!firebaseAdmin.credential || !firebaseAdmin.firestore) {
-      console.warn("⚠️ Firebase exports bozuk, alternatif yol deneniyor...");
-      // Fallback: doğrudan module'ü kullan
-      if (module.credential && module.firestore) {
-        firebaseAdmin = module;
-      }
+    if (!firebaseAdmin.credential || !firebaseAdmin.firestore || !firebaseAdmin.initializeApp) {
+      console.warn("⚠️ Firebase exports eksik - fallback mode");
+      return null;
     }
 
     return firebaseAdmin;
   } catch (err) {
-    console.warn("⚠️ firebase-admin import başarısız:", err);
+    console.warn("⚠️ firebase-admin yükleme başarısız:", err);
     return null;
   }
 }
@@ -60,8 +57,8 @@ async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
 
-    // Firebase Admin SDK'yı yükle (gerekirse)
-    const admin = await loadFirebaseAdminSDK();
+    // Firebase Admin SDK'yı yükle (CommonJS require)
+    const admin = loadFirebaseAdminSDK();
     if (!admin) {
       console.warn("⚠️  Firebase Admin SDK yüklenemedi - fallback to file-based mode");
       firebaseReady = false;
