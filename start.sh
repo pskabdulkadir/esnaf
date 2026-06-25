@@ -1,2 +1,2 @@
 #!/bin/bash
-exec node --loader tsx/esm --no-warnings server.mjs
+exec node --loader tsx/esm --no-warnings server.js
