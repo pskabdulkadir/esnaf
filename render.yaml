@@ -1,38 +1,9 @@
 services:
   - type: web
-    name: siftah-app
-    runtime: node
-    plan: free  # Change to 'paid' for better performance
-    
-    # Build configuration
+    name: esnaf
+    env: node
     buildCommand: npm install && npm run build
-    startCommand: node dist/server.cjs
-    
-    # Environment variables
-    env:
+    startCommand: tsx server.ts
+    envVars:
       - key: NODE_ENV
         value: production
-      - key: RENDER
-        value: "true"
-      - key: PORT
-        fromPort: true
-    
-    # Persistent disk for database
-    disk:
-      name: db-volume
-      mountPath: /var/data
-      sizeGB: 1
-    
-    # Envs that should be set in Render dashboard
-    # (uncomment and fill with your values)
-    # envs:
-    #   - key: GOOGLE_ANALYTICS_ID
-    #     value: G-XXXXXXXXXXXXXXX
-    #   - key: GOOGLE_ADS_ID
-    #     value: AW-XXXXXXXXXX
-    #   - key: PRODUCTION_URL
-    #     value: https://your-app-name.onrender.com
-    
-    # Health check
-    healthCheckPath: /api/health
-    healthCheckInterval: 30
