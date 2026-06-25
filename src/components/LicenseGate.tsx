@@ -24,19 +24,20 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
 
   // Sayfa yüklendiğinde tüm seviyelerde lisansı kontrol et
   React.useEffect(() => {
-    // Eğer showPasswordOnly true ise, lisans kontrolünü atlayıp direkt şifre ekranına git
-    if (showPasswordOnly) {
-      setLicenseValidated(true);
-      setPassword('');
-      setPasswordMessage(null);
-      return;
-    }
-
-    try {
-      console.log('🔍 LicenseGate: Lisans kontrol ediliyor...');
-
-      // SEVIYE 1: localStorage kontrol
+    (async () => {
       try {
+        // Eğer showPasswordOnly true ise, lisans kontrolünü atlayıp direkt şifre ekranına git
+        if (showPasswordOnly) {
+          setLicenseValidated(true);
+          setPassword('');
+          setPasswordMessage(null);
+          return;
+        }
+
+        console.log('🔍 LicenseGate: Lisans kontrol ediliyor...');
+
+        // SEVIYE 1: localStorage kontrol
+        try {
         const storedLicense = localStorage.getItem('isLicenseValid');
         if (storedLicense === 'true') {
           const licenseDataStr = localStorage.getItem('license_data');
@@ -49,12 +50,12 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
             }
           }
         }
-      } catch (e1) {
-        console.warn('localStorage kontrol hatası:', e1);
-      }
+        } catch (e1) {
+          console.warn('localStorage kontrol hatası:', e1);
+        }
 
-      // SEVIYE 2: sessionStorage kontrol
-      try {
+        // SEVIYE 2: sessionStorage kontrol
+        try {
         const sessionLicense = sessionStorage.getItem('license_data_session');
         if (sessionLicense) {
           const licenseData = JSON.parse(sessionLicense);
@@ -67,12 +68,12 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
             return;
           }
         }
-      } catch (e2) {
-        console.warn('sessionStorage kontrol hatası:', e2);
-      }
+        } catch (e2) {
+          console.warn('sessionStorage kontrol hatası:', e2);
+        }
 
-      // SEVIYE 3: Memory kontrol
-      try {
+        // SEVIYE 3: Memory kontrol
+        try {
         const memoryData = (window as any).__AKN_LICENSE__;
         if (memoryData && memoryData.data) {
           if (validateLicenseFormat(memoryData.data) && !isLicenseExpired(memoryData.data.exp)) {
@@ -85,12 +86,12 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
             return;
           }
         }
-      } catch (e3) {
-        console.warn('Memory kontrol hatası:', e3);
-      }
+        } catch (e3) {
+          console.warn('Memory kontrol hatası:', e3);
+        }
 
-      // SEVIYE 4: Backup'tan geri yükle
-      try {
+        // SEVIYE 4: Backup'tan geri yükle
+        try {
         const backupData = restoreFromBackup();
         if (backupData && validateLicenseFormat(backupData) && !isLicenseExpired(backupData.exp)) {
           console.log('✅ LicenseGate: Backup\'tan lisans geri yüklendi');
@@ -99,12 +100,12 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
           onLicenseValid();
           return;
         }
-      } catch (e4) {
-        console.warn('Backup kontrol hatası:', e4);
-      }
+        } catch (e4) {
+          console.warn('Backup kontrol hatası:', e4);
+        }
 
-      // ⭐ SEVIYE 5: IndexedDB'deki ANY lisansı tara (cihaz ID değişse bile)
-      try {
+        // ⭐ SEVIYE 5: IndexedDB'deki ANY lisansı tara (cihaz ID değişse bile)
+        try {
         console.log('🔍 LicenseGate: IndexedDB\'deki TÜM lisanslar taranıyor (cihaz değiştiyse bile)...');
         await initLicenseDB();
         const allLicenses = await getAllLicensesFromIndexedDB();
@@ -133,14 +134,15 @@ export default function LicenseGate({ onLicenseValid, language, showPasswordOnly
         } else {
           console.log('ℹ️ IndexedDB\'de lisans bulunamadı');
         }
-      } catch (e5) {
-        console.warn('IndexedDB tama hatası:', e5);
-      }
+        } catch (e5) {
+          console.warn('IndexedDB tama hatası:', e5);
+        }
 
-      console.warn('❌ LicenseGate: Hiçbir seviyede geçerli lisans bulunamadı');
-    } catch (e) {
-      console.warn('LicenseGate genel kontrol hatası:', e);
-    }
+        console.warn('❌ LicenseGate: Hiçbir seviyede geçerli lisans bulunamadı');
+      } catch (e) {
+        console.warn('LicenseGate genel kontrol hatası:', e);
+      }
+    })();
   }, [onLicenseValid, showPasswordOnly]);
 
   const translations = {
