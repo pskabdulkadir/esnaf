@@ -2,13 +2,13 @@ import express, { Request, Response, NextFunction } from "express";
 import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
-import { fileURLToPath } from "url";
 
 dotenv.config();
 
-// ESM'de __dirname tanımı
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+// ESM/CJS uyumlu __dirname tanımı
+// Production'da CJS build commonJS'e çevrildiğinde import.meta.url undefined olur
+// Bu nedenle fallback olarak process.cwd() kullan
+const __dirname = process.cwd();
 
 // Firebase Admin SDK - Lazy import
 let firebaseAdmin: any = null;
