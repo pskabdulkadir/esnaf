@@ -8,35 +8,40 @@ dotenv.config();
 // ESM/CJS uyumlu __dirname tanımı
 const __dirname = process.cwd();
 
-// Firebase Admin SDK - Node.js require (CJS)
+// Firebase Admin SDK - Dynamic async import for proper ESM/CJS interop
 let firebaseAdmin: any = null;
 let firebaseImported = false;
+let firebasePromise: Promise<any> | null = null;
 
-function loadFirebaseAdminSDK() {
+async function loadFirebaseAdminSDK() {
   if (firebaseImported) return firebaseAdmin;
-  firebaseImported = true;
 
-  try {
-    // Use require for Node.js runtime (esbuild outputs CJS)
-    // Try multiple strategies to handle firebase-admin export
-    let admin = require("firebase-admin");
+  if (firebasePromise) return firebasePromise;
 
-    // If admin.default exists, use it (ESM interop)
-    if (admin.default && !admin.credential) {
-      console.log("🔄 Using admin.default (ESM interop)");
-      admin = admin.default;
+  firebasePromise = (async () => {
+    try {
+      console.log("📥 Firestore Admin SDK'yı dinamik import etmeye başlıyor...");
+      // Use async dynamic import for proper ESM interop
+      const admin = await import("firebase-admin");
+
+      // Handle both default export and named exports
+      firebaseAdmin = admin.default || admin;
+      firebaseImported = true;
+
+      console.log("✅ firebase-admin dynamic import başarılı");
+      console.log(`   - admin.credential type: ${typeof firebaseAdmin.credential}`);
+      console.log(`   - admin.initializeApp type: ${typeof firebaseAdmin.initializeApp}`);
+      console.log(`   - admin.firestore type: ${typeof firebaseAdmin.firestore}`);
+
+      return firebaseAdmin;
+    } catch (err) {
+      console.warn("⚠️ firebase-admin import başarısız:", err);
+      firebaseImported = true;
+      return null;
     }
+  })();
 
-    firebaseAdmin = admin;
-    console.log("✅ firebase-admin require başarılı");
-    console.log(`   - admin.credential type: ${typeof admin.credential}`);
-    console.log(`   - admin.initializeApp type: ${typeof admin.initializeApp}`);
-    console.log(`   - admin.firestore type: ${typeof admin.firestore}`);
-    return firebaseAdmin;
-  } catch (err) {
-    console.warn("⚠️ firebase-admin require başarısız:", err);
-    return null;
-  }
+  return firebasePromise;
 }
 
 // ============================================
@@ -56,12 +61,12 @@ interface AuthRequest extends Request {
 let firestoreDb: any = null;
 let firebaseReady = false;
 
-function initializeFirebase() {
+async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
 
-    // Firebase Admin SDK'yı require et
-    const admin = loadFirebaseAdminSDK();
+    // Firebase Admin SDK'yı async import et
+    const admin = await loadFirebaseAdminSDK();
     if (!admin) {
       console.warn("⚠️  Firebase Admin SDK yüklenemedi - fallback to file-based mode");
       firebaseReady = false;
@@ -1217,9 +1222,10 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 // Start server after Firebase initialization completes
-console.log("\n🚀 Firebase initialization başlatılıyor...");
-initializeFirebase();
-console.log("✅ Firebase initialization tamamlandı.\n");
+(async () => {
+  console.log("\n🚀 Firebase initialization başlatılıyor...");
+  await initializeFirebase();
+  console.log("✅ Firebase initialization tamamlandı.\n");
 
 const server = app.listen(PORT, () => {
   console.log(`\n${"=".repeat(60)}`);
@@ -1241,12 +1247,13 @@ const server = app.listen(PORT, () => {
   }
 });
 
-process.on("SIGTERM", () => {
-  console.log("SIGTERM received, shutting down gracefully...");
-  server.close(() => {
-    console.log("Server closed");
-    process.exit(0);
+  process.on("SIGTERM", () => {
+    console.log("SIGTERM received, shutting down gracefully...");
+    server.close(() => {
+      console.log("Server closed");
+      process.exit(0);
+    });
   });
-});
+})();
 
 export default app;
