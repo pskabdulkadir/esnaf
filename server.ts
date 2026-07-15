@@ -4,7 +4,6 @@ import fs from "fs";
 import dotenv from "dotenv";
 
 // Firebase Admin SDK'yı standart import ile en başa alıyoruz.
-// Bu, Vercel'in derleme sürecinde modülü doğru şekilde paketlemesini sağlar.
 import admin from "firebase-admin";
 
 dotenv.config();
@@ -32,7 +31,7 @@ let firebaseReady = false;
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
- 
+
     const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
@@ -52,7 +51,7 @@ async function initializeFirebase() {
     }
  
     firestoreDb = admin.firestore();
- 
+
     console.log("✅ Firestore initialized successfully");
     firebaseReady = true;
   } catch (err) {
@@ -71,6 +70,32 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 // Increase JSON payload limit for images (up to 50MB for base64 images)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+
+// ============================================
+// STATIC FILES & SPA FALLBACK
+// ============================================
+
+// Serve frontend static files (built by Vite)
+// __dirname = process.cwd(), so dist is at ./dist or ../dist depending on runtime
+const distPath = (() => {
+  // Development: dist is in project root
+  // Production: dist is in project root after build
+  const p1 = path.join(__dirname, "dist");
+  if (fs.existsSync(p1)) return p1;
+  // Fallback for legacy paths
+  return path.join(__dirname, "../dist");
+})();
+
+app.use(express.static(distPath));
+
+// SPA Fallback: Non-API routes go to index.html
+app.get("*", (req: Request, res: Response, next: NextFunction) => {
+  if (!req.path.startsWith("/api")) {
+    res.sendFile(path.join(distPath, "index.html"));
+  } else {
+    next();
+  }
+});
 
 // ============================================
 // MIDDLEWARE: Authentication
@@ -180,6 +205,11 @@ app.post("/api/google-index-url", async (req: Request, res: Response) => {
 app.get("/api/products", async (req: AuthRequest, res: Response) => {
   try {
     // If Firestore available, use it; otherwise serve empty (fallback mode)
+    if (!firebaseReady || !firestoreDb) {
+      // Fallback mode: return empty array
+      return res.json([]);
+    }
+
     const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ error: "Yetkilendirme gerekli" });
@@ -190,11 +220,6 @@ app.get("/api/products", async (req: AuthRequest, res: Response) => {
       .doc(userId)
       .collection("products")
       .get();
-
-    if (!firebaseReady || !firestoreDb) {
-      // Fallback mode: return empty array
-      return res.json([]);
-    }
 
     const products = snapshot.docs.map((doc: any) => ({
       id: doc.id,
@@ -637,7 +662,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
           const updatedData = {
             ...doc.data(),
             views: (doc.data().views || 0) + 1,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -671,7 +696,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
 
         if (discount) {
           discount.views = (discount.views || 0) + 1;
-          discount.updatedAt = new Date().toISOString(); // Fallback'te ISO string kalabilir
+          discount.updatedAt = new Date().toISOString();
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
           console.log(`  ✅ db_data.json'da güncellendi (views: ${discount.views})`);
           res.json(discount);
@@ -718,7 +743,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
           const updatedData = {
             ...doc.data(),
             shares: (doc.data().shares || 0) + 1,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -752,7 +777,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
 
         if (discount) {
           discount.shares = (discount.shares || 0) + 1;
-          discount.updatedAt = new Date().toISOString(); // Fallback'te ISO string kalabilir
+          discount.updatedAt = new Date().toISOString();
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
           console.log(`  ✅ db_data.json'da güncellendi (shares: ${discount.shares})`);
           res.json(discount);
@@ -776,7 +801,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
 // API: SETTINGS
 // ============================================
 
-app.get("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
+app.get("/api/settings", async (req: AuthRequest, res: Response) => {
   try {
     const defaultSettings = {
       language: "tr",
@@ -812,11 +837,15 @@ app.get("/api/settings", requireAuth, async (req: AuthRequest, res: Response) =>
   }
 });
 
-app.post("/api/settings", async (req: AuthRequest, res: Response) => {
+app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ error: "userId gerekli" });
+    }
+
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
     const settingsData = {
@@ -826,10 +855,6 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: req.body.merchantWhatsApp,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
-
-    if (!firebaseReady || !firestoreDb) {
-      return res.status(503).json({ error: "Database not available in fallback mode" });
-    }
 
     await firestoreDb
       .collection("users")
