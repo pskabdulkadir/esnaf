@@ -1219,58 +1219,18 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
-<<<<<<< HEAD
-// Start server after Firebase initialization completes
-(async () => {
-  console.log("\n🚀 Firebase initialization başlatılıyor...");
-  await initializeFirebase();
-  console.log("✅ Firebase initialization tamamlandı.\n");
-
-const server = app.listen(PORT, () => {
-  console.log(`\n${"=".repeat(60)}`);
-  console.log(`✅ Production Server running on port ${PORT}`);
-  console.log(`📍 Health Check: http://localhost:${PORT}/api/health`);
-  console.log(`🔥 Database Mode: ${firebaseReady ? "✅ FIRESTORE (siftah-app-v1)" : "⚠️  FALLBACK MODE"}`);
-  console.log(`⏰ Startup Time: ${new Date().toISOString()}`);
-  console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
-  console.log(`${"=".repeat(60)}\n`);
-
-  if (firebaseReady) {
-    console.log("🎉 Firebase Firestore bağlantısı BAŞARILI!");
-    console.log("   ✅ Tüm veriler Firestore'a yazılacak");
-    console.log("   ✅ Server restart'ta veriler kaybolmayacak\n");
-  } else {
-    console.warn("⚠️  WARNING: Firestore initialize olmadı!");
-    console.warn("   📄 Veriler db_data.json'a yazılacak (geçici)");
-    console.warn("   ⚠️  Server restart'ta veriler kaybolabilir\n");
-  }
-});
-
-  process.on("SIGTERM", () => {
-    console.log("SIGTERM received, shutting down gracefully...");
-    server.close(() => {
-      console.log("Server closed");
-      process.exit(0);
-    });
-  });
-})();
-=======
 let firebaseInitialization: Promise<void> | null = null;
-
 export function ensureFirebaseInitialized() {
   if (!firebaseInitialization) {
     firebaseInitialization = initializeFirebase();
   }
-
   return firebaseInitialization;
 }
-
 if (!process.env.VERCEL) {
   (async () => {
     console.log("\n🚀 Firebase initialization başlatılıyor...");
     await ensureFirebaseInitialized();
     console.log("✅ Firebase initialization tamamlandı.\n");
-
     const server = app.listen(PORT, () => {
       console.log(`\n${"=".repeat(60)}`);
       console.log(`✅ Production Server running on port ${PORT}`);
@@ -1279,8 +1239,17 @@ if (!process.env.VERCEL) {
       console.log(`⏰ Startup Time: ${new Date().toISOString()}`);
       console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
       console.log(`${"=".repeat(60)}\n`);
-    });
 
+      if (firebaseReady) {
+        console.log("🎉 Firebase Firestore bağlantısı BAŞARILI!");
+        console.log("   ✅ Tüm veriler Firestore'a yazılacak");
+        console.log("   ✅ Server restart'ta veriler kaybolmayacak\n");
+      } else {
+        console.warn("⚠️  WARNING: Firestore initialize olmadı!");
+        console.warn("   📄 Veriler db_data.json'a yazılacak (geçici)");
+        console.warn("   ⚠️  Server restart'ta veriler kaybolabilir\n");
+      }
+    });
     process.on("SIGTERM", () => {
       console.log("SIGTERM received, shutting down gracefully...");
       server.close(() => {
@@ -1290,6 +1259,5 @@ if (!process.env.VERCEL) {
     });
   })();
 }
->>>>>>> e4478c8 (Vercel API rotalarını düzelt)
 
 export default app;
