@@ -23,10 +23,6 @@
     "allowImportingTsExtensions": true,
     "noEmit": true,
     "types": ["vite/client"]
-<<<<<<< HEAD
-  }
-=======
   },
   "exclude": ["server-firestore.ts", "server-production.ts", "siftah-repo"]
->>>>>>> origin/main
 }

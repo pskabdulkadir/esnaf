@@ -43,7 +43,4 @@ Thumbs.db
 
 # Dependencies
 !.env.example
-<<<<<<< HEAD
 .builder/
-=======
->>>>>>> origin/main
