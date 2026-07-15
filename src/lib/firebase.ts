@@ -59,10 +59,7 @@ export async function backupDataToFirestore(
   products: any[] = [],
   sales: any[] = [],
   expenses: any[] = [],
-<<<<<<< HEAD
-=======
   _extraSettings: any = {},
->>>>>>> 27aad49c287f0d696f4803f2fd459c9d4308d4f4
 ): Promise<void> {
   try {
     // Data is backed up via backend HTTP API endpoint
