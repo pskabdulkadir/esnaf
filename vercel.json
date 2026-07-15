@@ -27,10 +27,17 @@
       ]
     }
   ],
-  "rewrites": [
+  "routes": [
     {
-      "source": "/:path*",
-      "destination": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "/api/[...path]"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
