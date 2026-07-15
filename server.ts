@@ -3,44 +3,14 @@ import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
 
+// Firebase Admin SDK'yı standart import ile en başa alıyoruz.
+// Bu, Vercel'in derleme sürecinde modülü doğru şekilde paketlemesini sağlar.
+import admin from "firebase-admin";
+
 dotenv.config();
 
 // ESM/CJS uyumlu __dirname tanımı
 const __dirname = process.cwd();
-
-// Firebase Admin SDK - Dynamic async import for proper ESM/CJS interop
-let firebaseAdmin: any = null;
-let firebaseImported = false;
-let firebasePromise: Promise<any> | null = null;
-
-async function loadFirebaseAdminSDK() {
-  if (firebaseImported) return firebaseAdmin;
-
-  if (firebasePromise) return firebasePromise;
-
-  firebasePromise = (async () => {
-    try {
-      console.log("📥 Firebase Admin SDK'yı dinamik import etmeye başlıyor...");
-      // firebase-admin v13 ESM import
-      const admin = await import("firebase-admin");
-      firebaseAdmin = admin.default || admin;
-      firebaseImported = true;
-
-      console.log("✅ firebase-admin import başarılı");
-      console.log(`   - admin.credential type: ${typeof firebaseAdmin.credential}`);
-      console.log(`   - admin.initializeApp type: ${typeof firebaseAdmin.initializeApp}`);
-      console.log(`   - admin.firestore type: ${typeof firebaseAdmin.firestore}`);
-
-      return firebaseAdmin;
-    } catch (err) {
-      console.warn("⚠️ firebase-admin import başarısız:", err);
-      firebaseImported = true;
-      return null;
-    }
-  })();
-
-  return firebasePromise;
-}
 
 // ============================================
 // TYPES
@@ -62,35 +32,12 @@ let firebaseReady = false;
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
-
-    // Firebase Admin SDK'yı async import et
-    const admin = await loadFirebaseAdminSDK();
-    if (!admin) {
-      console.warn("⚠️  Firebase Admin SDK yüklenemedi - fallback to file-based mode");
-      firebaseReady = false;
-      return;
-    }
-
-    console.log("📋 Env variables kontrol:");
-    console.log("  - FIREBASE_PROJECT_ID:", process.env.FIREBASE_PROJECT_ID ? "✅" : "❌");
-    console.log("  - FIREBASE_PRIVATE_KEY_ID:", process.env.FIREBASE_PRIVATE_KEY_ID ? "✅" : "❌");
-    console.log("  - FIREBASE_PRIVATE_KEY:", process.env.FIREBASE_PRIVATE_KEY ? `✅ (${process.env.FIREBASE_PRIVATE_KEY.length} chars)` : "❌");
-    console.log("  - FIREBASE_CLIENT_EMAIL:", process.env.FIREBASE_CLIENT_EMAIL ? "✅" : "❌");
-    console.log("  - FIREBASE_CLIENT_ID:", process.env.FIREBASE_CLIENT_ID ? "✅" : "❌");
-
-    // Check if Firebase Admin SDK has required methods
-    console.log("🔍 Firebase Admin SDK kontrol:");
-    console.log("  - admin.credential type:", typeof admin?.credential);
-    console.log("  - admin.credential.cert type:", typeof admin?.credential?.cert);
-    console.log("  - admin.initializeApp type:", typeof admin?.initializeApp);
-    console.log("  - admin.firestore type:", typeof admin?.firestore);
-
+ 
     if (!admin?.credential?.cert || !admin?.initializeApp || !admin?.firestore) {
       console.warn("⚠️  Firebase Admin SDK eksik metotlar - fallback to file-based mode");
       firebaseReady = false;
       return;
     }
-
     const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
       privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
@@ -100,7 +47,7 @@ async function initializeFirebase() {
       authUri: "https://accounts.google.com/o/oauth2/auth",
       tokenUri: "https://oauth2.googleapis.com/token",
     };
-
+ 
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
       console.warn("  - projectId:", serviceAccount.projectId ? "✅" : "❌");
@@ -109,23 +56,16 @@ async function initializeFirebase() {
       firebaseReady = false;
       return;
     }
-
+ 
     if (!admin.apps || admin.apps.length === 0) {
       console.log("🔧 Firebase initializeApp çağrılıyor...");
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
-      console.log("✅ Firebase initializeApp başarılı");
     }
-
-    // Firestore instance al
+ 
     firestoreDb = admin.firestore();
-    console.log("📝 Firestore instance alındı");
-
-    // Sync health test - don't use await in sync context
-    // Health check happens asynchronously when first query runs
-    console.log("✅ Firestore instance ready (health check on first query)");
-
+ 
     console.log("✅ Firestore initialized successfully");
     firebaseReady = true;
   } catch (err) {
@@ -133,8 +73,6 @@ async function initializeFirebase() {
     firebaseReady = false;
   }
 }
-
-// Firebase initialization will be done before server starts
 
 // ============================================
 // EXPRESS APP
@@ -375,8 +313,8 @@ app.post("/api/products", requireAuth, async (req: AuthRequest, res: Response) =
       category: req.body.category || "Genel",
       expiryDate: req.body.expiryDate || "",
       isSpecialDiscount: req.body.isSpecialDiscount === true,
-      lastUpdated: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     await firestoreDb
@@ -419,7 +357,7 @@ app.put("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response
 
     const updateData = {
       ...req.body,
-      lastUpdated: new Date().toISOString(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     await docRef.update(updateData);
@@ -599,9 +537,9 @@ app.post("/api/public-discounts", async (req: Request, res: Response) => {
       views: 0,
       shares: 0,
       isActive: true,
-      publishedAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     console.log(`\n📝 POST /api/public-discounts BAŞLADI`);
@@ -776,7 +714,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
           const updatedData = {
             ...doc.data(),
             views: (doc.data().views || 0) + 1,
-            updatedAt: new Date().toISOString()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -810,7 +748,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
 
         if (discount) {
           discount.views = (discount.views || 0) + 1;
-          discount.updatedAt = new Date().toISOString();
+          discount.updatedAt = new Date().toISOString(); // Fallback'te ISO string kalabilir
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
           console.log(`  ✅ db_data.json'da güncellendi (views: ${discount.views})`);
           res.json(discount);
@@ -857,7 +795,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
           const updatedData = {
             ...doc.data(),
             shares: (doc.data().shares || 0) + 1,
-            updatedAt: new Date().toISOString()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -891,7 +829,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
 
         if (discount) {
           discount.shares = (discount.shares || 0) + 1;
-          discount.updatedAt = new Date().toISOString();
+          discount.updatedAt = new Date().toISOString(); // Fallback'te ISO string kalabilir
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
           console.log(`  ✅ db_data.json'da güncellendi (shares: ${discount.shares})`);
           res.json(discount);
@@ -924,7 +862,11 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: "",
     };
 
-    const userId = req.user!.userId;
+    if (!firebaseReady || !firestoreDb) {
+      console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
+      return res.json(defaultSettings);
+    }
+
     const doc = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -958,7 +900,7 @@ app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) =
       merchantName: req.body.merchantName,
       merchantPhone: req.body.merchantPhone,
       merchantWhatsApp: req.body.merchantWhatsApp,
-      updatedAt: new Date().toISOString(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     await firestoreDb
