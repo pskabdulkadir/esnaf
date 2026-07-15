@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AKN Global - Kurumsal Yönetim Portalı | Esnaf Ticaret Sistemi</title>
+    <meta name="description" content="AKN Global Esnaf Yönetim Sistemi - Envanter, Satış, Gider Yönetimi ve Google Ads Entegrasyonu" />
+    <meta name="keywords" content="esnaf yönetimi, envanter yönetimi, satış sistemi, gider takibi, google ads" />
+    <meta name="theme-color" content="#1e293b" />
+    <meta name="robots" content="index, follow" />
+    <meta name="author" content="AKN Global" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AKN Global - Kurumsal Yönetim Portalı" />
+    <meta property="og:description" content="Profesyonel esnaf yönetim sistemi - Envanter, Satış, Gider, Pazarlama" />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=1200" />
+    <meta property="og:url" content="https://example.com" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AKN Global - Kurumsal Yönetim Portalı" />
+    <meta name="twitter:description" content="Profesyonel esnaf yönetim sistemi" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://example.com" />
+
+    <!-- Google Site Verification -->
+    <meta name="google-site-verification" content="google0a39e01acf0c0952" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.svg" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="AKN Global" />
+
+    <!-- JSON-LD will be injected here by App.tsx -->
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Service Worker Kaydı -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+              console.log('Service Worker başarıyla kaydedildi:', registration);
+            })
+            .catch((error) => {
+              console.log('Service Worker kaydı başarısız:', error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

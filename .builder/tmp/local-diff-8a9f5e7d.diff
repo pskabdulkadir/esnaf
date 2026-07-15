@@ -1,0 +1,301 @@
+diff --git a/src/lib/firebase.ts b/src/lib/firebase.ts
+index 0e912cf..b64e257 100644
+--- a/src/lib/firebase.ts
++++ b/src/lib/firebase.ts
+@@ -80,7 +80,7 @@ export interface SecurityStatus {
+[L:80]  
+[L:81]  /**
+[L:82]   * Perform startup check comparing current system state, Firestore client details and global settings.
+[L:83] - * Also checks 15-day expiry dates for device licenses.
+[L:83] + * Checks user access status from Users collection (isAccessAllowed field).
+[L:84]   */
+[L:85]  export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:86]    const deviceId = getOrCreateDeviceId();
+@@ -89,48 +89,33 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:89]    const LAST_AUTH_CHECK = 'akn_last_auth_success_time';
+[L:90]    const SEC_STATUS_KEY = 'akn_cached_auth_state'; // "true" or "false"
+[L:91]    const SEC_VERSION_KEY = 'akn_cached_required_version';
+[L:92] -  const DEVICE_EXPIRY_KEY = 'akn_device_expiry_date';
+[L:92] +  const USER_ACCESS_KEY = 'akn_cached_user_access';
+[L:93]  
+[L:94]    const now = Date.now();
+[L:95]    const threeDaysMs = 3 * 24 * 60 * 60 * 1000;
+[L:96]  
+[L:97] -  // Helper to check if device license has expired (15-day trial)
+[L:98] -  const checkExpiryDate = (): boolean => {
+[L:99] -    const expiryStr = localStorage.getItem(DEVICE_EXPIRY_KEY);
+[L:100] -    if (!expiryStr) return false; // No expiry date set, assume not expired
+[L:101] -
+[L:102] -    try {
+[L:103] -      const expiryDate = new Date(expiryStr);
+[L:104] -      const today = new Date();
+[L:105] -      return today > expiryDate; // Expired if today is after expiry
+[L:106] -    } catch {
+[L:107] -      return false;
+[L:108] -    }
+[L:109] -  };
+[L:110] -
+[L:97/111]    // Helper local reader for grace calculation
+[L:98/112]    const getCachedState = (): SecurityStatus => {
+[L:99/113]      const lastCheck = localStorage.getItem(LAST_AUTH_CHECK);
+[L:100/114]      const cachedAuth = localStorage.getItem(SEC_STATUS_KEY);
+[L:101] +    const cachedUserAccess = localStorage.getItem(USER_ACCESS_KEY) !== 'false'; // Default true
+[L:102/115]      const cachedReqVersion = localStorage.getItem(SEC_VERSION_KEY) || APP_CURRENT_VERSION;
+[L:103/116]  
+[L:117] -    // Check if device license has expired
+[L:118] -    if (checkExpiryDate()) {
+[L:104] +    // Check if user access is denied (isAccessAllowed = false)
+[L:105] +    if (cachedAuth === 'true' && !cachedUserAccess) {
+[L:106/119]        return {
+[L:107/120]          isLocked: true,
+[L:108/121]          lockType: 'unauthorized',
+[L:122] -        errorMessage: 'Bu cihazın 15 günlük deneme süresi dolmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
+[L:109] +        errorMessage: 'Erişiminiz geçici olarak durdurulmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
+[L:110/123]          offlineGraceActive: false
+[L:111/124]        };
+[L:112/125]      }
+[L:113/126]  
+[L:127] -    // Set fallback 15-day trial period if first time initializing offline/sandbox
+[L:114] +    // Set fallback access allowed if first time initializing offline/sandbox
+[L:115/128]      if (!lastCheck && !cachedAuth) {
+[L:129] -      const expiryDate = new Date();
+[L:130] -      expiryDate.setDate(expiryDate.getDate() + 15);
+[L:131] -      localStorage.setItem(DEVICE_EXPIRY_KEY, expiryDate.toISOString());
+[L:116/132]        localStorage.setItem(LAST_AUTH_CHECK, now.toString());
+[L:117/133]        localStorage.setItem(SEC_STATUS_KEY, 'true');
+[L:118] +      localStorage.setItem(USER_ACCESS_KEY, 'true');
+[L:119/134]        return {
+[L:120/135]          isLocked: false,
+[L:121/136]          lockType: 'none',
+@@ -139,7 +124,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:124/139]        };
+[L:125/140]      }
+[L:126/141]  
+[L:142] -    if (cachedAuth === 'true' && lastCheck) {
+[L:127] +    if (cachedAuth === 'true' && lastCheck && cachedUserAccess) {
+[L:128/143]        const lastCheckTime = parseInt(lastCheck, 10);
+[L:129/144]        const diff = now - lastCheckTime;
+[L:130/145]  
+@@ -171,7 +156,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:156/171]      return {
+[L:157/172]        isLocked: true,
+[L:158/173]        lockType: 'unauthorized',
+[L:174] -      errorMessage: 'Internet connection required to verify access. Please connect to proceed with authorization check.',
+[L:159] +      errorMessage: 'Erişim doğrulama için internet bağlantısı gereklidir. Lütfen bağlantı sağlayarak devam etmeyi deneyin.',
+[L:160/175]        offlineGraceActive: false
+[L:161/176]      };
+[L:162/177]    };
+@@ -185,7 +170,7 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:170/185]      // 1. Fetch system-wide config for required version comparison
+[L:171/186]      const systemConfigRef = doc(db, 'Config', 'system');
+[L:172/187]      let requiredVersion = APP_CURRENT_VERSION;
+[L:188] -    
+[L:173] +
+[L:174/189]      try {
+[L:175/190]        const configSnap = await getDoc(systemConfigRef);
+[L:176/191]        if (configSnap.exists()) {
+@@ -198,15 +183,14 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:183/198]          // Seed initial system config if not exist for user convenience
+[L:184/199]          await setDoc(systemConfigRef, {
+[L:185/200]            requiredVersion: APP_CURRENT_VERSION,
+[L:201] -          lastUpdated: serverTimestamp(),
+[L:202] -          lockAllDevices: false
+[L:186] +          lastUpdated: serverTimestamp()
+[L:187/203]          }, { merge: true });
+[L:188/204]        }
+[L:189/205]      } catch (err) {
+[L:206] -      console.warn("Could not retrieve system-wide configuration, choosing fallback version", err);
+[L:190] +      console.warn("Sistem yapılandırması alınamadı, yedek sürüm kullanılıyor", err);
+[L:191/207]      }
+[L:192/208]  
+[L:209] -    // 2. Clear update status check
+[L:193] +    // 2. Check update requirement
+[L:194/210]      if (isVersionHigher(requiredVersion, APP_CURRENT_VERSION)) {
+[L:195/211]        return {
+[L:196/212]          isLocked: true,
+@@ -216,90 +200,61 @@ export async function runSovereigntyAuthCheck(): Promise<SecurityStatus> {
+[L:200/216]        };
+[L:201/217]      }
+[L:202/218]  
+[L:219] -    // 3. Fetch device doc
+[L:220] -    const deviceRef = doc(db, 'Devices', deviceId);
+[L:221] -    let isAuthorized = true;
+[L:222] -    let deviceExpiryDate: Date | null = null;
+[L:223] -
+[L:224] -    const deviceSnap = await getDoc(deviceRef);
+[L:225] -    if (deviceSnap.exists()) {
+[L:226] -      const data = deviceSnap.data();
+[L:227] -      isAuthorized = data?.isAuthorized !== false;
+[L:228] -
+[L:229] -      // Check expiry date from Firebase
+[L:230] -      if (data?.expiryDate) {
+[L:231] -        deviceExpiryDate = new Date(data.expiryDate);
+[L:232] -        localStorage.setItem(DEVICE_EXPIRY_KEY, data.expiryDate);
+[L:203] +    // 3. Fetch user doc from Users collection
+[L:204] +    const userRef = doc(db, 'Users', deviceId);
+[L:205] +    let isAccessAllowed = true;
+[L:206/233]  
+[L:234] -        const today = new Date();
+[L:235] -        if (today > deviceExpiryDate) {
+[L:236] -          isAuthorized = false; // Trial period expired
+[L:237] -        }
+[L:238] -      }
+[L:207] +    const userSnap = await getDoc(userRef);
+[L:208] +    if (userSnap.exists()) {
+[L:209] +      const data = userSnap.data();
+[L:210] +      isAccessAllowed = data?.isAccessAllowed !== false;
+[L:211/239]  
+[L:240] -      // Update metadata on server asynchronously to trace current version & access activity
+[L:241] -      setDoc(deviceRef, {
+[L:212] +      // Update metadata on server asynchronously
+[L:213] +      setDoc(userRef, {
+[L:214/242]          currentVersion: APP_CURRENT_VERSION,
+[L:215/243]          lastOnlineTime: serverTimestamp(),
+[L:216/244]          platform: "Web Portal"
+[L:245] -      }, { merge: true }).catch(e => console.warn("Syncing telemetry device details failed", e));
+[L:217] +      }, { merge: true }).catch(e => console.warn("Kullanıcı telemetrisi güncellenemedi", e));
+[L:218/246]  
+[L:219/247]      } else {
+[L:248] -      // İlk kez kaydedilen cihazlar 15 günlük deneme süresi ile kaydedilir
+[L:249] -      const expiryDate = new Date();
+[L:250] -      expiryDate.setDate(expiryDate.getDate() + 15);
+[L:251] -
+[L:252] -      await setDoc(deviceRef, {
+[L:220] +      // İlk kez kaydedilen kullanıcı - varsayılan olarak erişim izni verilir
+[L:221] +      await setDoc(userRef, {
+[L:222/253]          deviceId,
+[L:254] -        isAuthorized: true,
+[L:223] +        isAccessAllowed: true,
+[L:224/255]          currentVersion: APP_CURRENT_VERSION,
+[L:225/256]          platform: "Web Portal",
+[L:226/257]          createdAt: serverTimestamp(),
+[L:258] -        expiryDate: expiryDate.toISOString(),
+[L:227/259]          lastOnlineTime: serverTimestamp()
+[L:228/260]        });
+[L:229/261]  
+[L:262] -      // Ayrıca localStorage'a da kaydet (çevrimdışı kontrol için)
+[L:263] -      localStorage.setItem(DEVICE_EXPIRY_KEY, expiryDate.toISOString());
+[L:264] -      isAuthorized = true; // 15 günlük deneme süresi başladı
+[L:230] +      isAccessAllowed = true;
+[L:231/265]      }
+[L:232/266]  
+[L:233/267]      // 4. Record local verification status for offline grace validation
+[L:268] -    if (isAuthorized) {
+[L:234] +    if (isAccessAllowed) {
+[L:235/269]        localStorage.setItem(LAST_AUTH_CHECK, now.toString());
+[L:236/270]        localStorage.setItem(SEC_STATUS_KEY, 'true');
+[L:271] -
+[L:272] -      // Calculate days remaining in trial if expiry date exists
+[L:273] -      let daysRemaining: number | undefined = undefined;
+[L:274] -      if (deviceExpiryDate) {
+[L:275] -        const today = new Date();
+[L:276] -        const timeDiff = deviceExpiryDate.getTime() - today.getTime();
+[L:277] -        daysRemaining = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+[L:278] -      }
+[L:237] +      localStorage.setItem(USER_ACCESS_KEY, 'true');
+[L:238/279]  
+[L:239/280]        return {
+[L:240/281]          isLocked: false,
+[L:241/282]          lockType: 'none',
+[L:242/283]          offlineGraceActive: true,
+[L:284] -        daysRemainingInGrace: daysRemaining
+[L:243] +        daysRemainingInGrace: 15
+[L:244/285]        };
+[L:245/286]      } else {
+[L:287] -      localStorage.setItem(SEC_STATUS_KEY, 'false');
+[L:288] -
+[L:289] -      let errorMsg = 'Bu cihazın yetkisi yöneticiniz tarafından askıya alınmıştır.';
+[L:290] -      if (deviceExpiryDate && new Date() > deviceExpiryDate) {
+[L:291] -        errorMsg = 'Bu cihazın 15 günlük deneme süresi dolmuştur. Lütfen yöneticiniz ile iletişime geçiniz.';
+[L:292] -      }
+[L:246] +      localStorage.setItem(SEC_STATUS_KEY, 'true'); // Connection was successful
+[L:247] +      localStorage.setItem(USER_ACCESS_KEY, 'false'); // But access is denied
+[L:248/293]  
+[L:249/294]        return {
+[L:250/295]          isLocked: true,
+[L:251/296]          lockType: 'unauthorized',
+[L:297] -        offlineGraceActive: false,
+[L:298] -        errorMessage: errorMsg
+[L:252] +        errorMessage: 'Erişiminiz geçici olarak durdurulmuştur. Lütfen yöneticiniz ile iletişime geçiniz.',
+[L:253] +        offlineGraceActive: false
+[L:254/299]        };
+[L:255/300]      }
+[L:256/301]    } catch (err: any) {
+[L:302] -    console.warn("Auth query failed. Initiating fallback offline sovereignty strategy", err);
+[L:257] +    console.warn("Erişim sorgulaması başarısız. Çevrimdışı güvenlik stratejisi başlatılıyor", err);
+[L:258/303]      return getCachedState();
+[L:259/304]    }
+[L:260/305]  }
+[L:261/306] 
+diff --git a/src/App.tsx b/src/App.tsx
+index 3842886..df84a49 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -681,36 +681,36 @@ export default function App() {
+[L:681]          </div>
+[L:682]        )}
+[L:683]  
+[L:684] -      {/* 3. Authorized/Device Lock Screen overlay */}
+[L:684] +      {/* 3. User Access Denied Screen - Erişim Durdurulması */}
+[L:685]        {!isCheckingAuth && securityStatus.isLocked && securityStatus.lockType === 'unauthorized' && (
+[L:686]          <div className="fixed inset-0 z-50 bg-slate-950 flex items-center justify-center p-6 text-slate-200">
+[L:687]            <div className="w-full max-w-lg bg-slate-900 rounded-3xl border border-slate-850 p-8 text-center space-y-6 shadow-2xl relative overflow-hidden text-slate-800">
+[L:688] -            
+[L:688] +
+[L:689]              <div className="absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r from-red-600 via-amber-500 to-red-650" />
+[L:690] -            
+[L:690] +
+[L:691]              <div className="h-16 w-16 bg-red-650/10 text-red-500 rounded-2xl flex items-center justify-center mx-auto border border-red-650/20 animate-pulse">
+[L:692]                <Lock className="h-8 w-8 text-red-550" />
+[L:693]              </div>
+[L:694]  
+[L:695]              <div className="space-y-1">
+[L:696] -              <h1 className="text-xs font-bold uppercase tracking-widest text-slate-205 font-mono">AKN Kurumsal - Erişim Engeli</h1>
+[L:697] -              <p className="text-[9px] text-indigo-400 font-mono tracking-wider font-semibold">SECURE DEVICE LICENSE TERMINATION</p>
+[L:696] +              <h1 className="text-sm font-bold uppercase tracking-widest text-slate-205 font-sans">Erişiminiz Geçici Olarak Durdurulmuştur</h1>
+[L:697] +              <p className="text-[9px] text-amber-400 font-mono tracking-wider font-semibold">TEMPORARY ACCESS SUSPENSION</p>
+[L:698]              </div>
+[L:699]  
+[L:700]              <div className="bg-slate-950 p-5 rounded-2xl border border-slate-850/60 text-left space-y-4">
+[L:701] -              <p className="text-[11px] text-slate-400 leading-relaxed font-sans">
+[L:702] -                Bu cihazın sisteme erişim yetkisi doğrulanmadı veya geçici olarak yöneticiniz tarafından askıya alındı. Lisanslama onayı için lütfen yöneticiniz ile iletişime geçiniz.
+[L:701] +              <p className="text-[11px] text-slate-300 leading-relaxed font-sans">
+[L:702] +                Bu hesabın sisteme erişim izni yöneticiniz tarafından geçici olarak durdurulmuştur. Detaylı bilgi ve erişim talebiniz için lütfen yöneticinizle iletişime geçiniz.
+[L:703]                </p>
+[L:704]  
+[L:705]                <div className="space-y-2 font-mono text-[10px] pt-3 border-t border-slate-850/40 text-slate-400">
+[L:706]                  <div className="flex justify-between items-center bg-slate-900 px-3 py-2.5 rounded-xl border border-slate-850">
+[L:707] -                  <span className="text-slate-500 text-[9px] uppercase font-bold">Cihaz ID Kodunuz:</span>
+[L:708] -                  <span className="text-amber-400 font-bold tracking-wide select-all mt-0.5">{getOrCreateDeviceId()}</span>
+[L:707] +                  <span className="text-slate-500 text-[9px] uppercase font-bold">Cihaz Kimliği:</span>
+[L:708] +                  <span className="text-amber-400 font-bold tracking-wide select-all">{getOrCreateDeviceId()}</span>
+[L:709]                  </div>
+[L:710] -                
+[L:710] +
+[L:711]                  {securityStatus.errorMessage && (
+[L:712] -                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-850 text-[10.5px] leading-normal font-sans text-slate-400 flex items-start gap-2.5">
+[L:713] -                    <WifiOff className="h-4 w-4 text-amber-500 shrink-0 mt-0.5" />
+[L:712] +                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-850 text-[10.5px] leading-normal font-sans text-slate-300 flex items-start gap-2.5">
+[L:713] +                    <AlertTriangle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+[L:714]                      <span>{securityStatus.errorMessage}</span>
+[L:715]                    </div>
+[L:716]                  )}
+@@ -722,14 +722,14 @@ export default function App() {
+[L:722]                  onClick={handleManualAuthSync}
+[L:723]                  className="w-full py-3 bg-indigo-650 hover:bg-indigo-600 text-white font-bold rounded-2xl text-[11px] transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-indigo-950/40"
+[L:724]                >
+[L:725] -                <RefreshCw className="h-4 w-4" /> BİLGİSAYARI YENİDEN SORGULA / LİSANS SYNC
+[L:725] +                <RefreshCw className="h-4 w-4" /> ERIŞIM DURUMUNU KONTROL ET
+[L:726]                </button>
+[L:727] -              
+[L:727] +
+[L:728]                <p className="text-[9.5px] text-slate-500 leading-relaxed font-sans pt-1">
+[L:729] -                🔒 <b>Sovereignty Güvencesi:</b> Yerel SQLite veritabanınız (Özet: Ürünler, Satışlar ve Gider belgeleri) tarayıcı alanında izole ve tamamen korunmaktadır. Hiçbir yerel veri silinmez.
+[L:729] +                🔒 <b>Veri Güvenliği:</b> Yerel veritabanınız (Ürünler, Satışlar, Giderler) tarayıcıda güvenli şekilde saklanmıştır. Erişim kısıtlanması hiçbir yerel veriyi etkilemez.
+[L:730]                </p>
+[L:731]              </div>
+[L:732] -            
+[L:732] +
+[L:733]            </div>
+[L:734]          </div>
+[L:735]        )}

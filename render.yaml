@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: esnaf
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: node --loader tsx/esm --no-warnings server.mjs
+    envVars:
+      - key: NODE_ENV
+        value: production

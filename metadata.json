@@ -1,0 +1,6 @@
+{
+  "name": "AKN Global Kurumsal İş ve Envanter Yönetimi",
+  "description": "AKN Global Group Ltd için envanter, gerçek zamanlı barkod tarayıcı, satış ve gider takibi; ve AI destekli, lokasyon bazlı Siftah pazarlama ve indirim vitrini otomasyonu.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

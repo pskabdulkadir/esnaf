@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lisans Anahtarı Üretici</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 700px;
+            width: 100%;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px 30px;
+            space: 30px;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 8px;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background-color: #f0f9ff;
+            box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+        }
+
+        .form-group input[type="date"] {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        }
+
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .btn-generate {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            grid-column: span 2;
+        }
+
+        .btn-generate:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-generate:active {
+            transform: translateY(0);
+        }
+
+        .btn-copy {
+            background: #f3f4f6;
+            color: #374151;
+            border: 2px solid #d1d5db;
+        }
+
+        .btn-copy:hover {
+            background: #e5e7eb;
+            border-color: #9ca3af;
+        }
+
+        .btn-clear {
+            background: #fecaca;
+            color: #991b1b;
+            border: 2px solid #fca5a5;
+        }
+
+        .btn-clear:hover {
+            background: #f87171;
+            border-color: #ef4444;
+            color: white;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 10px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-label {
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 10px;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .result-box {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            color: #1f2937;
+            line-height: 1.6;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+
+        .info-box {
+            background: #dbeafe;
+            border-left: 4px solid #3b82f6;
+            color: #1e40af;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 8px;
+        }
+
+        .copy-feedback {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #10b981;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            animation: slideInRight 0.3s ease-out;
+        }
+
+        .copy-feedback.show {
+            display: block;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .machine-id-input-group {
+            position: relative;
+        }
+
+        .machine-id-hint {
+            font-size: 12px;
+            color: #6b7280;
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        .preview-box {
+            background: #f3f4f6;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 12px;
+            margin-top: 15px;
+            font-size: 12px;
+        }
+
+        .preview-box strong {
+            display: block;
+            color: #374151;
+            margin-bottom: 6px;
+        }
+
+        .preview-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            color: #6b7280;
+        }
+
+        .preview-item code {
+            background: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            color: #1f2937;
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .content {
+                padding: 25px 20px;
+            }
+
+            .button-group {
+                grid-template-columns: 1fr;
+            }
+
+            .btn-generate {
+                grid-column: span 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔑 Lisans Anahtarı Üretici</h1>
+            <p>License Key Generator / Lizenzschlüssel-Generator</p>
+        </div>
+
+        <div class="content">
+            <div class="info-box">
+                <strong>ℹ️ Nasıl Kullanılır?</strong>
+                Uygulamada gösterilen <strong>MachineID</strong>'yi aşağıya yapıştırın, anahtarın geçerli olacağı son tarihi seçin, ardından <strong>"Anahtarı Üret"</strong> butonuna basın.
+            </div>
+
+            <form id="licenseForm">
+                <div class="form-group">
+                    <label for="machineId">MachineID (Cihaz Kimliği)</label>
+                    <input 
+                        type="text" 
+                        id="machineId" 
+                        placeholder="Uygulamada gösterilen 16 karakterli ID'yi yapıştırın..." 
+                        required
+                        autocomplete="off"
+                    >
+                    <div class="machine-id-hint">
+                        ℹ️ Bu kod cihazınıza özgüdür. Tarayıcıyı temizlerseniz değişebilir. Her tarayıcı farklı kod alır.
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="expiryDate">Lisans Süresi (Bitiş Tarihi)</label>
+                    <input 
+                        type="date" 
+                        id="expiryDate" 
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="licenseType">Lisans Türü</label>
+                    <select id="licenseType" required>
+                        <option value="trial">Trial (Deneme)</option>
+                        <option value="standard">Standard (Standart)</option>
+                        <option value="premium">Premium (Premium)</option>
+                        <option value="enterprise">Enterprise (Kurumsal)</option>
+                    </select>
+                </div>
+
+                <div class="preview-box" id="preview">
+                    <strong>📋 Oluşturulacak Veri Önizlemesi:</strong>
+                    <div class="preview-item">
+                        <span>MachineID:</span>
+                        <code id="previewMachineId">-</code>
+                    </div>
+                    <div class="preview-item">
+                        <span>Süresi Biten Tarih:</span>
+                        <code id="previewDate">-</code>
+                    </div>
+                    <div class="preview-item">
+                        <span>Lisans Türü:</span>
+                        <code id="previewType">-</code>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="button" class="btn-generate" id="generateBtn">🔐 Anahtarı Üret</button>
+                    <button type="button" class="btn-clear" onclick="clearForm()">🗑️ Temizle</button>
+                    <button type="button" class="btn-copy" id="copyBtn" style="display: none;">📋 Kopyala</button>
+                </div>
+            </form>
+
+            <div class="result-section" id="resultSection">
+                <div class="result-label">✅ Oluşturulan Lisans Anahtarı (Base64 Kodlu):</div>
+                <div class="result-box" id="resultBox"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="copy-feedback" id="copyFeedback">
+        ✓ Anahtarı kopyalandı!
+    </div>
+
+    <script>
+        const form = document.getElementById('licenseForm');
+        const machineIdInput = document.getElementById('machineId');
+        const expiryDateInput = document.getElementById('expiryDate');
+        const licenseTypeInput = document.getElementById('licenseType');
+        const generateBtn = document.getElementById('generateBtn');
+        const copyBtn = document.getElementById('copyBtn');
+        const resultSection = document.getElementById('resultSection');
+        const resultBox = document.getElementById('resultBox');
+        const copyFeedback = document.getElementById('copyFeedback');
+
+        // Preview'ı gerçek zamanda güncelle
+        const updatePreview = () => {
+            document.getElementById('previewMachineId').textContent = machineIdInput.value || '-';
+            document.getElementById('previewDate').textContent = expiryDateInput.value || '-';
+            document.getElementById('previewType').textContent = licenseTypeInput.value || '-';
+        };
+
+        machineIdInput.addEventListener('input', updatePreview);
+        expiryDateInput.addEventListener('change', updatePreview);
+        licenseTypeInput.addEventListener('change', updatePreview);
+
+        // Bugünün tarihini default olarak ayarla
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 30);
+        expiryDateInput.valueAsDate = tomorrow;
+        updatePreview();
+
+        generateBtn.addEventListener('click', () => {
+            if (!machineIdInput.value.trim()) {
+                alert('Lütfen MachineID girin!');
+                machineIdInput.focus();
+                return;
+            }
+
+            if (!expiryDateInput.value) {
+                alert('Lütfen süresi biten tarihi seçin!');
+                return;
+            }
+
+            // Lisans verilerini JSON olarak oluştur
+            const licenseData = {
+                id: machineIdInput.value.trim().toUpperCase(),
+                exp: expiryDateInput.value,
+                type: licenseTypeInput.value
+            };
+
+            // JSON'u string'e çevir
+            const jsonString = JSON.stringify(licenseData);
+
+            // Base64 ile kodla
+            const encodedKey = btoa(jsonString);
+
+            // Sonucu göster
+            resultBox.textContent = encodedKey;
+            resultSection.classList.add('show');
+            copyBtn.style.display = 'block';
+        });
+
+        copyBtn.addEventListener('click', () => {
+            const key = resultBox.textContent;
+            navigator.clipboard.writeText(key).then(() => {
+                copyFeedback.classList.add('show');
+                setTimeout(() => {
+                    copyFeedback.classList.remove('show');
+                }, 2000);
+            });
+        });
+
+        function clearForm() {
+            form.reset();
+            resultSection.classList.remove('show');
+            copyBtn.style.display = 'none';
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 30);
+            expiryDateInput.valueAsDate = tomorrow;
+            updatePreview();
+            machineIdInput.focus();
+        }
+    </script>
+</body>
+</html>

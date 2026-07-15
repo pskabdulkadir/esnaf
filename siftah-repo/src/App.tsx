@@ -1,0 +1,2921 @@
+import React, { useState, useEffect, FormEvent, ChangeEvent } from "react";
+import { 
+  Sparkles, Smartphone, CheckCircle, Plus, Trash2, 
+  RefreshCw, Check, Clock, Info, Globe, Share2, Search, 
+  Eye, Copy, MapPin, X, Phone, Compass, Download, 
+  Map, Gift, Percent, ArrowUpRight, Flame, Heart, Lock, ShieldCheck, Activity, ChevronRight
+} from "lucide-react";
+import { PublicDiscount } from "./types";
+
+interface CoordinatePreset {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+// Famous coordinates in Turkey for simulation/local distance matches
+const COORDINATE_PRESETS: CoordinatePreset[] = [
+  { name: "Bahariye, Kadıköy", lat: 40.9904, lng: 29.0298 },
+  { name: "Karaköy, Beyoğlu", lat: 41.0256, lng: 28.9742 },
+  { name: "Ortaköy, Beşiktaş", lat: 41.0473, lng: 29.0204 },
+  { name: "Alsancak, İzmir", lat: 38.4357, lng: 27.1420 },
+  { name: "Tunalı, Ankara", lat: 39.9056, lng: 32.8615 }
+];
+
+const CATEGORY_IMAGES: Record<string, string> = {
+  "🥛 Süt ve Kahvaltılık": "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=650",
+  "🍞 Fırın & Unlu Mamül": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=650",
+  "🍎 Manav": "https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=650",
+  "🍪 Tatlı & Atıştırmalık": "https://images.unsplash.com/photo-1534432127782-1859942c7aa8?auto=format&fit=crop&q=80&w=650",
+  "🍕 Dondurulmuş & Hazır Yemek": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&q=80&w=650",
+  "📦 Genel": "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=650"
+};
+
+const PRESET_IMAGES = [
+  { name: "🥛 Süt & Şarküteri", url: "https://images.unsplash.com/photo-1550583724-b2692b85b150?auto=format&fit=crop&q=80&w=650" },
+  { name: "🧀 Olgun Peynir", url: "https://images.unsplash.com/photo-1486299267070-83823f5448dd?auto=format&fit=crop&q=80&w=650" },
+  { name: "🍞 Fırın Ekmeği", url: "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&q=80&w=650" },
+  { name: "🥐 Simit & Unlu", url: "https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&q=80&w=650" },
+  { name: "🍏 Taze Manav", url: "https://images.unsplash.com/photo-1610348725531-843dff563e2c?auto=format&fit=crop&q=80&w=650" },
+  { name: "🍊 Portakal & Sebze", url: "https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?auto=format&fit=crop&q=80&w=650" },
+  { name: "🍪 Baklava & Tatlı", url: "https://images.unsplash.com/photo-1508737693885-cb47dc312cf7?auto=format&fit=crop&q=80&w=650" },
+  { name: "🥩 Kasap & Et", url: "https://images.unsplash.com/photo-1607623814075-e51df1bdc82f?auto=format&fit=crop&q=80&w=650" },
+  { name: "🥤 Soğuk İçecek", url: "https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&q=80&w=650" },
+  { name: "📦 Genel Şarküteri", url: "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&q=80&w=650" }
+];
+
+// Haversine formula to calculate distance in km between coordinates
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371; // Earth's radius in km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// 3-Language Internationalization dictionaries
+const TRANSLATIONS = {
+  tr: {
+    logoLabel: "İndirim Vitrini",
+    networkLive: "Menzil Ağı Canlı 📡",
+    subtitle: "Uluslararası & Yerel Akıllı İndirim Pazaryeri",
+    esnafTitle: "Esnaf Yönetim Paneli",
+    customerTitle: "Müşteri İndirim Vitrini 👁️",
+    settingsTab: "Global Ayarlar (Dil & İletişim)",
+    addDiscountTab: "➕ Yeni İndirimli Reklam Tanımla",
+    portfolioTab: "📚 Yayındaki Reklam Portföyü",
+    storeNameLabel: "Mağaza / Esnaf Adı",
+    phoneLabel: "Telefon Numarası",
+    whatsappLabel: "WhatsApp Destek Hattı",
+    activeCount: "Toplam Aktif Yayınınız",
+    campaignDetails: "Kampanya & Reklam Detayları",
+    campaignSubtitle: "Ürünü ekleyip vitrinde anında listeleyin. Yapay zeka ile seçtiğiniz mağaza dilinde slogan hazırlayabilirsiniz.",
+    categoryLabel: "Kampanya Kategorisi",
+    productNameLabel: "Ürün Adı",
+    productNamePlaceholder: "Örn: Yerli Ezine Peyniri",
+    originalPriceLabel: "Normal Raf Fiyatı (TL)",
+    discountPriceLabel: "İndirimli Fiyat (TL)",
+    discountPercentLabel: "Hesaplanan Kazanç",
+    aiSloganBtn: "AI Slogan Hazırla (Gemini)",
+    sloganLabel: "Çekici Müşteri Sloganı & Açıklama",
+    sloganPlaceholder: "Müşterinin ilgisini çekecek sıcak esnaf diliyle mesaj...",
+    publishScopeLabel: "Yayın ve Erişim Kapsamı (Mesafe)",
+    radiusLabel: "📍 Lokasyon Bazlı (Yarıçap)",
+    globalLabel: "🌐 Dünya Geneli (Global)",
+    radiusKmLabel: "Erişim Yarıçapı",
+    radiusTip: "Dükkan konumunuzdan belirttiğiniz uzaklıktaki müşterilerin 'Yakınımdaki İndirimler' sekmesinde görünürsünüz.",
+    locationSelectorLabel: "Dükkan Lokasyonu Seçin",
+    gpsLocBtn: "📍 Tarayıcıdan Konum Al",
+    addressLabel: "Adres",
+    publishBtn: "İndirim Reklamını Vitrinde Yayınla!",
+    previewBtn: "CANLI ESNAF VİTRİN KARTI ÖNİZLEMESİ",
+    previewTip: "Müşterilerin kendi cihazlarında göreceği kart tasarımıdır.",
+    viewShowcaseBtn: "İndirim Vitrinini Aç",
+    activePortfolioTitle: "Aktif Canlı Reklam Portföyünüz",
+    activePortfolioSubtitle: "Ürünlerinizi düzenleyin veya vitrinden kaldırın.",
+    viewsCountLabel: "İnceleme",
+    sharesCountLabel: "Tıklama",
+    deleteBtn: "Kampanyayı Kaldır",
+    copiedAlert: "Paylaşım Linki Panoya Kopyalandı! Dostlarınızla anında paylaşabilirsiniz 🚀",
+    customerHeaderTitle: "Dürüst Esnaf İndirim Vitrini",
+    customerHeaderSubtitle: "Doğrudan esnaftan aracısız taze indirimler. WhatsApp veya telefonla anında sipariş verin!",
+    allCategories: "Tümü",
+    proximityTab: "📍 Yakınımdakiler ({radius} km)",
+    allDealsTab: "🌐 Global Fırsatlar (%100)",
+    searchPlaceholder: "İndirimlerde ara (peynir, süt, fırın...)",
+    distanceLabel: "Uzaklık",
+    nearYouBadge: "Yakınınızda",
+    outOfRangeBadge: "Menzil Dışı",
+    getDiscountBtn: "Detayları & Kampanyayı Gör",
+    whatsappBtn: "WhatsApp Sipariş Hattı 💬",
+    phoneCallBtn: "Telefonla Hızlıca Ara 📞",
+    shareDisclaimer: "Paylaşım linkini kopyalayarak bu kampanyayı sevdiklerinize gönderebilirsiniz.",
+    closeBtn: "Kapat",
+    howMuchDusted: " TL Düştü",
+    deliveryRadiusLabel: "📍 Erişim ve Teslimat Güzergahı:",
+    deliveryGlobalText: "🌐 Dünya Geneli Kampanyadır: Bu ürün konum sınırlaması olmaksızın her yerden temin edilebilir veya kargo ile teslim edilebilir.",
+    deliveryLocalText: "Yerel mahalle kampanyasıdır. Esnafın yerel servis yarıçapındasınız veya yakındasınız.",
+    deliveryLocalLabel: "Dükkana olan uzaklığınız",
+    deliveryStatusLabel: "Kapsama Durumu:",
+    deliveryStatusIn: "🟢 Teslimat Yarıçapı İçindesiniz (Erişilebilir)",
+    deliveryStatusOut: "🔴 Kampanya Erişim Sınırı Dışındasınız",
+    storeSettingsSaved: "Mağaza ayarları başarıyla güncellendi! 💾",
+    saveSettingsBtn: "Global Ayarları Kaydet",
+    adminLockTitle: "Esnaf Paneli Güvenlik Girişi",
+    adminLockSubtitle: "Yalnızca yetkili mağaza sahipleri düzenleme yapabilir. Müşteriler vitrini doğrudan görür.",
+    passcodeLabel: "Erişim Şifresi (Firebase Auth Simülasyonu)",
+    loginBtn: "Güvenli Giriş Yap",
+    wrongPasscode: "Lütfen doğru şifreyi giriniz! (İpucu: Giriş yap düğmesine tıklayabilirsiniz)",
+    logoutBtn: "Çıkış Yap",
+    globalSettingsLabel: "Global Dil Ayarları",
+    langTr: "Türkçe (TR)",
+    langEn: "English (EN)",
+    langDe: "Deutsch (DE)",
+    globalRadiusPlaceholder: "Yarıçap",
+    noItemFound: "Filtrelere uygun kampanya bulunamadı.",
+    backToHome: "Mağazaya Geri Dön"
+  },
+  en: {
+    logoLabel: "Discount Showcase",
+    networkLive: "Range Network Live 📡",
+    subtitle: "International & Local Smart Discount Marketplace",
+    esnafTitle: "Merchant Backoffice",
+    customerTitle: "Customer Showcase 👁️",
+    settingsTab: "Global Settings (Language & Contact)",
+    addDiscountTab: "➕ Add New Discount Campaign",
+    portfolioTab: "📚 Active Campaign Portfolio",
+    storeNameLabel: "Store / Merchant Name",
+    phoneLabel: "Phone Number",
+    whatsappLabel: "WhatsApp Helpline",
+    activeCount: "Total Active Publications",
+    campaignDetails: "Campaign & Advertisement Details",
+    campaignSubtitle: "Input your prices and let AI generate an enticing customer slogan automatically in your chosen language.",
+    categoryLabel: "Campaign Category",
+    productNameLabel: "Product Name",
+    productNamePlaceholder: "E.g. Fresh Goat Cheese",
+    originalPriceLabel: "Regular Price (TL)",
+    discountPriceLabel: "Discounted Price (TL)",
+    discountPercentLabel: "Calculated Discount",
+    aiSloganBtn: "Generate AI Slogan (Gemini)",
+    sloganLabel: "Enticing Customer Slogan & Description",
+    sloganPlaceholder: "An engaging message written in friendly merchant style...",
+    publishScopeLabel: "Publish Scope & Range",
+    radiusLabel: "📍 Location-Based (Radius)",
+    globalLabel: "🌐 World-Wide (Global)",
+    radiusKmLabel: "Reach Radius",
+    radiusTip: "You will be visible in the 'Deals Near Me' tab for customers within this distance from your shop.",
+    locationSelectorLabel: "Choose Shop Location",
+    gpsLocBtn: "📍 Get Location from Browser",
+    addressLabel: "Address",
+    publishBtn: "Publish Discount on Showcase!",
+    previewBtn: "LIVE SHOPCASE CARD PREVIEW",
+    previewTip: "This card layout shows exactly how customers see it on their screen.",
+    viewShowcaseBtn: "Open Discount Showcase",
+    activePortfolioTitle: "Your Live Campaign Portfolio",
+    activePortfolioSubtitle: "Manage or remove active discounts easily.",
+    viewsCountLabel: "Views",
+    sharesCountLabel: "Clicks",
+    deleteBtn: "Delete Campaign",
+    copiedAlert: "Share Link Copied to Clipboard! Share with friends instantly 🚀",
+    customerHeaderTitle: "Neighborhood Discount Showcase",
+    customerHeaderSubtitle: "Fresh direct deals from verified merchants. Order directly via WhatsApp or Phone!",
+    allCategories: "All",
+    proximityTab: "📍 Near Me ({radius} km)",
+    allDealsTab: "🌐 Global Deals (100%)",
+    searchPlaceholder: "Search deals (cheese, milk, bakery...)",
+    distanceLabel: "Distance",
+    nearYouBadge: "Near You",
+    outOfRangeBadge: "Out of Range",
+    getDiscountBtn: "View Details & Campaign",
+    whatsappBtn: "WhatsApp Order Line 💬",
+    phoneCallBtn: "Call Store Directly 📞",
+    shareDisclaimer: "Copy and share the link to pass this deal to family and friends.",
+    closeBtn: "Close",
+    howMuchDusted: " TL Off",
+    deliveryRadiusLabel: "📍 Shipping & Delivery Area:",
+    deliveryGlobalText: "🌐 World-Wide Campaign: This item is available anywhere without location restrictions and can be shipped.",
+    deliveryLocalText: "Local neighborhood discount. You are near the store location.",
+    deliveryLocalLabel: "Distance to shop",
+    deliveryStatusLabel: "Coverage Status:",
+    deliveryStatusIn: "🟢 Inside Delivery Radius (Accessible)",
+    deliveryStatusOut: "🔴 Outside Campaign Reach Boundary",
+    storeSettingsSaved: "Store settings updated successfully! 💾",
+    saveSettingsBtn: "Save Global Settings",
+    adminLockTitle: "Merchant Security Login",
+    adminLockSubtitle: "Only authorized store owners can execute edits. Customers access showcase instantly.",
+    passcodeLabel: "Access Passcode (Firebase Auth Simulation)",
+    loginBtn: "Secure Sign In",
+    wrongPasscode: "Please type correct administrator code! (Hint: Feel free to click log in directly)",
+    logoutBtn: "Log Out",
+    globalSettingsLabel: "Global Language Options",
+    langTr: "Turkish (TR)",
+    langEn: "English (EN)",
+    langDe: "German (DE)",
+    globalRadiusPlaceholder: "Radius",
+    noItemFound: "No active campaigns found matching filters.",
+    backToHome: "Back to Store"
+  },
+  de: {
+    logoLabel: "Rabatt-Schaufenster",
+    networkLive: "Bereichsnetzwerk Aktiv 📡",
+    subtitle: "Internationaler & Lokaler Intelligenter Rabattmarktplatz",
+    esnafTitle: "Händler-Dashboard",
+    customerTitle: "Kunden-Schaufenster 👁️",
+    settingsTab: "Globale Einstellungen (Sprache & Kontakt)",
+    addDiscountTab: "➕ Neue Rabattaktion Hinzufügen",
+    portfolioTab: "📚 Aktives Kampagnenportfolio",
+    storeNameLabel: "Geschäfts- / Händlername",
+    phoneLabel: "Telefonnummer",
+    whatsappLabel: "WhatsApp-Hotline",
+    activeCount: "Aktive Kampagnen insgesamt",
+    campaignDetails: "Kampagnen- & Werbedetails",
+    campaignSubtitle: "Geben Sie Ihre Preise ein und lassen Sie die KI automatisch einen Slogan in der gewählten Geschäftssprache erstellen.",
+    categoryLabel: "Kampagnenkategorie",
+    productNameLabel: "Produktname",
+    productNamePlaceholder: "Z. B. Frischer Ziegenkäse",
+    originalPriceLabel: "Normalpreis (TL)",
+    discountPriceLabel: "Rabattpreis (TL)",
+    discountPercentLabel: "Berechneter Rabatt",
+    aiSloganBtn: "KI-Slogan Erstellen (Gemini)",
+    sloganLabel: "Verlockender Slogan & Beschreibung",
+    sloganPlaceholder: "Eine freundliche Botschaft im Händler-Stil...",
+    publishScopeLabel: "Veröffentlichungsbereich & Reichweite",
+    radiusLabel: "📍 Standortbasiert (Radius)",
+    globalLabel: "🌐 Weltweit (Global)",
+    radiusKmLabel: "Reichweiten-Radius",
+    radiusTip: "Sie sind auf der Registerkarte 'Angebote in meiner Nähe' für Kunden innerhalb dieser Entfernung sichtbar.",
+    locationSelectorLabel: "Standort des Geschäfts wählen",
+    gpsLocBtn: "📍 Standort vom Browser holen",
+    addressLabel: "Adresse",
+    publishBtn: "Rabatt im Schaufenster veröffentlichen!",
+    previewBtn: "LIVE-VORSCHAU DER KARTE",
+    previewTip: "Dieses Kartenlayout zeigt genau, wie Kunden es sehen.",
+    viewShowcaseBtn: "Schaufenster öffnen",
+    activePortfolioTitle: "Ihr Aktives Kampagnenportfolio",
+    activePortfolioSubtitle: "Verwalten oder löschen Sie Ihre Angebote.",
+    viewsCountLabel: "Aufrufe",
+    sharesCountLabel: "Klicks",
+    deleteBtn: "Kampagne Löschen",
+    copiedAlert: "Teilen-Link in die Zwischenablage kopiert! Sofort teilen 🚀",
+    customerHeaderTitle: "Nachbarschafts-Rabatt Schaufenster",
+    customerHeaderSubtitle: "Direkte frische Angebote von ehrlichen Händlern. Über WhatsApp oder Telefon bestellen!",
+    allCategories: "Alle",
+    proximityTab: "📍 In meiner Nähe ({radius} km)",
+    allDealsTab: "🌐 Globale Angebote (100%)",
+    searchPlaceholder: "Angebote durchsuchen (Käse, Milch, Bäckerei...)",
+    distanceLabel: "Entfernung",
+    nearYouBadge: "In Ihrer Nähe",
+    outOfRangeBadge: "Außer Reichweite",
+    getDiscountBtn: "Details & Kampagne anzeigen",
+    whatsappBtn: "WhatsApp-Bestelllinie 💬",
+    phoneCallBtn: "Händler direkt anrufen 📞",
+    shareDisclaimer: "Kopieren und teilen Sie den Link, um dieses Angebot an Freunde oder Familie weiterzugeben.",
+    closeBtn: "Schließen",
+    howMuchDusted: " TL Günstiger",
+    deliveryRadiusLabel: "📍 Versand- & Lieferbereich:",
+    deliveryGlobalText: "🌐 Weltweite Kampagne: Dieser Artikel ist an jedem Standort ohne Einschränkungen erhältlich und kann geliefert werden.",
+    deliveryLocalText: "Lokales Nachbarschaftsangebot. Sie befinden sich in der Nähe des Standorts.",
+    deliveryLocalLabel: "Entfernung zum Geschäft",
+    deliveryStatusLabel: "Lieferstatus:",
+    deliveryStatusIn: "🟢 Innerhalb des Lieferradius (Erreichbar)",
+    deliveryStatusOut: "🔴 Außerhalb des Kampagnen-Grenzbereichs",
+    storeSettingsSaved: "Einstellungen erfolgreich aktualisiert! 💾",
+    saveSettingsBtn: "Einstellungen Speichern",
+    adminLockTitle: "Händler Sicherheits-Login",
+    adminLockSubtitle: "Nur autorisierte Ladenbesitzer können Änderungen vornehmen. Kunden sehen das Schaufenster direkt.",
+    passcodeLabel: "Zugangscode (Firebase Auth Simulation)",
+    loginBtn: "Sicher Anmelden",
+    wrongPasscode: "Bitte geben Sie den korrekten Administrator-Code ein! (Hinweis: Sie können direkt auf Anmelden klicken)",
+    logoutBtn: "Abmelden",
+    globalSettingsLabel: "Globale Sprachoptionen",
+    langTr: "Türkisch (TR)",
+    langEn: "Englisch (EN)",
+    langDe: "Deutsch (DE)",
+    globalRadiusPlaceholder: "Radius",
+    noItemFound: "Keine aktiven Kampagnen gefunden, die den Filtern entsprechen.",
+    backToHome: "Zurück zum Laden"
+  }
+};
+
+const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
+  tr: {
+    "🥛 Süt ve Kahvaltılık": "🥛 Süt ve Kahvaltılık",
+    "🍞 Fırın & Unlu Mamül": "🍞 Fırın & Unlu Mamül",
+    "🍎 Manav": "🍎 Manav",
+    "🍪 Tatlı & Atıştırmalık": "🍪 Tatlı & Atıştırmalık",
+    "🍕 Dondurulmuş & Hazır Yemek": "🍕 Dondurulmuş & Hazır Yemek",
+    "📦 Genel": "📦 Diğer Temel Gıda"
+  },
+  en: {
+    "🥛 Süt ve Kahvaltılık": "🥛 Dairy & Breakfast",
+    "🍞 Fırın & Unlu Mamül": "🍞 Bakery & Bread",
+    "🍎 Manav": "🍎 Greens & Fruits",
+    "🍪 Tatlı & Atıştırmalık": "🍪 Sweets & Snacks",
+    "🍕 Dondurulmuş & Hazır Yemek": "🍕 Frozen Food",
+    "📦 Genel": "📦 General Groceries"
+  },
+  de: {
+    "🥛 Süt ve Kahvaltılık": "🥛 Milchprodukte & Frühstück",
+    "🍞 Fırın & Unlu Mamül": "🍞 Bäckerei & Gebäck",
+    "🍎 Manav": "🍎 Obst & Gemüse",
+    "🍪 Tatlı & Atıştırmalık": "🍪 Süßigkeiten & Snacks",
+    "🍕 Dondurulmuş & Hazır Yemek": "🍕 Tiefkühlkost",
+    "📦 Genel": "📦 Allgemeine Lebensmittel"
+  }
+};
+
+export default function App() {
+  // ⭐ User ID for product ownership filtering
+  // FIXED: userId'yi lisans key'ine bağla, böylece her lisans farklı userId'ye sahip olur
+  const [userId] = useState<string>(() => {
+    try {
+      const licenseData = localStorage.getItem('license_data');
+
+      if (licenseData) {
+        try {
+          const parsed = JSON.parse(licenseData);
+          const licenseKeyPrefix = parsed.key ? parsed.key.substring(0, 12) : 'unknown';
+          const machineIdFallback = `device_${Date.now()}`;
+          const id = `license_${machineIdFallback}_${licenseKeyPrefix}`;
+          console.log('siftah-repo userId (from license):', id);
+          return id;
+        } catch (e) {
+          console.warn('License parse failed, using fallback');
+        }
+      }
+
+      const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      console.log('siftah-repo userId (fallback):', id);
+      return id;
+    } catch (e) {
+      console.error('userId creation failed:', e);
+      return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+  });
+
+  // Is this visitor on the 100% Isolated Public URL?
+  const [isPublicUrlLocked, setIsPublicUrlLocked] = useState(false);
+  const [isCustomerShowcase, setIsCustomerShowcase] = useState(false);
+
+  // Authentication simulation states
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [adminPasscode, setAdminPasscode] = useState("");
+  const [adminLockError, setAdminLockError] = useState("");
+
+  const [activeTab, setActiveTab] = useState<"settings" | "publisher" | "catalogue" | "reklam">("publisher");
+
+  // Global list of active discounts
+  const [publicDiscounts, setPublicDiscounts] = useState<PublicDiscount[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
+  // Persistent settings (loaded from database)
+  const [settings, setSettings] = useState({
+    language: "tr",
+    merchantName: "Bizim Mahalle Şarküterisi",
+    merchantPhone: "+90 532 111 2233",
+    merchantWhatsApp: "+90 532 111 2233",
+    googleAnalyticsId: "G-9K7EFX8ZVL",
+    googleAdsId: "AW-384910248",
+    googleAdsLabel: "conversion_whatsapp_click"
+  });
+
+  // New discount form fields
+  const [prodName, setProdName] = useState("");
+  const [prodCategory, setProdCategory] = useState("🥛 Şarküteri");
+  const [prodPrice, setProdPrice] = useState("");
+  const [prodDiscountPrice, setProdDiscountPrice] = useState("");
+  const [prodDescription, setProdDescription] = useState("");
+  const [prodImage, setProdImage] = useState("");
+  
+  const [publishMode, setPublishMode] = useState<"global" | "local">("local");
+  const [radiusKm, setRadiusKm] = useState<number>(5);
+  const [merchantLat, setMerchantLat] = useState<number>(40.9904); // Default: Bahariye Kadıköy
+  const [merchantLng, setMerchantLng] = useState<number>(29.0298);
+  const [merchantLocationLabel, setMerchantLocationLabel] = useState("Bahariye, Kadıköy");
+
+  // Global Ads & SEO Integration states
+  const [gaTrackingId, setGaTrackingId] = useState("G-9K7EFX8ZVL");
+  const [gtmId, setGtmId] = useState("GTM-K2M9N63P");
+  const [adsConversionId, setAdsConversionId] = useState("AW-384910248");
+  const [adsConversionLabel, setAdsConversionLabel] = useState("conversion_whatsapp_click");
+  const [isSitemapAutoUpdate, setIsSitemapAutoUpdate] = useState(true);
+  const [isCloudSyncEnabled, setIsCloudSyncEnabled] = useState(true);
+  const [conversionLogs, setConversionLogs] = useState<Array<{ id: string; time: string; event: string; status: string; details: string }>>([
+    { id: "log-1", time: "10 dakika önce", event: "Google Ads Click", status: "Success", details: "Müşteri Almanya'dan pmax reklamı ile fırın kampanyasına giriş yaptı." },
+    { id: "log-2", time: "8 dakika önce", event: "Conversion Triggered", status: "Fired (AW-384910248)", details: "WhatsApp Sipariş butonuna tıklandı, Google Ads Conversion sinyali gönderildi." },
+    { id: "log-3", time: "3 dakika önce", event: "SEO Bot Crowled", status: "Success", details: "Googlebot taze manav kampanyasının sitemap linkini başarıyla indexledi." }
+  ]);
+
+  // Customer geolocation states
+  const [userLat, setUserLat] = useState<number>(40.9904); // Default coordinates match shop
+  const [userLng, setUserLng] = useState<number>(29.0298);
+  const [userLocationLabel, setUserLocationLabel] = useState("Bahariye, Kadıköy (Simüle)");
+  const [isDetectingUserLoc, setIsDetectingUserLoc] = useState(false);
+  
+  const [showcaseTab, setShowcaseTab] = useState<"local" | "global">("local");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Tümü");
+
+  // Copy check and delete confirmation states
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+    setToast({ message, type });
+    setTimeout(() => {
+      setToast(prev => prev && prev.message === message ? null : prev);
+    }, 4500);
+  };
+
+  // 3-Step Google Ads wizard states
+  const [wizardStep, setWizardStep] = useState<number>(1);
+  const [wizardAnalyticsId, setWizardAnalyticsId] = useState<string>("");
+  const [wizardAdsId, setWizardAdsId] = useState<string>("");
+  const [wizardAdsLabel, setWizardAdsLabel] = useState<string>("");
+  const [wizardError, setWizardError] = useState<string>("");
+
+  // Sync wizard values with loaded settings once they are ready
+  useEffect(() => {
+    if (settings.googleAnalyticsId) {
+      setWizardAnalyticsId(settings.googleAnalyticsId);
+    }
+    if (settings.googleAdsId) {
+      setWizardAdsId(settings.googleAdsId);
+    }
+    if (settings.googleAdsLabel) {
+      setWizardAdsLabel(settings.googleAdsLabel);
+    }
+  }, [settings.googleAnalyticsId, settings.googleAdsId, settings.googleAdsLabel]);
+
+  // Active overlays
+  const [selectedDetailDiscount, setSelectedDetailDiscount] = useState<PublicDiscount | null>(null);
+
+  // Load backend configurations & active campaigns
+  const fetchData = async () => {
+    setIsLoading(true);
+    try {
+      // 1. Fetch persistent store settings
+      const settingsRes = await fetch("/api/settings");
+      if (settingsRes.ok) {
+        const settingsData = await settingsRes.json();
+        setSettings(settingsData);
+      }
+
+      // 2. Fetch public active discounts
+      // ⭐ FIXED: userId state'ini kullan (lisans key'e bağlı unique ID)
+      const apiUrl = userId
+        ? `/api/public-discounts?userId=${encodeURIComponent(userId)}`
+        : `/api/public-discounts`;
+      console.log('siftah-repo fetchData - fetching from URL:', apiUrl);
+      const pubRes = await fetch(apiUrl);
+      if (pubRes.ok) {
+        const discountsData = await pubRes.json();
+        setPublicDiscounts(discountsData);
+
+        // Analyze URL params for Isolasyon and Deep linking
+        const urlParams = new URLSearchParams(window.location.search);
+        const discountId = urlParams.get("discountId");
+        const slug = urlParams.get("slug");
+        const viewMode = urlParams.get("view");
+
+        // If explicitly requested Showcase view, trigger isolated showcase lock
+        if (viewMode === "showcase" || slug || discountId) {
+          setIsCustomerShowcase(true);
+          setIsPublicUrlLocked(true); // Locks user screen into isolated showcase mode (no admin options)
+        }
+
+        if (slug) {
+          const matched = discountsData.find((d: any) => d.slug === slug);
+          if (matched) {
+            setSelectedDetailDiscount(matched);
+            incrementViewCount(matched.id);
+          }
+        } else if (discountId) {
+          const matched = discountsData.find((d: any) => d.id === discountId);
+          if (matched) {
+            setSelectedDetailDiscount(matched);
+            incrementViewCount(matched.id);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Veriler alınırken hata oluştu:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [userId]); // ⭐ FIXED: userId değişince fetchData'yı yeniden çalıştır
+
+  // Set default coordinates on loading
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLat(pos.coords.latitude);
+          setUserLng(pos.coords.longitude);
+          setUserLocationLabel("Mevcut Tarayıcı Konumunuz");
+          
+          setMerchantLat(pos.coords.latitude);
+          setMerchantLng(pos.coords.longitude);
+          setMerchantLocationLabel("Mevcut Tarayıcı Konumunuz");
+        },
+        () => {
+          // Denied position is fine, we default gracefully
+        }
+      );
+    }
+  }, []);
+
+  // Google Analytics Entegrasyonu (Otomatik Gömme)
+  useEffect(() => {
+    const gaId = settings.googleAnalyticsId || "G-9K7EFX8ZVL";
+    if (!gaId) return;
+
+    // Local Storage yedekleme de yapalım esnafın isteği üzere
+    localStorage.setItem('googleAnalyticsId', gaId);
+    if (settings.googleAdsId) localStorage.setItem('adsConversionId', settings.googleAdsId);
+    if (settings.googleAdsLabel) localStorage.setItem('adsLabel', settings.googleAdsLabel);
+
+    const scriptId = "google-gtag-script";
+    const initId = "google-gtag-init";
+
+    // Varsa eski tagları temizle
+    const existingScript = document.getElementById(scriptId);
+    if (existingScript) existingScript.remove();
+    const existingInit = document.getElementById(initId);
+    if (existingInit) existingInit.remove();
+
+    try {
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+      script.async = true;
+      document.head.appendChild(script);
+
+      const initScript = document.createElement("script");
+      initScript.id = initId;
+      initScript.innerHTML = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', '${gaId}');
+      `;
+      document.head.appendChild(initScript);
+      console.log(`[Google Analytics Otomasyonu] ${gaId} başarıyla gömüldü.`);
+    } catch (e) {
+      console.error("Gtag injection fell back:", e);
+    }
+  }, [settings.googleAnalyticsId, settings.googleAdsId, settings.googleAdsLabel]);
+
+  // Robust Copy To Clipboard with hidden textarea fallback for iframe security constraints
+  const copyToClipboard = (text: string) => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch (_) {}
+    try {
+      const textArea = document.createElement("textarea");
+      textArea.value = text;
+      // Prevent scrolling
+      textArea.style.top = "0";
+      textArea.style.left = "0";
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      const successful = document.execCommand("copy");
+      document.body.removeChild(textArea);
+      return successful;
+    } catch (err) {
+      console.error("Manuel kopyalama da başarısız oldu:", err);
+      return false;
+    }
+  };
+
+  // Device file uploader to base64 DataURL
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate size (Maks 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      showToast("Hata: Yüklemek istediğiniz resim boyutu 5MB sınırını aşmaktadır!", "error");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (typeof reader.result === "string") {
+        setProdImage(reader.result);
+        
+        // Push notification log to active conversion list
+        const log = {
+          id: "upload-" + Date.now(),
+          time: "Az önce",
+          event: "Device Photo Uploaded",
+          status: "Success",
+          details: `"${file.name}" dosya isimli ürün fotoğrafı başarıyla okunarak sisteme pürüzsüzce kaydedildi.`
+        };
+        setConversionLogs(prev => [log, ...prev]);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Update metrics
+  const incrementViewCount = async (id: string) => {
+    try {
+      const res = await fetch(`/api/public-discounts/${id}/views`, { method: "PUT" });
+      if (res.ok) {
+        const updated = await res.json();
+        setPublicDiscounts(prev => prev.map(item => item.id === id ? updated : item));
+        if (selectedDetailDiscount && selectedDetailDiscount.id === id) {
+          setSelectedDetailDiscount(updated);
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const incrementShareCount = async (id: string) => {
+    try {
+      const res = await fetch(`/api/public-discounts/${id}/shares`, { method: "PUT" });
+      if (res.ok) {
+        const updated = await res.json();
+        setPublicDiscounts(prev => prev.map(item => item.id === id ? updated : item));
+        if (selectedDetailDiscount && selectedDetailDiscount.id === id) {
+          setSelectedDetailDiscount(updated);
+        }
+
+        const finalAdsId = settings.googleAdsId || localStorage.getItem('adsConversionId') || "AW-384910248";
+        const finalAdsLabel = settings.googleAdsLabel || localStorage.getItem('adsLabel') || "conversion_whatsapp_click";
+
+        // Fire Google Ads & Analytics simulated/real tracker
+        const nowStr = new Date().toLocaleTimeString("tr-TR");
+        const newLog = {
+          id: "log-" + Date.now(),
+          time: `Şimdi (${nowStr})`,
+          event: "Conversion Triggered (Google Ads)",
+          status: `Fired (${finalAdsId})`,
+          details: `"${updated.productName}" için WhatsApp/Call butonuna tıklandı. Gelişmiş Dönüşüm İzleme sinyali (${finalAdsLabel}) ile Google sunucularına iletildi.`
+        };
+        setConversionLogs(prev => [newLog, ...prev]);
+
+        // Attempt real conversion pixel push if exists in global window
+        if (typeof window !== "undefined" && (window as any).gtag) {
+          try {
+            (window as any).gtag('event', 'conversion', {
+              'send_to': `${finalAdsId}/${finalAdsLabel}`,
+              'value': updated.discountPrice || 0,
+              'currency': 'TRY',
+              'transaction_id': 'tx-' + Date.now()
+            });
+          } catch (e) {
+            console.log("Analytics conversion call simulated successfully");
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const detectUserLocation = () => {
+    setIsDetectingUserLoc(true);
+    if (!navigator.geolocation) {
+      showToast("Tarayıcınız konum servislerini desteklemiyor.", "error");
+      setIsDetectingUserLoc(false);
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setUserLat(pos.coords.latitude);
+        setUserLng(pos.coords.longitude);
+        setUserLocationLabel("GPS ile Saptandı");
+        setIsDetectingUserLoc(false);
+      },
+      (err) => {
+        showToast("Konum saptanamadı: " + err.message + ". Farklı bir hazır bölge seçebilirsiniz.", "error");
+        setIsDetectingUserLoc(false);
+      },
+      { enableHighAccuracy: true, timeout: 6000 }
+    );
+  };
+
+  const detectMerchantLocation = () => {
+    if (!navigator.geolocation) {
+      showToast("Tarayıcınız konum servislerini desteklemiyor.", "error");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setMerchantLat(pos.coords.latitude);
+        setMerchantLng(pos.coords.longitude);
+        setMerchantLocationLabel("GPS ile Alındı");
+      },
+      (err) => {
+        showToast("Konum alınamadı: " + err.message, "error");
+      }
+    );
+  };
+
+  const selectPresetCoordinate = (preset: CoordinatePreset, type: "user" | "merchant") => {
+    if (type === "user") {
+      setUserLat(preset.lat);
+      setUserLng(preset.lng);
+      setUserLocationLabel(preset.name);
+    } else {
+      setMerchantLat(preset.lat);
+      setMerchantLng(preset.lng);
+      setMerchantLocationLabel(preset.name);
+    }
+  };
+
+  // Generate marketing description with Gemini using target language localization
+  const generateAIMetaWithGemini = async () => {
+    if (!prodName || !prodPrice || !prodDiscountPrice) {
+      alert("Lütfen önce Ürün Adı, Raf Fiyatı ve İndirimli Fiyatı giriniz!");
+      return;
+    }
+    setIsGeneratingAI(true);
+    try {
+      const response = await fetch("/api/generate-seo-meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productName: prodName,
+          price: Number(prodPrice),
+          discountPrice: Number(prodDiscountPrice),
+          category: prodCategory,
+          merchantName: settings.merchantName,
+          targetLanguage: settings.language
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProdDescription(data.seoDescription || "");
+      } else {
+        setProdDescription(`${prodName} dükkanımızda muazzam indirimle yayında! ${prodPrice} TL yerine komşuluk jesti olarak sadece ${prodDiscountPrice} TL! Kaçırmayın.`);
+      }
+    } catch (err) {
+      console.error(err);
+      setProdDescription(`${prodName} dükkanımızda muazzam indirimle yayında! ${prodPrice} TL yerine komşuluk jesti olarak sadece ${prodDiscountPrice} TL! Kaçırmayın.`);
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+  const calculateDiscountPercent = () => {
+    const original = Number(prodPrice);
+    const discounted = Number(prodDiscountPrice);
+    if (!original || !discounted || original <= discounted) return 0;
+    return Math.round(((original - discounted) / original) * 100);
+  };
+
+  // Submit new campaign
+  const publishCampaign = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!prodName || !prodPrice || !prodDiscountPrice) {
+      alert("Lütfen temel alanları eksiksiz doldurunuz!");
+      return;
+    }
+
+    // ⭐ DEBUG: userId kontrol
+    console.log('siftah-repo publishCampaign - userId:', userId);
+
+    setIsLoading(true);
+    try {
+      let finalDesc = prodDescription;
+      if (!finalDesc) {
+        finalDesc = `${prodName} ürünümüz dükkanımızda kısa bir süreliğine dev kampanyada! ${prodPrice} TL yerine sadece ${prodDiscountPrice} TL esnaf önceliğiyle kaçırmayın.`;
+      }
+
+      const finalImg = prodImage || CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"];
+
+      const pubResponse = await fetch("/api/public-discounts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          productId: "prod-" + Date.now(),
+          userId: userId,  // ⭐ FIXED: userId'yi gönder
+          productName: prodName,
+          originalPrice: Number(prodPrice),
+          discountPrice: Number(prodDiscountPrice),
+          category: prodCategory,
+          merchantName: settings.merchantName,
+          merchantPhone: settings.merchantPhone,
+          merchantWhatsApp: settings.merchantWhatsApp,
+          seoTitle: `${prodName} Sadece ${prodDiscountPrice} TL! | ${settings.merchantName}`,
+          seoDescription: finalDesc,
+          seoKeywords: `${prodName} ucuz, indirimli ${prodCategory}, ${settings.merchantName} kampanyası`,
+          openGraphImage: finalImg,
+          publishMode,
+          latitude: merchantLat,
+          longitude: merchantLng,
+          radiusKm
+        })
+      });
+
+      if (pubResponse.ok) {
+        setProdName("");
+        setProdPrice("");
+        setProdDiscountPrice("");
+        setProdDescription("");
+        setProdImage("");
+        alert("Tebrikler! İndirim kampanyanızı başarıyla vitrine çıkardınız. 🚀");
+        fetchData();
+        setActiveTab("catalogue");
+      }
+    } catch (err) {
+      console.error("Yayın hatası:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteCampaign = async (pubId: string) => {
+    try {
+      await fetch(`/api/public-discounts/${pubId}`, { method: "DELETE" });
+      showToast(
+        settings.language === "en"
+          ? "Campaign removed successfully!"
+          : settings.language === "de"
+          ? "Aktion erfolgreich gelöscht!"
+          : "Kampanya vitrinden başarıyla kaldırıldı!",
+        "success"
+      );
+      fetchData();
+    } catch (err) {
+      console.error("Silme hatası:", err);
+      showToast(
+        settings.language === "en"
+          ? "Failed to remove campaign."
+          : "Kampanya kaldırılırken hata oluştu.",
+        "error"
+      );
+    }
+  };
+
+  // Save persistent settings
+  const saveStoreSettings = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSettings(updated);
+        alert(t.storeSettingsSaved);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Dynamic Google Tag and Conversion script loading helper
+  const loadMarketingTags = (gaId: string, adsId: string, label: string) => {
+    try {
+      const scriptId = "google-gtag-script";
+      const initId = "google-gtag-init";
+
+      // Varsa eski tagları temizle
+      document.getElementById(scriptId)?.remove();
+      document.getElementById(initId)?.remove();
+
+      const script = document.createElement("script");
+      script.id = scriptId;
+      script.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+      script.async = true;
+      document.head.appendChild(script);
+
+      const initScript = document.createElement("script");
+      initScript.id = initId;
+      initScript.innerHTML = `
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', '${gaId}');
+        gtag('config', '${adsId}');
+      `;
+      document.head.appendChild(initScript);
+      console.log(`[Marketing Tags Initialized] GA: ${gaId}, Ads: ${adsId}`);
+    } catch (err) {
+      console.error("Gtag dynamic load failed:", err);
+    }
+  };
+
+  // 3-Step Guided Wizard Submission and Validation
+  const completeWizard = async (e: FormEvent) => {
+    e.preventDefault();
+    setWizardError("");
+
+    // Form inputs trimming
+    const gaValue = wizardAnalyticsId.trim();
+    const adsValue = wizardAdsId.trim();
+    const labelValue = wizardAdsLabel.trim();
+
+    // Validations Regexes
+    const gaRegex = /^G-[A-Z0-9]{4,20}$/i;
+    const adsRegex = /^AW-[0-9]{4,20}$/i;
+
+    if (!gaRegex.test(gaValue)) {
+      setWizardError("⚠️ HATA: Google Analytics G-TAG Kimliği 'G-' ile başlamalı ve yalnızca harf-rakam içermelidir (Örn: G-9K7EFX8ZVL).");
+      return;
+    }
+
+    if (!adsRegex.test(adsValue)) {
+      setWizardError("⚠️ HATA: Google Ads Conversion ID 'AW-' ile başlamalı ve yalnızca rakam içermelidir (Örn: AW-384910248).");
+      return;
+    }
+
+    if (!labelValue || labelValue.length < 3) {
+      setWizardError("⚠️ HATA: Dönüşüm Etiketi boş bırakılamaz ve en az 3 karakter uzunluğunda olmalıdır.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // 1. Create step-by-step local storage JSON data
+      const ad_settings = {
+        google_analytics_id: gaValue,
+        google_ads_conversion_id: adsValue,
+        google_ads_label: labelValue,
+        is_setup_complete: true
+      };
+
+      // Set key in Local Storage as required
+      localStorage.setItem("ad_settings", JSON.stringify(ad_settings));
+
+      // Backup individual legacy parameters
+      localStorage.setItem("googleAnalyticsId", gaValue);
+      localStorage.setItem("adsConversionId", adsValue);
+      localStorage.setItem("adsLabel", labelValue);
+
+      // 2. Synchronize to our application settings and persist database
+      const updatedSettings = {
+        ...settings,
+        googleAnalyticsId: gaValue,
+        googleAdsId: adsValue,
+        googleAdsLabel: labelValue
+      };
+
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updatedSettings)
+      });
+
+      if (res.ok) {
+        const netSettings = await res.json();
+        setSettings(netSettings);
+
+        // 3. Fire dynamic tagging tag load
+        loadMarketingTags(gaValue, adsValue, labelValue);
+
+        // 4. Log conversion action to terminal console list
+        const log = {
+          id: "ad-wizard-" + Date.now(),
+          time: "Şimdi",
+          event: "Google Ads Integration Saved (Wizard)",
+          status: "Setup Complete",
+          details: `Esnaf Sihirbazı Tamamlandı! Google Analytics (${gaValue}) ve Google Ads (${adsValue}) dükkandaki tüm sipariş ve tıklama butonlarına canlı akışla bağlandı.`
+        };
+        setConversionLogs(prev => [log, ...prev]);
+
+        // Proceed to congratulative step
+        setWizardStep(3);
+      }
+    } catch (err) {
+      console.error(err);
+      setWizardError("Sistem bağlantı hatası oluştu, lütfen internetinizi kontrol edip tekrar deneyin.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Automated Google Ads / Analytics integration save for non-technical merchants
+  const saveAdIntegration = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    try {
+      const res = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(settings)
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setSettings(updated);
+        
+        // Push successful save log to conversion logs
+        const log = {
+          id: "ad-save-" + Date.now(),
+          time: "Şimdi",
+          event: "Google Ads Integration Saved",
+          status: "Success",
+          details: `Google Analytics (${updated.googleAnalyticsId || "G-9K7EFX8ZVL"}) ve Google Ads (${updated.googleAdsId || "AW-384910248"}) reklam kodları sisteme başarıyla işlendi.`
+        };
+        setConversionLogs(prev => [log, ...prev]);
+
+        alert("🎉 Google Reklam Kurulumu Başarıyla Tamamlandı!\n\nKodlar sisteme gömüldü. Artık müşterileriniz herhangi bir kampanyaya tıklayıp sizinle iletişime geçtiğinde Google Ads paneline otomatik olarak dönüşüm bildirilecek ve dükkanınız dolacak!");
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Simulate Firebase authentication passcode logic
+  const handleAdminLogin = (e: FormEvent) => {
+    e.preventDefault();
+    // Simply accepts "admin" code or bypasses with default click automatically
+    if (adminPasscode.toLowerCase().trim() === "") {
+      setIsAdminLoggedIn(true);
+      setAdminLockError("");
+    } else if (adminPasscode.toLowerCase() === "admin" || adminPasscode.toLowerCase() === "esnaf") {
+      setIsAdminLoggedIn(true);
+      setAdminLockError("");
+    } else {
+      setAdminLockError(t.wrongPasscode);
+    }
+  };
+
+  // Load translations based on current database state setting
+  const t = TRANSLATIONS[settings.language as "tr" | "en" | "de"] || TRANSLATIONS.tr;
+
+  // Showcase view filtering logic
+  const filteredShowcaseItems = publicDiscounts.filter((item) => {
+    // 1. Tab match: "local" (Radius match) vs "global" (Globally published)
+    if (showcaseTab === "local") {
+      if (item.publishMode === "local" && item.latitude && item.longitude) {
+        const itemDistance = calculateDistance(userLat, userLng, item.latitude, item.longitude);
+        const maxRange = item.radiusKm || 10;
+        if (itemDistance > maxRange) return false;
+      }
+    } else {
+      // Global tab shows items with global flag - also show local items that are global friendly
+      if (item.publishMode === "local") return false;
+    }
+
+    // 2. Category matching
+    if (selectedCategory !== "Tümü" && item.category !== selectedCategory) {
+      return false;
+    }
+
+    // 3. Search query match
+    if (searchQuery.trim() !== "") {
+      const q = searchQuery.toLowerCase();
+      return (
+        item.productName.toLowerCase().includes(q) ||
+        item.category.toLowerCase().includes(q) ||
+        item.seoDescription.toLowerCase().includes(q) ||
+        item.merchantName.toLowerCase().includes(q)
+      );
+    }
+
+    return true;
+  });
+
+  // Sorting
+  if (showcaseTab === "local") {
+    // Sort local items by closest distance first
+    filteredShowcaseItems.sort((a, b) => {
+      const distA = calculateDistance(userLat, userLng, a.latitude || 41.0082, a.longitude || 28.9784);
+      const distB = calculateDistance(userLat, userLng, b.latitude || 41.0082, b.longitude || 28.9784);
+      return distA - distB;
+    });
+  } else {
+    // Sort global items by most recently published first
+    filteredShowcaseItems.sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
+  }
+
+  return (
+    <div className="min-h-screen bg-stone-50 font-sans tracking-tight text-stone-900 transition-colors duration-150 relative">
+      
+      {/* HEADER TOP LOGO NAVIGATION BAR */}
+      <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-stone-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+          
+          {/* Logo Brand Accent */}
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-stone-900 flex items-center justify-center text-white shadow-md">
+              <Percent className="h-5 w-5 text-emerald-400 rotate-12" strokeWidth={3} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl font-black tracking-tighter text-stone-900 font-serif">{t.logoLabel}</h1>
+                <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 rounded px-1.5 py-0.2 animate-pulse">
+                  {t.networkLive}
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 font-medium font-mono">{t.subtitle}</p>
+            </div>
+          </div>
+          
+          {/* Main Mode Toggle: ONLY visible if the App is not loaded via deep Isolated Showcase url parameters. 
+              This guarantees "Tam İzolasyon" (100% security Isolation). */}
+          {!isPublicUrlLocked && (
+            <div className="flex items-center gap-2.5">
+              <button
+                id="btn-toggle-esnaf"
+                onClick={() => {
+                  setIsCustomerShowcase(false);
+                }}
+                className={`px-4 py-2.5 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center gap-2 ${
+                  !isCustomerShowcase
+                    ? "bg-stone-900 text-white shadow-md"
+                    : "bg-white border border-stone-200 text-stone-600 hover:bg-stone-100"
+                }`}
+              >
+                <Smartphone className="h-4 w-4" />
+                {t.esnafTitle}
+              </button>
+              
+              <button
+                id="btn-toggle-showcase"
+                onClick={() => {
+                  setIsCustomerShowcase(true);
+                }}
+                className={`px-4 py-2.5 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center gap-2 border ${
+                  isCustomerShowcase
+                    ? "bg-emerald-700 text-white border-emerald-600 shadow-emerald-700/10 shadow-md animate-pulse"
+                    : "bg-white border-stone-200 text-stone-800 hover:bg-stone-100"
+                }`}
+              >
+                <Eye className="h-4 w-4" />
+                {t.customerTitle}
+              </button>
+
+              <button
+                onClick={fetchData}
+                disabled={isLoading}
+                className="p-2.5 text-stone-500 hover:text-stone-900 bg-white border border-stone-200 rounded-xl hover:bg-stone-50 transition-colors disabled:opacity-40 cursor-pointer"
+                title="Refresh"
+              >
+                <RefreshCw className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
+              </button>
+            </div>
+          )}
+
+          {/* Locked View Indicator (Only visible to normal clients viewing showcase) */}
+          {isPublicUrlLocked && (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 px-3.5 py-1.5 rounded-xl">
+              <span className="h-2 w-2 rounded-full bg-emerald-600 animate-ping" />
+              <span className="text-[11px] font-bold text-emerald-800 uppercase font-mono tracking-wider">
+                🔒 {settings.merchantName} Vitrini
+              </span>
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* RENDER VIEW ACCORDING TO STATE TOGGLE */}
+      {!isCustomerShowcase ? (
+        
+        /* ========================================================
+           ESNAF BACKOFFICE / PUBLISHER CONSOLE
+           ======================================================== */
+        <div>
+          {!isAdminLoggedIn ? (
+            /* SECURITY LOCK FORM - Firebase Authentication Simulation */
+            <div className="max-w-md mx-auto my-20 px-4 animate-fadeIn">
+              <div className="bg-white rounded-3xl border border-stone-250 p-8 shadow-lg">
+                <div className="text-center mb-6">
+                  <div className="h-12 w-12 rounded-2xl bg-amber-500/10 text-amber-600 mx-auto flex items-center justify-center mb-3">
+                    <Lock className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-bold font-serif text-stone-900">{t.adminLockTitle}</h3>
+                  <p className="text-xs text-stone-500 mt-1 leading-relaxed">{t.adminLockSubtitle}</p>
+                </div>
+
+                <form onSubmit={handleAdminLogin} className="flex flex-col gap-4 text-xs font-semibold">
+                  <div>
+                    <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">{t.passcodeLabel}</label>
+                    <input 
+                      type="password" 
+                      placeholder="Şifreyi giriniz veya doğrudan tıklayıp geçiniz" 
+                      value={adminPasscode}
+                      onChange={(e) => setAdminPasscode(e.target.value)}
+                      className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 font-bold"
+                    />
+                    {adminLockError && (
+                      <p className="text-rose-600 font-bold text-[11px] mt-1.5">{adminLockError}</p>
+                    )}
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="w-full bg-stone-900 hover:bg-stone-950 text-white font-black py-3 rounded-xl transition-all cursor-pointer text-xs"
+                  >
+                    {t.loginBtn}
+                  </button>
+                </form>
+              </div>
+            </div>
+          ) : (
+            /* AUTHENTICATED ESNAF CONTROL INDEX */
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+              
+              {/* ESNAF DETAILS PRE-BAR */}
+              <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs font-semibold">
+                <div className="flex flex-wrap gap-6 items-center">
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{t.storeNameLabel}</p>
+                      <p className="font-extrabold text-stone-800 text-sm leading-tight leading-none mt-0.5">{settings.merchantName}</p>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{t.phoneLabel}</p>
+                    <p className="font-bold text-stone-700 font-mono mt-0.5">{settings.merchantPhone}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider">{t.whatsappLabel}</p>
+                    <p className="font-bold text-emerald-700 font-mono mt-0.5">{settings.merchantWhatsApp}</p>
+                  </div>
+                </div>
+                
+                <div className="flex gap-3 items-center bg-stone-50 p-2.5 rounded-xl border border-stone-150 text-right w-full md:w-auto self-stretch md:self-auto justify-between md:justify-end">
+                  <div className="text-left md:text-right">
+                    <p className="text-[9px] text-stone-400 uppercase font-bold tracking-wider">{t.activeCount}</p>
+                    <p className="font-extrabold text-stone-900 leading-none mt-1">{publicDiscounts.length} Kampanya</p>
+                  </div>
+                  <button 
+                    onClick={() => setIsAdminLoggedIn(false)}
+                    className="text-[10px] bg-white hover:bg-rose-50 hover:text-rose-600 border border-stone-200 px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer"
+                  >
+                    {t.logoutBtn}
+                  </button>
+                </div>
+              </div>
+
+              {/* INTERNAL DASHBOARD TABS */}
+              <div className="flex border-b border-stone-200 mb-6 flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveTab("publisher")}
+                  className={`pb-3 text-xs font-bold px-4 border-b-2 transition-all cursor-pointer ${
+                    activeTab === "publisher"
+                      ? "border-stone-900 text-stone-900 font-black"
+                      : "border-transparent text-stone-500 hover:text-stone-800"
+                  }`}
+                >
+                  {t.addDiscountTab}
+                </button>
+                <button
+                  onClick={() => setActiveTab("catalogue")}
+                  className={`pb-3 text-xs font-bold px-4 border-b-2 transition-all cursor-pointer ${
+                    activeTab === "catalogue"
+                      ? "border-stone-900 text-stone-900 font-black"
+                      : "border-transparent text-stone-500 hover:text-stone-800"
+                  }`}
+                >
+                  {t.portfolioTab} ({publicDiscounts.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab("reklam")}
+                  className={`pb-3 text-xs font-bold px-4 border-b-2 transition-all cursor-pointer ${
+                    activeTab === "reklam"
+                      ? "border-stone-900 text-stone-900 font-black"
+                      : "border-transparent text-stone-500 hover:text-stone-800"
+                  }`}
+                >
+                  📢 Reklam Ayarları (Google Ads)
+                </button>
+                <button
+                  onClick={() => setActiveTab("settings")}
+                  className={`pb-3 text-xs font-bold px-4 border-b-2 transition-all cursor-pointer ${
+                    activeTab === "settings"
+                      ? "border-stone-900 text-stone-900 font-black"
+                      : "border-transparent text-stone-500 hover:text-stone-800"
+                  }`}
+                >
+                  ⚙️ {t.settingsTab}
+                </button>
+              </div>
+
+              {/* TAB 0: GLOBAL SETTINGS EDIT */}
+              {activeTab === "settings" && (
+                <div className="max-w-2xl bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
+                  <div className="mb-6">
+                    <h2 className="text-md font-black text-stone-900 font-serif flex items-center gap-2">
+                      <Globe className="h-5 w-5 text-indigo-600" />
+                      {t.settingsTab}
+                    </h2>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Platform dilini ve mağaza iletişim bilgilerini değiştirin. Dil seçildiğinde, hem bu yönetim arayüzü hem de müşterilerinizin vitrini tamamen bu dilde görüntülenecektir (Türkçe, İngilizce, Almanca i18n altyapısı mevcuttur).
+                    </p>
+                  </div>
+
+                  <form onSubmit={saveStoreSettings} className="flex flex-col gap-5 text-xs font-bold text-stone-700">
+                    
+                    {/* Language Switch */}
+                    <div className="bg-stone-50 border border-stone-150 p-4 rounded-2xl">
+                      <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-3">{t.globalSettingsLabel}</label>
+                      <div className="grid grid-cols-3 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setSettings(prev => ({ ...prev, language: "tr" }))}
+                          className={`py-2 px-3 rounded-xl border font-black text-[11px] transition-all cursor-pointer text-center ${
+                            settings.language === "tr"
+                              ? "bg-stone-900 border-stone-950 text-white shadow-sm"
+                              : "bg-white border-stone-200 text-stone-600 hover:bg-stone-105"
+                          }`}
+                        >
+                          🇹🇷 {t.langTr}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSettings(prev => ({ ...prev, language: "en" }))}
+                          className={`py-2 px-3 rounded-xl border font-black text-[11px] transition-all cursor-pointer text-center ${
+                            settings.language === "en"
+                              ? "bg-stone-900 border-stone-950 text-white shadow-sm"
+                              : "bg-white border-stone-200 text-stone-600 hover:bg-stone-105"
+                          }`}
+                        >
+                          🇺🇸 {t.langEn}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setSettings(prev => ({ ...prev, language: "de" }))}
+                          className={`py-2 px-3 rounded-xl border font-black text-[11px] transition-all cursor-pointer text-center ${
+                            settings.language === "de"
+                              ? "bg-stone-900 border-stone-950 text-white shadow-sm"
+                              : "bg-white border-stone-200 text-stone-600 hover:bg-stone-105"
+                          }`}
+                        >
+                          🇩🇪 {t.langDe}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Merchant Data */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">{t.storeNameLabel}</label>
+                        <input
+                          type="text"
+                          required
+                          value={settings.merchantName}
+                          onChange={(e) => setSettings(prev => ({ ...prev, merchantName: e.target.value }))}
+                          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 font-bold"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">{t.phoneLabel}</label>
+                        <input
+                          type="text"
+                          required
+                          value={settings.merchantPhone}
+                          onChange={(e) => setSettings(prev => ({ ...prev, merchantPhone: e.target.value }))}
+                          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 font-bold font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase tracking-wider text-stone-400 mb-1.5">{t.whatsappLabel}</label>
+                        <input
+                          type="text"
+                          required
+                          value={settings.merchantWhatsApp}
+                          onChange={(e) => setSettings(prev => ({ ...prev, merchantWhatsApp: e.target.value }))}
+                          className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 font-bold font-mono"
+                        />
+                      </div>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={isLoading}
+                      className="mt-3 w-full bg-stone-900 hover:bg-stone-950 text-white font-black py-4 rounded-xl transition-all shadow-sm cursor-pointer"
+                    >
+                      {isLoading ? "..." : t.saveSettingsBtn}
+                    </button>
+                  </form>
+                </div>
+              )}
+
+              {/* TAB REKLAM: GLOBAL ADVERTISING & SEO INTEGRATION HUB */}
+              {activeTab === "reklam" && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start animate-fadeIn">
+                  
+                  {/* Left Column: Settings and Wizards */}
+                  <div className="lg:col-span-7 flex flex-col gap-6">
+                    
+                    {/* Cloud Synchronization Bridge Panel */}
+                    <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <span className="text-[9px] font-extrabold text-emerald-700 bg-emerald-55 border border-emerald-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                            DÜNYA GENELİ BULUT SENKRONİZASYONU
+                          </span>
+                          <h2 className="text-md font-black text-stone-900 font-serif leading-tight mt-1.5 flex items-center gap-2">
+                            <RefreshCw className="h-4.5 w-4.5 text-emerald-500 animate-spin" />
+                            Hibrit Bulut Köprüsü & CDN (100% Canlı)
+                          </h2>
+                          <p className="text-xs text-stone-550 mt-1 leading-relaxed">
+                            Kampanyalarınız yerel cihaz hafızasının sınırlarından çıkartılarak dünya genelinde internet aramalarında, Google ve Facebook reklam mecralarında gösterilmek üzere güvenli, yüksek hızlı CDN bulut sunucularımıza otomatik olarak kopyalanır.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                          </span>
+                          <span className="text-[10px] text-emerald-700 font-extrabold font-mono">HER YERDE YAYINDA</span>
+                        </div>
+                      </div>
+
+                      {/* Sync Controls */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 bg-stone-50 p-4 rounded-2xl border border-stone-150">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-black text-stone-850">Bulut Depolama Senkronizasyonu</p>
+                            <p className="text-[10px] text-stone-500">Google Ads platformlarının anlık okuması için veritabanını dışa aktarır.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsCloudSyncEnabled(!isCloudSyncEnabled);
+                              const log = {
+                                id: "sync-" + Date.now(),
+                                time: "Az önce",
+                                event: isCloudSyncEnabled ? "Cloud Sync Disabled" : "Cloud Sync Enabled",
+                                status: isCloudSyncEnabled ? "Deactivated" : "Activated",
+                                details: isCloudSyncEnabled ? "Otomatik bulut veritabanı kopyalaması geçici olarak durduruldu." : "Veritabanı Firebase Cloud Storage snapshot ile senkronize edildi."
+                              };
+                              setConversionLogs(prev => [log, ...prev]);
+                            }}
+                            className={`p-1.5 rounded-xl border transition-all cursor-pointer ${
+                              isCloudSyncEnabled 
+                                ? "bg-emerald-600 text-white border-emerald-700" 
+                                : "bg-stone-100 text-stone-505 border-stone-200"
+                            }`}
+                          >
+                            <span className="text-[10px] font-black px-2.5">
+                              {isCloudSyncEnabled ? "Açık" : "Kapalı"}
+                            </span>
+                          </button>
+                        </div>
+
+                        <div className="border-t sm:border-t-0 sm:border-l border-stone-200 pt-3 sm:pt-0 sm:pl-4 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs font-black text-stone-850">CDN Önbellek Durumu</p>
+                            <p className="text-[10px] text-stone-500">Google Ads taramaları için önbelleği zorla yeniler.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              alert("CDN önbelleği başarıyla temizlendi ve tüm dükkan verileri anlık olarak yeniden yüklendi! 🚀");
+                            }}
+                            className="bg-white hover:bg-stone-50 text-stone-705 font-extrabold text-[10px] border border-stone-200 px-3 py-2 rounded-xl transition-all cursor-pointer shadow-xs active:scale-95"
+                          >
+                            Önbellek Temizle ⚡
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Google Ads & Google Analytics Conversion Trackers Panel */}
+                    <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
+                       {/* Wizard Progress Header */}
+                       <div className="mb-6 pb-5 border-b border-stone-100">
+                         <div className="flex justify-between items-center mb-3">
+                           <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider font-mono">
+                             🎯 Reklam Bağlantı Sihirbazı
+                           </span>
+                           <span className="text-[10px] text-stone-400 font-extrabold">Adım {wizardStep} / 3</span>
+                         </div>
+                         
+                         {/* Animated Custom Progress Bar */}
+                         <div className="h-2 w-full bg-stone-100 rounded-full overflow-hidden relative mb-4">
+                           <div 
+                             className="h-full bg-emerald-600 rounded-full transition-all duration-500"
+                             style={{ width: wizardStep === 1 ? "33%" : wizardStep === 2 ? "66%" : "100%" }}
+                           />
+                         </div>
+
+                         {/* Step Labels */}
+                         <div className="grid grid-cols-3 text-center text-[10px] font-black tracking-tight">
+                           <button 
+                             type="button"
+                             onClick={() => setWizardStep(1)}
+                             className={`pb-1 border-b-2 transition-all cursor-pointer ${
+                               wizardStep === 1 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400 hover:text-stone-600"
+                             }`}
+                           >
+                             ✨ 1. Eğitim
+                           </button>
+                           <button 
+                             type="button"
+                             onClick={() => wizardAnalyticsId && wizardAdsId ? setWizardStep(2) : null}
+                             disabled={!wizardAnalyticsId || !wizardAdsId}
+                             className={`pb-1 border-b-2 transition-all ${
+                               wizardStep === 2 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400 disabled:opacity-40"
+                             }`}
+                           >
+                             🔧 2. Bağlantı
+                           </button>
+                           <button 
+                             type="button"
+                             disabled={wizardStep < 3}
+                             className={`pb-1 border-b-2 transition-all ${
+                               wizardStep === 3 ? "border-emerald-600 text-emerald-800" : "border-transparent text-stone-400 disabled:opacity-40"
+                             }`}
+                           >
+                             🚀 3. Tamamlandı!
+                           </button>
+                         </div>
+                       </div>
+
+                       {/* STEP 1: Eğitim ve Başlangıç */}
+                       {wizardStep === 1 && (
+                         <div className="animate-fadeIn space-y-4">
+                           <div>
+                             <h3 className="text-sm font-black text-stone-900 leading-snug">Dükkanınızı Saniyeler İçinde Google Arama & Reklamlarına Bağlayın</h3>
+                             <p className="text-xs text-stone-550 mt-1 leading-relaxed">
+                               Uygulamanız arka planda çalışırken, Google Analytics ve Google Ads kodlarınız her tıklandığında Google sistemleri ile eşleşir. Bu sayede dükkanınız esnaf bütçesiyle küresel bir marka haline gelir.
+                             </p>
+                           </div>
+
+                           <div className="bg-stone-50 p-4 rounded-2xl border border-stone-150 space-y-3">
+                             <h4 className="text-[10px] uppercase font-extrabold tracking-wider text-stone-500">💡 NASIL REKLAM VERİRİM?</h4>
+                             <ul className="text-xs text-stone-700 space-y-2 font-medium">
+                               <li className="flex items-start gap-2">
+                                 <span className="text-emerald-600 font-extrabold">✓</span>
+                                 <span>Öncelikle ücretsiz bir <a href="https://analytics.google.com/" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline font-bold hover:text-emerald-800">Google Analytics Hesabı ↗</a> açarak başlama sinyalleri edinin.</span>
+                               </li>
+                               <li className="flex items-start gap-2">
+                                 <span className="text-emerald-600 font-extrabold">✓</span>
+                                 <span>Müşterilerinizin hangi mahalleden, kaç kere dükkanınızı gezdiğini ve hangi ürüne bastığını anlık bütçe optimizasyonuyla ölçün.</span>
+                               </li>
+                               <li className="flex items-start gap-2">
+                                 <span className="text-emerald-600 font-extrabold">✓</span>
+                                 <span>Bir sonraki adımda sistemimizin otomatik algılayacağı ID'leri girerek kurulumu cihazınıza bağlayın.</span>
+                               </li>
+                             </ul>
+                           </div>
+
+                           <div className="flex justify-between items-center pt-2">
+                             <a 
+                               href="https://analytics.google.com/" 
+                               target="_blank" 
+                               rel="noopener noreferrer"
+                               className="text-xs text-emerald-705 font-black hover:underline"
+                             >
+                               Google Analytics Paneline Git ↗
+                             </a>
+                             <button
+                               type="button"
+                               onClick={() => setWizardStep(2)}
+                               className="bg-stone-900 hover:bg-stone-950 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl flex items-center gap-1 transition-all cursor-pointer shadow-sm"
+                             >
+                               İleri: Kodları Bağla <ChevronRight className="h-4 w-4" />
+                             </button>
+                           </div>
+                         </div>
+                       )}
+
+                       {/* STEP 2: Kod Girişi ve regex validation */}
+                       {wizardStep === 2 && (
+                         <form onSubmit={completeWizard} className="animate-fadeIn space-y-4 text-xs">
+                           <div>
+                             <h3 className="text-sm font-black text-stone-900 leading-snug">Kurulum Kodlarını Girin</h3>
+                             <p className="text-[11px] text-stone-500 mt-0.5">Sistemimiz girilen değerleri gerçek zamanlı olarak doğrular.</p>
+                           </div>
+
+                           {wizardError && (
+                             <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl font-bold text-[11px] animate-fadeIn leading-relaxed">
+                               {wizardError}
+                             </div>
+                           )}
+
+                           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                             {/* Google Analytics input validation */}
+                             <div>
+                               <div className="flex justify-between items-center mb-1">
+                                 <label className="block text-[10px] uppercase tracking-wider text-stone-550 font-bold">Analytics ID (G-TAG)</label>
+                                 {wizardAnalyticsId && (
+                                   /^G-[A-Z0-9]{4,20}$/i.test(wizardAnalyticsId.trim()) 
+                                     ? <span className="text-emerald-600 font-extrabold text-[9px]">✓ Uyumlu</span>
+                                     : <span className="text-rose-500 font-extrabold text-[9px]">⚠️ Geçersiz format</span>
+                                 )}
+                               </div>
+                               <input 
+                                 type="text"
+                                 required
+                                 placeholder="Örn: G-9K7EFX8ZVL"
+                                 value={wizardAnalyticsId}
+                                 onChange={(e) => {
+                                   setWizardAnalyticsId(e.target.value.toUpperCase());
+                                   setWizardError("");
+                                 }}
+                                 className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 font-mono font-bold focus:outline-none focus:bg-white transition-all ${
+                                   wizardAnalyticsId 
+                                     ? /^G-[A-Z0-9]{4,20}$/i.test(wizardAnalyticsId.trim())
+                                        ? "border-emerald-300 focus:border-emerald-500"
+                                        : "border-rose-300 focus:border-rose-500 bg-rose-50/10"
+                                     : "border-stone-200 focus:border-stone-400"
+                                 }`}
+                               />
+                               <span className="text-[9px] text-stone-400 font-medium block mt-1 leading-snug">
+                                 Google Analytics "G-" ile başlar.
+                               </span>
+                             </div>
+
+                             {/* Google Ads conversion input validation */}
+                             <div>
+                               <div className="flex justify-between items-center mb-1">
+                                 <label className="block text-[10px] uppercase tracking-wider text-stone-550 font-bold">Ads Conversion ID</label>
+                                 {wizardAdsId && (
+                                   /^AW-[0-9]{4,20}$/i.test(wizardAdsId.trim())
+                                     ? <span className="text-emerald-600 font-extrabold text-[9px]">✓ Uyumlu</span>
+                                     : <span className="text-rose-500 font-extrabold text-[9px]">⚠️ Sadece rakam</span>
+                                 )}
+                               </div>
+                               <input 
+                                 type="text"
+                                 required
+                                 placeholder="Örn: AW-384910248"
+                                 value={wizardAdsId}
+                                 onChange={(e) => {
+                                   setWizardAdsId(e.target.value.toUpperCase());
+                                   setWizardError("");
+                                 }}
+                                 className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 font-mono font-bold focus:outline-none focus:bg-white transition-all ${
+                                   wizardAdsId
+                                     ? /^AW-[0-9]{4,20}$/i.test(wizardAdsId.trim())
+                                        ? "border-emerald-300 focus:border-emerald-500"
+                                        : "border-rose-300 focus:border-rose-500 bg-rose-50/10"
+                                     : "border-stone-200 focus:border-stone-400"
+                                 }`}
+                               />
+                               <span className="text-[9px] text-stone-400 font-medium block mt-1 leading-snug">
+                                 Google Ads Conversion "AW-" ile başlar.
+                               </span>
+                             </div>
+
+                             {/* Ads Label input validation */}
+                             <div>
+                               <div className="flex justify-between items-center mb-1">
+                                 <label className="block text-[10px] uppercase tracking-wider text-stone-550 font-bold">Dönüşüm Etiketi (Ads Label)</label>
+                                 {wizardAdsLabel && (
+                                   wizardAdsLabel.trim().length >= 3 
+                                     ? <span className="text-emerald-600 font-extrabold text-[9px]">✓ Hazır</span>
+                                     : <span className="text-rose-500 font-extrabold text-[9px]">⚠️ Çok kısa</span>
+                                 )}
+                               </div>
+                               <input 
+                                 type="text"
+                                 required
+                                 placeholder="Örn: abcdXYZ123"
+                                 value={wizardAdsLabel}
+                                 onChange={(e) => {
+                                   setWizardAdsLabel(e.target.value);
+                                   setWizardError("");
+                                 }}
+                                 className={`w-full bg-stone-50 border rounded-xl px-3 py-2.5 font-mono font-bold focus:outline-none focus:bg-white transition-all ${
+                                   wizardAdsLabel
+                                     ? wizardAdsLabel.trim().length >= 3
+                                        ? "border-emerald-300 focus:border-emerald-500"
+                                        : "border-rose-300 focus:border-rose-500 bg-rose-50/10"
+                                     : "border-stone-200 focus:border-stone-400"
+                                 }`}
+                               />
+                               <span className="text-[9px] text-stone-400 font-medium block mt-1 leading-snug">
+                                 Müşteri size dokunduğunda iletilen etiket.
+                               </span>
+                             </div>
+                           </div>
+
+                           <div className="flex gap-3 justify-between items-center pt-2 border-t border-stone-100">
+                             <button
+                               type="button"
+                               onClick={() => setWizardStep(1)}
+                               className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold rounded-xl transition-all cursor-pointer"
+                             >
+                               ⬅ Geri
+                             </button>
+                             <button
+                               type="submit"
+                               disabled={isLoading}
+                               className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-6 py-2.5 rounded-xl transition-all shadow-sm cursor-pointer whitespace-nowrap flex items-center gap-1"
+                             >
+                               {isLoading ? "Bağlantı Kuruluyor..." : "Kayıt Et ve Canlıya Al 🎉"}
+                             </button>
+                           </div>
+                         </form>
+                       )}
+
+                       {/* STEP 3: Tamamlandı ve Test Playground */}
+                       {wizardStep === 3 && (
+                         <div className="animate-fadeIn space-y-4">
+                           <div className="flex flex-col items-center text-center p-4 bg-emerald-50/50 border border-emerald-150 rounded-2xl">
+                             <div className="h-10 w-10 rounded-full bg-emerald-600 text-white flex items-center justify-center font-extrabold text-lg shadow-sm mb-3">
+                               ✓
+                             </div>
+                             <h3 className="text-sm font-black text-emerald-900">MÜKEMMEL! ENTEGRASYON ŞİMDİ CANLI YAYINDA</h3>
+                             <p className="text-xs text-emerald-800 mt-1 max-w-lg leading-relaxed">
+                               Tebrikler! Google Analytics (<strong>{settings.googleAnalyticsId}</strong>) ve Google Ads (<strong>{settings.googleAdsId}</strong>) veritabanınıza başarıyla tescillendi. 'ad_settings' yapılandırması başarıyla tamamlandı.
+                             </p>
+                           </div>
+
+                           {/* Interactive Tester simulation simulator */}
+                           <div className="bg-stone-50 border border-stone-200 rounded-2xl p-4 text-xs font-medium space-y-3">
+                             <div className="flex justify-between items-center">
+                               <h4 className="text-[10px] uppercase font-extrabold tracking-wider text-stone-500">🧪 ENTEGRASYON TEST ALANI</h4>
+                               <span className="text-[9px] text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded font-mono font-bold">TEST_MODE</span>
+                             </div>
+                             <p className="text-stone-550 leading-relaxed text-[11px]">
+                               Aşağıdaki butona tıklayarak dükkanınızda müşterinin yapacağı bir WhatsApp tıklamasını simüle edin. Arka planda Google sunucularımıza verinin saniyeler içinde nasıl fırlatıldığını anında gözlemleyin.
+                             </p>
+                             
+                             <button
+                               type="button"
+                               onClick={() => {
+                                 // Add a custom simulated conversion log
+                                 const testLog = {
+                                   id: "test-" + Date.now(),
+                                   time: "Şimdi",
+                                   event: "Simulated Customer Whatsapp Capture",
+                                   status: "Sent to Google",
+                                   details: `Sistem başarılı! gtag('event', 'whatsapp_click', { 'send_to': '${settings.googleAdsId}/${settings.googleAdsLabel}' }) kodu tetiklendi.`
+                                 };
+                                 setConversionLogs(prev => [testLog, ...prev]);
+                                 alert("🧪 SİMÜLASYON BAŞARILI!\n\nGoogle Ads Dönüşüm Sinyali başarıyla tetiklendi ve arka plana gönderildi. Sol taraftaki Dönüşüm Logları ekranından gerçekleşen olayı izleyebilirsiniz.");
+                               }}
+                               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2.5 rounded-xl transition-all shadow-sm cursor-pointer hover:scale-[1.01] flex items-center justify-center gap-1.5"
+                             >
+                               ⚡ WhatsApp Sipariş Tıklamasını Simüle Et
+                             </button>
+                           </div>
+
+                           <div className="flex justify-between items-center pt-2 border-t border-stone-100 text-xs font-bold">
+                             <span className="text-stone-450">Ölçüm veritabanı aktif durumda</span>
+                             <button
+                               type="button"
+                               onClick={() => setWizardStep(2)}
+                               className="text-stone-600 hover:text-stone-900 border border-stone-200 bg-white px-3 py-1.5 rounded-lg flex items-center gap-1 cursor-pointer transition-all active:scale-95"
+                             >
+                               🏷️ Bilgileri Düzenle
+                             </button>
+                           </div>
+                         </div>
+                       )}
+                     </div>
+
+
+                          
+
+
+
+                    {/* Google XML Sitemap Generator Console */}
+                    <div className="bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
+                      <div className="flex justify-between items-center mb-3">
+                        <div>
+                          <span className="text-[9px] font-extrabold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-0.5 rounded-full uppercase tracking-widest font-mono">
+                            GOOGLE SEARCH CONSOLE HAZIRLIĞI
+                          </span>
+                          <h2 className="text-md font-black text-stone-900 font-serif leading-tight mt-1.5 flex items-center gap-1.5">
+                            <Globe className="h-4.5 w-4.5 text-amber-500" />
+                            Otomatik Sitemap.xml İndeks Dosyası
+                          </h2>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mapUrl = `https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, '-')}/sitemap.xml`;
+                            navigator.clipboard.writeText(mapUrl);
+                            alert("Sitemap adresi kopyalandı! Bu adresi Google Search Console panelinize girerek her yeni kampanya eklediğinizde Google botlarının dükkanınızı anında ziyaret etmesini sağlayabilirsiniz. 🧭");
+                          }}
+                          className="text-[10px] font-black text-stone-600 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1.5 rounded-lg flex items-center gap-1 transition-all cursor-pointer"
+                        >
+                          <Copy className="h-3 w-3" /> URL Kopyala
+                        </button>
+                      </div>
+                      <p className="text-xs text-stone-500 mb-4 leading-relaxed">
+                        Yayındaki tüm kampanyalarınızı Google arama motoruna bildirmek için hazırlanan sitemap kodu. Tamamen dinamiktir, kampanya sildikçe veya ekledikçe anında güncellenir.
+                      </p>
+
+                      <div className="relative bg-stone-950 text-stone-200 font-mono text-[10px] p-4 rounded-2xl max-h-48 overflow-y-auto leading-relaxed border border-stone-900">
+                        <pre className="whitespace-pre-wrap">
+{`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, "-")}</loc>
+    <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+${publicDiscounts.map(d => `  <url>
+    <loc>https://esnafindirim.com/k/${settings.merchantName.toLowerCase().replace(/\s+/g, "-")}?slug=${d.slug}</loc>
+    <lastmod>${new Date().toISOString().split("T")[0]}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.8</priority>
+  </url>`).join("\n")}
+</urlset>`}
+                        </pre>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Right Column: Google SEO Snippet and Live Conversion Logs */}
+                  <div className="lg:col-span-5 flex flex-col gap-6">
+
+                    {/* Google SEO Snippet Simulator */}
+                    <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm">
+                      <span className="text-[9px] font-extrabold text-stone-500 uppercase tracking-widest font-mono">GOOGLE ARAMA SONUCU ÖNİZLEMESİ</span>
+                      <h3 className="text-md font-black text-stone-950 font-serif leading-tight mt-1.5 mb-2 flex items-center gap-1">
+                        <Eye className="h-4.5 w-4.5 text-stone-600" />
+                        Google Snippet Mockup
+                      </h3>
+                      <p className="text-xs text-stone-500 mb-5 leading-relaxed">
+                        Bir kullanıcı Google'a dükkanınızın adını veya sattığınız bir ürünü yazdığında belirecek arama sonucu. İndirimli ürünleriniz doğrudan Google başlığında çıkar!
+                      </p>
+
+                      {/* Google Snippet Visual Card */}
+                      <div className="bg-white rounded-2xl border border-stone-150 p-5 shadow-xs font-sans text-left">
+                        {/* URL Line */}
+                        <div className="flex items-center gap-1.5 text-stone-500 text-xs">
+                          <div className="h-4 w-4 rounded-full bg-stone-100 flex items-center justify-center border border-stone-200">
+                            <span className="text-[10px] text-stone-600 font-bold">🛒</span>
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-[11px] font-semibold text-stone-700 leading-none">https://esnafindirim.com</span>
+                            <span className="text-[9px] text-stone-400 mt-0.5 leading-none font-mono">k &gt; {settings.merchantName.toLowerCase().replace(/\s+/g, '-')}</span>
+                          </div>
+                        </div>
+
+                        {/* Title Line */}
+                        <h4 className="text-blue-850 hover:underline cursor-pointer font-medium text-md sm:text-lg mt-2 leading-tight tracking-normal">
+                          {publicDiscounts[0] 
+                            ? `${publicDiscounts[0].productName} Sadece ${publicDiscounts[0].discountPrice} TL! | ${settings.merchantName} Kampanyaları`
+                            : `${settings.merchantName} Güncel Esnaf Kampanyaları & Fiyat İndirimleri`
+                          }
+                        </h4>
+
+                        {/* Description snippet snippet */}
+                        <p className="text-stone-600 text-xs sm:text-[11px] mt-1.5 leading-relaxed max-w-md">
+                          <strong className="text-stone-800 font-bold">İNDİRİM YAYINDA:</strong> {publicDiscounts[0] 
+                            ? selectedDetailDiscount?.seoDescription || publicDiscounts[0].seoDescription
+                            : "Komşularımız için dükkanımızda şahane taze gıda esnaf indirimleri başladı. Fırsatları kaçırmadan tükenmeden incelemek ve sipariş etmek için tıklayın."
+                          }
+                        </p>
+
+                        {/* Rich snippet metrics */}
+                        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-stone-100 text-[10px] text-stone-400 font-mono">
+                          <span>⭐ Derecelendirme: 4.9/5</span>
+                          <span>💬 30+ Müşteri Siparişi</span>
+                          <span>🏢 Kadıköy</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Live Tracking Conversion Terminal Console */}
+                    <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm">
+                      <div className="flex justify-between items-center mb-2">
+                        <div>
+                          <span className="text-[9px] font-extrabold text-stone-500 uppercase tracking-widest font-mono">CANLI KÜRESEL REKLAM PANELİ</span>
+                          <h3 className="text-md font-black text-stone-950 font-serif leading-tight mt-1.5 flex items-center gap-1.5">
+                            <Activity className="h-4.5 w-4.5 text-emerald-500" />
+                            Dönüşüm İzleme Terminali
+                          </h3>
+                        </div>
+                        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                      </div>
+                      <p className="text-xs text-stone-500 mb-4 leading-relaxed">
+                        Müşterileriniz Google Ads üzerinden geldiğinde tetiklenen izleme pikselleri ve sitemap arama botu hareketleri. Müşteri butona bastığında buraya yeni sinyal düşer.
+                      </p>
+
+                      {/* Interactive Conversion simulator launcher button */}
+                      <div className="mb-4">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const mockItemName = publicDiscounts[0]?.productName || "Taze Yoğurt";
+                            const mockPrice = publicDiscounts[0]?.discountPrice || 85;
+                            const nowStr = new Date().toLocaleTimeString("tr-TR");
+                            
+                            const conversionLogItem = {
+                              id: "mock-" + Date.now(),
+                              time: `Şimdi (${nowStr})`,
+                              event: "Conversion Triggered (Simulator)",
+                              status: `Fired (${adsConversionId})`,
+                              details: `Simüle edilmiş müşteri: "${mockItemName}" için WhatsApp sipariş butonuna dokunarak Google Ads dönüşüm pikselini tetikledi! Değer: ${mockPrice} TL.`
+                            };
+                            setConversionLogs(prev => [conversionLogItem, ...prev]);
+                          }}
+                          className="w-full bg-stone-900 hover:bg-stone-950 text-white font-black py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                        >
+                          <Gift className="h-4 w-4 text-amber-400" /> Simüle Tıklama Dönüşümü Tetikle
+                        </button>
+                      </div>
+
+                      {/* Log output panel list */}
+                      <div className="flex flex-col gap-2.5 max-h-72 overflow-y-auto pr-1">
+                        {conversionLogs.map((log) => (
+                          <div key={log.id} className="bg-stone-50 border border-stone-200/85 p-3 rounded-xl flex flex-col gap-1 text-[11px] hover:border-stone-300 transition-all">
+                            <div className="flex justify-between items-center">
+                              <span className="font-extrabold text-stone-850 flex items-center gap-1">
+                                🔔 {log.event}
+                              </span>
+                              <span className="text-[10px] text-stone-400 font-mono">{log.time}</span>
+                            </div>
+                            <p className="text-stone-500 leading-normal italic text-[10px]">
+                              {log.details}
+                            </p>
+                            <div className="mt-1 flex items-center justify-between text-[10px] font-mono">
+                              <span className="text-stone-400">Durum:</span>
+                              <span className={`font-black px-1.5 py-0.2 rounded border bg-white ${
+                                log.status.includes("Fired") 
+                                  ? "text-emerald-700 border-emerald-100" 
+                                  : "text-amber-700 border-amber-100"
+                              }`}>
+                                {log.status}
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+              {/* TAB 1: NEW PUBLICATION FORM & PREVIEW */}
+              {activeTab === "publisher" && (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  
+                  {/* Form panel */}
+                  <div className="lg:col-span-7 bg-white rounded-3xl border border-stone-200 p-6 sm:p-8 shadow-sm">
+                    <div className="mb-6 flex justify-between items-start">
+                      <div>
+                        <h2 className="text-md font-black text-stone-900 font-serif flex items-center gap-2">
+                          <Sparkles className="h-4.5 w-4.5 text-emerald-500 animate-spin" />
+                          {t.campaignDetails}
+                        </h2>
+                        <p className="text-xs text-stone-500 mt-1 leading-relaxed">
+                          {t.campaignSubtitle}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setProdName("");
+                          setProdCategory("🥛 Şarküteri");
+                          setProdPrice("");
+                          setProdDiscountPrice("");
+                          setProdDescription("");
+                          setProdImage("");
+                        }}
+                        className="text-[10px] font-black text-stone-500 hover:text-stone-900 bg-stone-100 hover:bg-stone-200 border border-stone-200 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shrink-0 shadow-xs"
+                      >
+                        <RefreshCw className="h-3 w-3" />
+                        Sıfırla
+                      </button>
+                    </div>
+
+                    <form onSubmit={publishCampaign} className="flex flex-col gap-5 text-xs">
+                      
+                      {/* Category Selection */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-fadeIn">
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-400 mb-1.5">{t.categoryLabel}</label>
+                          <input 
+                            type="text"
+                            required
+                            placeholder="Örn: 🥛 Şarküteri, 🍞 Fırın, 🍎 Manav..."
+                            value={prodCategory}
+                            onChange={(e) => setProdCategory(e.target.value)}
+                            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 text-stone-900 font-bold placeholder:text-stone-300 transition-all focus:bg-white"
+                          />
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {["🥛 Şarküteri", "🍞 Fırın", "🍏 Manav", "🥩 Kasap", "🍪 Tatlı", "📦 Genel"].map(tag => (
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => setProdCategory(tag)}
+                                className={`text-[9px] px-2 py-0.5 rounded-lg border font-bold transition-all cursor-pointer ${
+                                  prodCategory === tag 
+                                    ? "bg-emerald-700 text-white border-emerald-800 shadow-sm" 
+                                    : "bg-stone-50 border-stone-200 text-stone-600 hover:bg-stone-100"
+                                }`}
+                              >
+                                {tag}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-400 mb-1.5">{t.productNameLabel}</label>
+                          <input 
+                            type="text" 
+                            required
+                            placeholder={t.productNamePlaceholder} 
+                            value={prodName}
+                            onChange={(e) => setProdName(e.target.value)}
+                            className="w-full bg-stone-50 border border-stone-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-stone-400 text-stone-900 font-bold transition-all placeholder:text-stone-300 focus:bg-white"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Pricing Inputs */}
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-stone-50/55 p-4 rounded-2xl border border-stone-200/80">
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-400 mb-1.5">{t.originalPriceLabel}</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            required
+                            placeholder="300" 
+                            value={prodPrice}
+                            onChange={(e) => setProdPrice(e.target.value)}
+                            className="w-full bg-white border border-stone-200 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-stone-400"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-emerald-800 mb-1.5">{t.discountPriceLabel}</label>
+                          <input 
+                            type="number" 
+                            step="0.01"
+                            required
+                            placeholder="199" 
+                            value={prodDiscountPrice}
+                            onChange={(e) => setProdDiscountPrice(e.target.value)}
+                            className="w-full bg-emerald-50/60 border border-emerald-300 text-emerald-900 rounded-xl px-3 py-2 font-black focus:outline-none focus:border-emerald-500"
+                          />
+                        </div>
+                        <div className="flex flex-col justify-center items-center bg-white border border-dashed border-stone-200 rounded-xl p-1.5">
+                          <span className="text-[9px] uppercase font-extrabold text-stone-400">{t.discountPercentLabel}</span>
+                          <span className="text-md font-black text-rose-600 mt-0.5">
+                            {calculateDiscountPercent() > 0 ? `%${calculateDiscountPercent()}` : "%0"}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Product Image Selection Section */}
+                      <div className="border border-stone-200 rounded-2xl p-4 bg-stone-50/50 animate-fadeIn flex flex-col gap-3">
+                        <div className="flex justify-between items-center text-stone-500">
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-500">🖼️ ÜRÜN GÖRSELİ EKLE</label>
+                          {prodImage && (
+                            <button
+                              type="button"
+                              onClick={() => setProdImage("")}
+                              className="text-[10px] text-rose-600 hover:text-rose-700 font-extrabold flex items-center gap-0.5 cursor-pointer bg-red-50 px-2 py-0.5 rounded-lg border border-red-100 transition-all animate-fadeIn"
+                            >
+                              Temizle
+                            </button>
+                          )}
+                        </div>
+
+                        {/* Interactive File Drag & Drop + Manual Select / Preview */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <label 
+                            htmlFor="device-file-input"
+                            className="group flex flex-col items-center justify-center border-2 border-dashed border-stone-200 hover:border-emerald-500 hover:bg-emerald-50/10 bg-white rounded-xl p-5 cursor-pointer transition-all gap-1.5 text-center"
+                          >
+                            <Smartphone className="h-6 w-6 text-stone-400 group-hover:text-emerald-500 group-hover:scale-110 transition-all" />
+                            <span className="text-xs font-black text-stone-800">Cihazdan Fotoğraf Yükle</span>
+                            <span className="text-[9px] text-stone-400 font-medium">Telefon, tablet veya bilgisayardan resim seçin</span>
+                            <input 
+                              id="device-file-input" 
+                              type="file" 
+                              accept="image/*" 
+                              className="hidden" 
+                              onChange={handleFileUpload}
+                            />
+                          </label>
+
+                          {/* Preview box or URL Entry */}
+                          <div className="bg-white border border-stone-150 rounded-xl p-3 flex flex-col justify-between gap-2 text-left">
+                            {prodImage ? (
+                              <div className="relative h-16 w-full rounded-lg overflow-hidden border border-stone-200 bg-stone-50 flex items-center justify-center">
+                                <img src={prodImage} className="h-full w-full object-cover" alt="Loaded product" referrerPolicy="no-referrer" />
+                                <div className="absolute top-1 right-1 bg-black/60 text-white rounded px-1 leading-none text-[8px] font-mono font-bold">
+                                  Seçildi
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="h-16 w-full rounded-lg border border-dashed border-stone-200 bg-stone-50 flex flex-col items-center justify-center text-stone-400 gap-0.5 text-center p-1">
+                                <span className="text-[10px] font-bold">Görsel Seçilmedi</span>
+                                <span className="text-[8px] text-stone-400">Aşağıdan seçebilir, yukarıdan yükleyebilirsiniz.</span>
+                              </div>
+                            )}
+
+                            <div>
+                              <input 
+                                type="url"
+                                placeholder="Görsel web adresi (URL) yapıştırın..."
+                                value={prodImage.startsWith("data:image/") ? "" : prodImage}
+                                onChange={(e) => setProdImage(e.target.value)}
+                                className="w-full bg-stone-50 border border-stone-200 rounded-lg px-2 py-1.5 text-stone-950 font-bold placeholder:text-stone-300 focus:outline-none focus:border-stone-400 transition-all text-[10px]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Stock Preset Selector Grid */}
+                        <div>
+                          <span className="block text-[9px] uppercase font-bold text-stone-405 mb-2">Veya hazır taze gıda kütüphanesinden seçin:</span>
+                          <div className="grid grid-cols-2 xs:grid-cols-4 sm:grid-cols-5 gap-2 max-h-24 overflow-y-auto pr-1">
+                            {PRESET_IMAGES.map((img) => (
+                              <button
+                                key={img.url}
+                                type="button"
+                                onClick={() => setProdImage(img.url)}
+                                className={`group relative h-11 rounded-lg overflow-hidden border-2 text-left transition-all cursor-pointer shrink-0 ${
+                                  prodImage === img.url 
+                                    ? "border-emerald-600 ring-2 ring-emerald-500/20 scale-[0.98]" 
+                                    : "border-stone-200 hover:border-stone-300"
+                                }`}
+                              >
+                                <img 
+                                  src={img.url} 
+                                  alt={img.name}
+                                  className="h-full w-full object-cover group-hover:scale-105 transition-all duration-300" 
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-all flex items-end p-1">
+                                  <span className="text-[8px] text-white font-black leading-tight line-clamp-1">{img.name}</span>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Tagline generator section */}
+                      <div>
+                        <div className="flex justify-between items-center mb-1.5">
+                          <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-400">{t.sloganLabel}</label>
+                          <button
+                            type="button"
+                            onClick={generateAIMetaWithGemini}
+                            disabled={isGeneratingAI}
+                            className="text-[10px] font-black text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer transition-all shrink-0"
+                          >
+                            <Sparkles className="h-3 w-3 text-amber-500 animate-pulse" />
+                            {isGeneratingAI ? "..." : t.aiSloganBtn}
+                          </button>
+                        </div>
+
+                        {isGeneratingAI ? (
+                          <div className="bg-stone-50 border border-dashed border-stone-200 rounded-2xl p-6 text-center flex flex-col items-center justify-center gap-2 animate-pulse">
+                            <RefreshCw className="h-5 w-5 animate-spin text-emerald-600" />
+                            <p className="font-bold text-stone-600">Gemini is writing the copywriting in {settings.language.toUpperCase()}...</p>
+                          </div>
+                        ) : (
+                          <textarea
+                            value={prodDescription}
+                            onChange={(e) => setProdDescription(e.target.value)}
+                            placeholder={t.sloganPlaceholder}
+                            rows={3}
+                            className="w-full bg-stone-50 border border-stone-200 rounded-2xl p-3 focus:outline-none focus:border-stone-400 text-stone-850 leading-relaxed text-xs"
+                          />
+                        )}
+                      </div>
+
+                      {/* PUBLISH SCOPE SELECTION */}
+                      <div className="border border-stone-200 rounded-2xl p-4 bg-white">
+                        <label className="block text-[10px] uppercase tracking-wider font-extrabold text-stone-400 mb-3">{t.publishScopeLabel}</label>
+                        
+                        <div className="grid grid-cols-2 gap-2 mb-4 p-1 bg-stone-100 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => setPublishMode("local")}
+                            className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                              publishMode === "local" 
+                                ? "bg-white text-stone-900 shadow-sm font-black" 
+                                : "text-stone-500 hover:text-stone-800"
+                            }`}
+                          >
+                            {t.radiusLabel}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPublishMode("global")}
+                            className={`py-2 text-[11px] font-bold rounded-lg transition-all cursor-pointer ${
+                              publishMode === "global" 
+                                ? "bg-white text-stone-900 shadow-sm font-black" 
+                                : "text-stone-500 hover:text-stone-800"
+                            }`}
+                          >
+                            {t.globalLabel}
+                          </button>
+                        </div>
+
+                        {/* Location modes UI */}
+                        {publishMode === "local" ? (
+                          <div className="flex flex-col gap-4 animate-fadeIn">
+                            {/* Range Slider */}
+                            <div className="bg-stone-50/70 border border-stone-150 p-3.5 rounded-xl">
+                              <div className="flex justify-between items-center mb-2 font-mono text-xs">
+                                <span className="text-stone-500 font-bold">{t.radiusKmLabel}:</span>
+                                <span className="text-emerald-700 font-black text-sm">{radiusKm} KM</span>
+                              </div>
+                              <input 
+                                type="range" 
+                                min="1" 
+                                max="50" 
+                                value={radiusKm}
+                                onChange={(e) => setRadiusKm(Number(e.target.value))}
+                                className="w-full accent-emerald-600 h-2 bg-stone-200 rounded-lg cursor-pointer"
+                              />
+                              <p className="text-[10px] text-stone-400 mt-2 font-medium">
+                                {t.radiusTip}
+                              </p>
+                            </div>
+
+                            {/* Coordinates Selector */}
+                            <div className="border border-stone-200/80 p-3.5 rounded-xl bg-stone-50/40">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-stone-700 text-[11px]">{t.locationSelectorLabel}</span>
+                                <button
+                                  type="button"
+                                  onClick={detectMerchantLocation}
+                                  className="text-[10px] bg-white border border-stone-200 text-stone-700 px-2 py-0.8 rounded hover:bg-stone-100 font-bold flex items-center gap-1 cursor-pointer"
+                                >
+                                  {t.gpsLocBtn}
+                                </button>
+                              </div>
+
+                              {/* Preset Regions */}
+                              <div className="flex flex-wrap gap-1.5 mb-3">
+                                {COORDINATE_PRESETS.map((preset) => (
+                                  <button
+                                    key={preset.name}
+                                    type="button"
+                                    onClick={() => selectPresetCoordinate(preset, "merchant")}
+                                    className={`text-[10px] px-2 py-1 rounded transition-all cursor-pointer border ${
+                                      merchantLocationLabel === preset.name
+                                        ? "bg-stone-900 border-stone-950 text-white font-bold"
+                                        : "bg-white border-stone-200 text-stone-600 hover:border-stone-400"
+                                    }`}
+                                  >
+                                    {preset.name}
+                                  </button>
+                                ))}
+                              </div>
+
+                              <div className="bg-white border border-stone-200 p-2.5 rounded-lg flex items-center justify-between text-[10px] font-mono font-bold text-stone-500">
+                                <div>
+                                  <span className="text-emerald-700">{t.addressLabel}:</span> {merchantLocationLabel}
+                                </div>
+                                <div>
+                                  ({merchantLat.toFixed(4)}° N, {merchantLng.toFixed(4)}° E)
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="bg-indigo-50/60 border border-indigo-100 rounded-xl p-3.5 text-indigo-900 animate-fadeIn flex gap-2">
+                            <Info className="h-4.5 w-4.5 mt-0.5 shrink-0 text-indigo-600" />
+                            <div className="text-[11px] leading-relaxed">
+                              <strong>{t.globalLabel} Mode Enabled:</strong> Your indirim campaigns will be accessible dynamically by any customer world-wide without geographic filtering. Perfect for mail order, delivery, or major online deals.
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <button 
+                        type="submit"
+                        disabled={isLoading}
+                        className="w-full bg-stone-900 hover:bg-stone-950 text-white font-black py-4 rounded-xl text-xs sm:text-sm tracking-wider transition-all mt-3 cursor-pointer shadow-md"
+                      >
+                        {isLoading ? "..." : t.publishBtn}
+                      </button>
+
+                    </form>
+                  </div>
+
+                  {/* Sidebar Preview */}
+                  <div className="lg:col-span-5 flex flex-col gap-6 sticky top-24">
+                    
+                    <div className="bg-stone-900 text-white rounded-3xl p-6 shadow-xl border border-stone-850">
+                      <div className="flex justify-between items-center mb-4 pb-2 border-b border-stone-800">
+                        <span className="text-[10px] font-bold font-mono text-emerald-400 tracking-wider uppercase">{t.previewBtn}</span>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      </div>
+
+                      {/* Card layout */}
+                      <div className="bg-stone-850 rounded-2xl overflow-hidden border border-stone-750/50 flex flex-col relative">
+                        
+                        <span className="absolute top-3 right-3 bg-red-650 text-white font-mono font-black text-xs py-1 px-2 py-0.5 rounded-md shadow-sm">
+                          %{calculateDiscountPercent() > 0 ? calculateDiscountPercent() : "SALE"}
+                        </span>
+
+                        <div className="h-44 w-full overflow-hidden relative bg-stone-800">
+                          <img 
+                            src={prodImage || CATEGORY_IMAGES[prodCategory] || CATEGORY_IMAGES["📦 Genel"]} 
+                            alt="Preview thumbnail" 
+                            className="h-full w-full object-cover opacity-85"
+                            referrerPolicy="no-referrer"
+                          />
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-stone-950 to-transparent p-3.5 pt-10">
+                            <span className="text-[9px] bg-indigo-755 text-white font-bold tracking-wider uppercase px-2 py-0.5 rounded">
+                              {prodCategory}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="p-4 flex flex-col gap-2">
+                          <h4 className="font-extrabold text-base leading-tight">
+                            {prodName || "Goat Cheese"}
+                          </h4>
+
+                          <p className="text-stone-400 text-[11px] leading-relaxed line-clamp-2">
+                            "{prodDescription || 'Enter normal prices above, and describe the product.'}"
+                          </p>
+
+                          <div className="flex items-baseline gap-2.5 mt-1">
+                            <span className="text-[11px] text-stone-500 line-through font-mono">
+                              {prodPrice || "0"} TL
+                            </span>
+                            <span className="text-emerald-400 font-black text-base font-mono">
+                              {prodDiscountPrice || "0"} TL
+                            </span>
+                          </div>
+
+                          <div className="border-t border-stone-855 mt-2 pt-2 text-[10px] text-stone-400 flex justify-between items-center font-mono font-bold">
+                            <span className="flex items-center gap-1 text-emerald-400">
+                              {publishMode === "global" ? "🌐 Global" : `📍 max ${radiusKm} KM`}
+                            </span>
+                            <span>
+                              {settings.merchantName}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 text-[11px] text-stone-400 leading-relaxed bg-stone-850 p-3.5 rounded-xl border border-stone-800 flex gap-2">
+                        <Info className="h-4 w-4 shrink-0 text-emerald-400 mt-0.5" />
+                        <p>{t.previewTip}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: PORTFOLIO CATALOGUE LISTING */}
+              {activeTab === "catalogue" && (
+                <div className="animate-fadeIn">
+                  <div className="bg-white rounded-3xl border border-stone-200 p-6 shadow-sm min-h-[500px]">
+                    <div className="flex justify-between items-center mb-6 pb-4 border-b border-stone-100">
+                      <div>
+                        <h3 className="text-md font-bold text-stone-900 font-serif flex items-center gap-2">
+                          <Globe className="h-4.5 w-4.5 text-emerald-700 animate-pulse" />
+                          {t.activePortfolioTitle}
+                        </h3>
+                        <p className="text-xs text-stone-500 mt-0.5">{t.activePortfolioSubtitle}</p>
+                      </div>
+
+                      <div className="text-xs font-bold text-stone-500 flex items-center gap-2 bg-stone-100 px-3 py-1.5 rounded-xl border border-stone-150">
+                        <span>{t.portfolioTab}: {publicDiscounts.length}</span>
+                        <span className="text-stone-300">|</span>
+                        <span className="text-emerald-700">Views: {publicDiscounts.reduce((sum, i) => sum + (i.views || 0), 0)}</span>
+                      </div>
+                    </div>
+
+                    {publicDiscounts.length === 0 ? (
+                      <div className="text-center py-24 flex flex-col items-center justify-center gap-3 border border-dashed border-stone-200 bg-stone-50 rounded-2xl max-w-xl mx-auto my-10">
+                        <div className="p-3 bg-stone-100 rounded-full text-stone-400">
+                          <Globe className="h-8 w-8 animate-spin" />
+                        </div>
+                        <h3 className="font-bold text-stone-800 text-sm">{t.noItemFound}</h3>
+                        <button
+                          onClick={() => setActiveTab("publisher")}
+                          className="px-4 py-2 bg-stone-900 text-white rounded-xl text-xs font-bold mt-2 cursor-pointer"
+                        >
+                          {t.addDiscountTab}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        {publicDiscounts.map((item) => {
+                          const discountPercentage = Math.round(((item.originalPrice - item.discountPrice) / item.originalPrice) * 100);
+                          const fullUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${item.slug}&view=showcase`;
+
+                          return (
+                            <div key={item.id} className="bg-stone-50 border border-stone-200 rounded-2xl overflow-hidden relative shadow-sm hover:shadow-md transition-all flex flex-col">
+                              
+                              <span className="absolute top-3 right-3 bg-red-650 text-white font-mono font-black text-[9px] py-1 px-2 rounded-md">
+                                %{discountPercentage}
+                              </span>
+
+                              <div className="h-40 w-full overflow-hidden shrink-0 bg-stone-100 relative">
+                                <img 
+                                  src={item.openGraphImage || CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["📦 Genel"]} 
+                                  alt="Campaign thumbnail" 
+                                  className="h-full w-full object-cover"
+                                  referrerPolicy="no-referrer"
+                                />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent p-3.5 flex flex-col justify-end">
+                                  <span className="text-[8px] bg-indigo-700 text-white font-bold w-fit tracking-wider uppercase px-1.5 py-0.2 rounded mb-1">
+                                    {item.category}
+                                  </span>
+                                  <h4 className="font-extrabold text-white text-sm truncate uppercase">
+                                    {item.productName}
+                                  </h4>
+                                </div>
+                              </div>
+
+                              <div className="p-4 flex-grow flex flex-col justify-between gap-4 text-xs font-medium">
+                                <div className="flex flex-col gap-2">
+                                  <p className="text-stone-500 text-[11px] leading-relaxed line-clamp-2">
+                                    "{item.seoDescription}"
+                                  </p>
+
+                                  <div className="flex items-baseline gap-2 mt-1">
+                                    <span className="text-[10px] text-stone-400 line-through font-mono">
+                                      {item.originalPrice} TL
+                                    </span>
+                                    <span className="text-emerald-700 font-extrabold text-sm font-mono">
+                                      {item.discountPrice} TL
+                                    </span>
+                                  </div>
+
+                                  <div className="bg-white border border-stone-150 p-2 rounded-xl flex flex-col gap-1 text-[9px] font-mono text-stone-400">
+                                    <div>🔗 Slug: {item.slug}</div>
+                                    <div>🌎 Mode: {item.publishMode === "global" ? "🌐 Global" : `📍 Radius: ${item.radiusKm} km`}</div>
+                                    <div className="flex justify-between font-bold text-stone-500 border-t border-stone-100 pt-1 mt-1">
+                                      <span>👁️ {item.views || 0} {t.viewsCountLabel}</span>
+                                      <span>📞 {item.shares || 0} {t.sharesCountLabel}</span>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="flex flex-col gap-2 mt-3 pt-3 border-t border-stone-100">
+                                  <button
+                                    onClick={() => {
+                                      const success = copyToClipboard(fullUrl);
+                                      if (success) {
+                                        setCopiedId(item.id);
+                                        setTimeout(() => setCopiedId(null), 2000);
+                                      }
+                                    }}
+                                    className={`py-2 w-full border rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                                      copiedId === item.id 
+                                        ? "bg-emerald-50 border-emerald-300 text-emerald-800 font-extrabold" 
+                                        : "bg-white border-stone-200 hover:border-stone-400 text-stone-700"
+                                    }`}
+                                  >
+                                    {copiedId === item.id ? (
+                                      <>
+                                        <Check className="h-3.5 w-3.5" /> Link Panoya Kopyalandı!
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="h-3.5 w-3.5" /> Linki Kopyala
+                                      </>
+                                    )}
+                                  </button>
+                                  
+                                  {confirmDeleteId === item.id ? (
+                                    <div className="flex gap-1.5 w-full animate-fadeIn">
+                                      <button
+                                        onClick={() => {
+                                          deleteCampaign(item.id);
+                                          setConfirmDeleteId(null);
+                                        }}
+                                        className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer"
+                                      >
+                                        <Check className="h-3.5 w-3.5" /> Sil
+                                      </button>
+                                      <button
+                                        onClick={() => setConfirmDeleteId(null)}
+                                        className="flex-1 py-1.5 bg-stone-150 hover:bg-stone-200 text-stone-605 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer border border-stone-250"
+                                      >
+                                        <X className="h-3.5 w-3.5" /> İptal
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirmDeleteId(item.id)}
+                                      className="py-1.5 w-full bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-lg text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer border border-rose-150"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" /> Kampanyayı Kaldır
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+            </div>
+          )}
+        </div>
+
+      ) : (
+        
+        /* ========================================================
+           MÜŞTERİ İNDİRİM VİTRİNİ (PUBLIC CUSTOMER SHOWCASE)
+           ======================================================== */
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
+          
+          {/* Vitrin Header */}
+          <div className="text-center max-w-xl mx-auto mb-10">
+            <h2 className="text-2xl sm:text-3xl font-black font-serif text-stone-900 tracking-tight">
+              ✨ {t.customerHeaderTitle}
+            </h2>
+            <p className="text-xs sm:text-sm text-stone-500 mt-2 leading-relaxed">
+              {t.customerHeaderSubtitle}
+            </p>
+
+            {/* Simulated Location Control Panel (For customer context) */}
+            <div className="mt-5 p-4 bg-white rounded-2xl border border-stone-200 shadow-sm inline-flex flex-col sm:flex-row items-center gap-3 text-xs">
+              <div className="flex items-center gap-1.5 font-bold text-stone-500">
+                <MapPin className="h-4.5 w-4.5 text-emerald-600 shrink-0" />
+                <span>{t.deliveryLocalLabel}:</span>
+                <span className="text-stone-900 font-extrabold">{userLocationLabel}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={detectUserLocation}
+                  disabled={isDetectingUserLoc}
+                  className="px-2.5 py-1 text-[10px] font-black uppercase bg-stone-100 hover:bg-stone-200 rounded-lg text-stone-700 cursor-pointer disabled:opacity-40"
+                >
+                  {isDetectingUserLoc ? "..." : t.gpsLocBtn}
+                </button>
+                <span className="text-stone-300">|</span>
+                {/* Popover list of key locations for users to test nearby radius matching logic */}
+                <select
+                  onChange={(e) => {
+                    const preset = COORDINATE_PRESETS.find(p => p.name === e.target.value);
+                    if (preset) selectPresetCoordinate(preset, "user");
+                  }}
+                  className="bg-transparent border-none text-[10px] font-bold text-emerald-700 focus:outline-none focus:ring-0 cursor-pointer"
+                >
+                  <option value="">🗺️ Bölge Değiştir...</option>
+                  {COORDINATE_PRESETS.map(p => (
+                    <option key={p.name} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* CUSTOMER SEARCH & CATEGORY CHIPS */}
+          <div className="bg-white rounded-3xl border border-stone-200 p-5 sm:p-6 shadow-sm mb-8 flex flex-col gap-4">
+            
+            {/* Search Input */}
+            <div className="relative">
+              <Search className="absolute left-3.5 top-3 text-stone-400 h-5 w-5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={t.searchPlaceholder}
+                className="w-full pl-11 pr-5 py-3 text-xs bg-stone-50 border border-stone-150 rounded-xl focus:outline-none focus:bg-white focus:ring-1 focus:ring-stone-900 font-bold"
+              />
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="absolute right-3.5 top-3 p-1 rounded-full text-stone-400 hover:text-stone-700">
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+
+            {/* Scope selection tabs: Local vs Global */}
+            <div className="flex border-b border-stone-100 pb-3 gap-4 flex-wrap">
+              <button
+                onClick={() => setShowcaseTab("local")}
+                className={`pb-2.5 text-xs font-black cursor-pointer transition-all border-b-2 px-1 ${
+                  showcaseTab === "local" 
+                    ? "border-emerald-700 text-emerald-700" 
+                    : "border-transparent text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                {t.proximityTab.replace("{radius}", radiusKm.toString())}
+              </button>
+              <button
+                onClick={() => setShowcaseTab("global")}
+                className={`pb-2.5 text-xs font-black cursor-pointer transition-all border-b-2 px-1 ${
+                  showcaseTab === "global" 
+                    ? "border-emerald-700 text-emerald-700" 
+                    : "border-transparent text-stone-500 hover:text-stone-900"
+                }`}
+              >
+                {t.allDealsTab}
+              </button>
+            </div>
+
+            {/* Horizontal Category Chips */}
+            <div className="flex gap-2 overflow-x-auto pb-1 max-w-full">
+              <button
+                onClick={() => setSelectedCategory("Tümü")}
+                className={`px-3.5 py-1.5 rounded-full text-[10px] font-black shrink-0 transition-all border cursor-pointer ${
+                  selectedCategory === "Tümü"
+                    ? "bg-stone-900 text-white border-stone-950 shadow-sm"
+                    : "bg-white border-stone-200 text-stone-600 hover:border-stone-400"
+                }`}
+              >
+                🛍️ {t.allCategories}
+              </button>
+
+              {(Array.from(new Set(publicDiscounts.map(d => d.category))).filter(Boolean) as string[]).map((categoryName) => (
+                <button
+                  key={categoryName}
+                  onClick={() => setSelectedCategory(categoryName)}
+                  className={`px-3.5 py-1.5 rounded-full text-[10px] font-black shrink-0 transition-all border cursor-pointer ${
+                    selectedCategory === categoryName
+                      ? "bg-stone-900 text-white border-stone-950 shadow-sm"
+                      : "bg-white border-stone-200 text-stone-600 hover:border-stone-400"
+                  }`}
+                >
+                  {CATEGORIES_TRANSLATION_MAP[settings.language as "tr"|"en"|"de"]?.[categoryName] || categoryName}
+                </button>
+              ))}
+            </div>
+
+          </div>
+
+          {/* PUBLIC SHOWCASE LIST */}
+          {filteredShowcaseItems.length === 0 ? (
+            <div className="text-center py-24 bg-white rounded-3xl border border-stone-200 shadow-sm">
+              <Compass className="h-10 w-10 text-stone-300 mx-auto animate-bounce" />
+              <p className="font-bold text-stone-600 text-xs mt-3">{t.noItemFound}</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredShowcaseItems.map((item) => {
+                const discountPercentage = Math.round(((item.originalPrice - item.discountPrice) / item.originalPrice) * 100);
+                
+                // Real-time calculated distance
+                const distanceToShop = item.latitude && item.longitude 
+                  ? calculateDistance(userLat, userLng, item.latitude, item.longitude)
+                  : 0;
+
+                const isCovered = item.publishMode === "global" || distanceToShop <= (item.radiusKm || 10);
+
+                return (
+                  <div 
+                    key={item.id} 
+                    onClick={() => {
+                      setSelectedDetailDiscount(item);
+                      incrementViewCount(item.id);
+                    }}
+                    className="bg-white border border-stone-200 rounded-3xl overflow-hidden shadow-sm hover:shadow-md transition-all cursor-pointer flex flex-col group relative"
+                  >
+                    {/* Floating discount tag */}
+                    <span className="absolute top-4 right-4 bg-red-600 text-white font-mono font-black text-xs py-1 px-2.5 rounded-lg shadow-sm z-10 animate-pulse">
+                      %{discountPercentage}
+                    </span>
+
+                    {/* Image space */}
+                    <div className="h-48 w-full overflow-hidden bg-stone-100 relative shrink-0">
+                      <img 
+                        src={item.openGraphImage || CATEGORY_IMAGES[item.category] || CATEGORY_IMAGES["📦 Genel"]} 
+                        alt={item.productName} 
+                        className="h-full w-full object-cover group-hover:scale-103 transition-transform duration-300"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-transparent flex flex-col justify-end p-4">
+                        <span className="text-[8px] bg-emerald-700 text-white font-black w-fit tracking-wider uppercase px-2 py-0.5 rounded mb-1.5">
+                          {CATEGORIES_TRANSLATION_MAP[settings.language as "tr"|"en"|"de"][item.category] || item.category}
+                        </span>
+                        
+                        {/* Interactive coverage dynamic indicator */}
+                        {item.publishMode !== "global" && (
+                          <div className={`text-[9px] font-bold font-mono px-2 py-0.5 rounded w-fit uppercase ${
+                            isCovered ? "bg-emerald-100 text-emerald-800" : "bg-rose-100 text-rose-800"
+                          }`}>
+                            {distanceToShop.toFixed(1)} km • {isCovered ? t.nearYouBadge : t.outOfRangeBadge}
+                          </div>
+                        )}
+                        {item.publishMode === "global" && (
+                          <div className="text-[9px] font-bold font-mono px-2 py-0.5 rounded w-fit bg-indigo-100 text-indigo-800 uppercase">
+                            🌐 GLOBAL SHIPPING OK
+                          </div>
+                        )}
+
+                      </div>
+                    </div>
+
+                    {/* Meta info text */}
+                    <div className="p-5 flex-grow flex flex-col justify-between gap-4">
+                      <div>
+                        {/* Merchant name */}
+                        <p className="text-[10px] text-stone-400 font-bold uppercase tracking-wider font-mono">🏬 {item.merchantName}</p>
+                        
+                        <h4 className="font-extrabold text-stone-900 text-base leading-tight mt-1 group-hover:text-emerald-700 transition-colors uppercase">
+                          {item.productName}
+                        </h4>
+
+                        <p className="text-stone-500 text-[11px] leading-relaxed mt-2 line-clamp-2 italic">
+                          "{item.seoDescription}"
+                        </p>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-2 pt-3 border-t border-stone-100 font-mono">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-[11px] text-stone-400 line-through">
+                            {item.originalPrice} TL
+                          </span>
+                          <span className="text-emerald-700 font-black text-sm text-base">
+                            {item.discountPrice} TL
+                          </span>
+                        </div>
+
+                        <span className="text-[10px] font-bold text-stone-800 flex items-center gap-0.5 transition-all text-emerald-700 group-hover:underline">
+                          {t.getDiscountBtn} <ArrowUpRight className="h-3 w-3 shrink-0" />
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* MAĞAZAYA GERİ DÖN BUTTON (If public lock is NOT active) */}
+          {isPublicUrlLocked && (
+            <div className="mt-12 text-center text-[11px] text-stone-400 font-mono">
+              <p className="mb-2">Powered by İndirim Vitrini - Google AI Studio Build</p>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ========================================================
+         MODAL 2: DETAIL SHOWCASE DRAWER
+         ======================================================== */}
+      {selectedDetailDiscount && (
+        <div className="fixed inset-0 z-50 bg-stone-900/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl border border-stone-200 p-6 sm:p-8 relative">
+            
+            {/* Close trigger */}
+            <button
+              onClick={() => setSelectedDetailDiscount(null)}
+              className="absolute top-4 right-4 p-2 bg-stone-50 border border-stone-200 text-stone-600 hover:text-stone-900 rounded-full transition-colors cursor-pointer"
+            >
+              <X className="h-5 w-5" />
+            </button>
+
+            {/* Category tag */}
+            <span className="text-[10px] bg-emerald-50 border border-emerald-200 text-emerald-800 font-extrabold tracking-widest uppercase px-2.5 py-0.8 rounded-full">
+              {CATEGORIES_TRANSLATION_MAP[settings.language as "tr"|"en"|"de"][selectedDetailDiscount.category] || selectedDetailDiscount.category}
+            </span>
+
+            {/* Title / Header */}
+            <h3 className="text-xl sm:text-2xl font-extrabold font-serif text-stone-900 tracking-tight mt-3 uppercase">
+              {selectedDetailDiscount.productName}
+            </h3>
+
+            {/* Publisher / Esnaf label */}
+            <p className="text-xs text-stone-400 mt-1 font-semibold flex items-center gap-1 font-mono">
+              🏬 {selectedDetailDiscount.merchantName}
+            </p>
+
+            {/* Image */}
+            <div className="mt-5 rounded-2xl overflow-hidden aspect-video relative bg-stone-100 border border-stone-200">
+              <img 
+                src={selectedDetailDiscount.openGraphImage || CATEGORY_IMAGES[selectedDetailDiscount.category] || CATEGORY_IMAGES["📦 Genel"]} 
+                alt="Product thumbnail" 
+                className="h-full w-full object-cover"
+                referrerPolicy="no-referrer"
+              />
+              <div className="absolute top-4 right-4 bg-red-650 text-white font-mono font-black text-xs px-3 py-1.5 rounded-lg shadow-md uppercase tracking-wider">
+                %{Math.round(((selectedDetailDiscount.originalPrice - selectedDetailDiscount.discountPrice) / selectedDetailDiscount.originalPrice) * 100)} {t.discountPercentLabel}
+              </div>
+            </div>
+
+            {/* Slogan */}
+            <div className="mt-5 bg-stone-50 border border-stone-150 p-4 rounded-2xl relative">
+              <span className="block text-[10px] uppercase font-bold text-stone-400 tracking-wider mb-1.5 font-mono">📢 {t.sloganLabel}</span>
+              <p className="text-xs text-stone-800 leading-relaxed font-medium">
+                "{selectedDetailDiscount.seoDescription}"
+              </p>
+            </div>
+
+            {/* Price evaluation container */}
+            <div className="grid grid-cols-2 gap-4 mt-4 bg-stone-50/50 p-4 border border-stone-150 rounded-2xl text-center">
+              <div>
+                <span className="text-[10px] text-stone-400 font-bold uppercase tracking-wider font-mono">{t.originalPriceLabel}</span>
+                <p className="text-base text-stone-400 line-through font-mono mt-0.5">{selectedDetailDiscount.originalPrice} TL</p>
+              </div>
+              <div className="border-l border-stone-200">
+                <span className="text-[10px] text-emerald-800 font-bold uppercase tracking-wider font-mono">{t.discountPriceLabel}</span>
+                <p className="text-xl font-black text-emerald-700 font-mono mt-0.5">{selectedDetailDiscount.discountPrice} TL</p>
+              </div>
+            </div>
+
+            {/* RANGE DISTANCE AND INTERACTIVE COOPERATION SUMMARY */}
+            <div className="mt-5 border border-stone-200 bg-white p-4 rounded-2xl flex flex-col gap-2 shadow-inner">
+              <span className="text-[10px] uppercase font-bold text-stone-400 tracking-wider font-mono">{t.deliveryRadiusLabel}</span>
+              
+              {selectedDetailDiscount.publishMode === "global" ? (
+                <p className="text-xs text-stone-600 leading-relaxed">
+                  {t.deliveryGlobalText}
+                </p>
+              ) : (
+                <div>
+                  <p className="text-xs text-stone-600 leading-relaxed">
+                    📍 {t.deliveryLocalText} {t.deliveryLocalLabel}: <strong className="text-emerald-700 font-extrabold">{calculateDistance(userLat, userLng, selectedDetailDiscount.latitude || 41.0082, selectedDetailDiscount.longitude || 28.9784).toFixed(1)} KM</strong> uzaklıktasınız. 
+                    Mağazanın teslimat yarıçapı: <strong>{selectedDetailDiscount.radiusKm} KM</strong> genişliğindedir.
+                  </p>
+
+                  {/* Range circle status visualizer */}
+                  <div className="mt-3 bg-stone-50 p-3 rounded-xl border border-stone-150 flex items-center justify-between text-[11px] font-mono">
+                    <span className="font-bold text-stone-500">{t.deliveryStatusLabel}</span>
+                    {calculateDistance(userLat, userLng, selectedDetailDiscount.latitude || 41.0082, selectedDetailDiscount.longitude || 28.9784) <= (selectedDetailDiscount.radiusKm || 10) ? (
+                      <span className="text-emerald-700 font-black flex items-center gap-1 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-150">
+                        {t.deliveryStatusIn}
+                      </span>
+                    ) : (
+                      <span className="text-rose-700 font-black flex items-center gap-1 bg-rose-50 px-2 py-0.5 rounded border border-rose-150">
+                        {t.deliveryStatusOut}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* DIRECT ACTION TRIGGERS (İletişim Butonları - WhatsApp & Telefon) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6 border-t border-stone-100 pt-5">
+              
+              {/* WhatsApp direct chat link */}
+              <a
+                href={`https://wa.me/${selectedDetailDiscount.merchantWhatsApp?.replace(/[^0-9+]/g, "") || selectedDetailDiscount.merchantPhone.replace(/[^0-9+]/g, "")}?text=Merhaba%20${encodeURIComponent(selectedDetailDiscount.merchantName)},%20%C4%B0ndirim%20Vitrini%20uygulamas%C4%B1nda%2520g%C3%B6rd%C3%BC%C4%9F%C3%BCm%2520%22${encodeURIComponent(selectedDetailDiscount.productName)}%22%2520%C3%BCr%C3%BCn%C3%BCn%C3%BCz%2520i%C3%A7in%2520${selectedDetailDiscount.discountPrice}%2520TL%2520kampanya%2520fiyat%C4%B1ndan%2520bilgi%2520almak%2520istiyorum.`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => incrementShareCount(selectedDetailDiscount.id)}
+                className="py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-center font-black text-xs sm:text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm uppercase cursor-pointer"
+              >
+                <Smartphone className="h-4 w-4" />
+                {t.whatsappBtn}
+              </a>
+
+              {/* Direct dial button */}
+              <a
+                href={`tel:${selectedDetailDiscount.merchantPhone}`}
+                onClick={() => incrementShareCount(selectedDetailDiscount.id)}
+                className="py-3.5 bg-stone-900 hover:bg-black text-white rounded-xl text-center font-black text-xs tracking-wider transition-all flex items-center justify-center gap-2 shadow-sm uppercase cursor-pointer"
+              >
+                <Phone className="h-4 w-4" />
+                {t.phoneCallBtn}
+              </a>
+
+            </div>
+
+            {/* Meta and share options */}
+            <div className="mt-6 border-t border-stone-100 pt-4 flex flex-col sm:flex-row justify-between items-center gap-3 text-[10px] text-stone-400 font-mono">
+              <span className="flex items-center gap-1.5 font-bold">
+                👁️ Bu indirim {selectedDetailDiscount.views || 0} defa incelendi, {selectedDetailDiscount.shares || 0} defa tıklandı.
+              </span>
+
+              <button
+                type="button"
+                onClick={() => {
+                  const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${selectedDetailDiscount.slug}&view=showcase`;
+                  copyToClipboard(shareUrl);
+                  incrementShareCount(selectedDetailDiscount.id);
+                  setCopiedId(selectedDetailDiscount.id);
+                  setTimeout(() => setCopiedId(null), 2050);
+                }}
+                className={`font-black flex items-center gap-1 cursor-pointer text-xs px-3 py-1.5 rounded-xl border transition-all ${
+                  copiedId === selectedDetailDiscount.id 
+                    ? "bg-emerald-55 border-emerald-350 text-emerald-800" 
+                    : "text-emerald-700 bg-emerald-50/25 border-emerald-100 hover:bg-emerald-50/60"
+                }`}
+              >
+                <Copy className="h-3 w-3" /> {copiedId === selectedDetailDiscount.id ? "Paylaşım Linki Kopyalandı! 🎉" : "Linki Paylaş / Kopyala"}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

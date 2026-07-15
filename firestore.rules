@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ========================================
+    // PRODUCTION MODE - Multi-tenant Izolasyonu
+    // ========================================
+
+    // 1. Kullanıcı Verisi - Strict İzolasyon
+    // Her kullanıcı (lisans_anahtarı) sadece kendi verisine erişebilir
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
+    // 2. Halka Açık İndirimler
+    // Yazma: sadece sahibi
+    // Okuma: herkes (sitemap, Google indexing)
+    match /users/{userId}/publicDiscounts/{document=**} {
+      allow read: if true;
+      allow write: if request.auth.uid == userId;
+    }
+
+    // 3. Health Check Verisi (Internal)
+    match /_health/{document=**} {
+      allow read, write: if request.auth != null || request.auth == null;
+    }
+
+    // 4. Default - Hepsi Deny
+    // Aksi belirtilmediği sürece erişim yok
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
