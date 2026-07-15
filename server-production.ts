@@ -117,10 +117,10 @@ app.get("/api/health", async (req: Request, res: Response) => {
     // If Firestore ready, do a quick test
     if (firebaseReady && firestoreDb) {
       try {
-        const testDoc = await firestoreDb.collection("_health").doc("test").get();
-        health.firebaseConnection = "connected";
+        await firestoreDb.collection("_health").doc("test").get();
+        (health as any).firebaseConnection = "connected";
       } catch (err) {
-        health.firebaseConnection = "failed";
+        (health as any).firebaseConnection = "failed";
         health.status = "degraded";
       }
     }

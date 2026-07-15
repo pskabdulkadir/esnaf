@@ -2,7 +2,6 @@ import express from "express";
 import dotenv from "dotenv";
 import { createServer as createViteServer } from "vite";
 import * as admin from "firebase-admin";
-import { db } from "./src/lib/firebase";
 
 dotenv.config();
 

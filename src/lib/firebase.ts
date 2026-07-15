@@ -59,11 +59,12 @@ export async function backupDataToFirestore(
   products: any[] = [],
   sales: any[] = [],
   expenses: any[] = [],
+  _extraSettings: any = {},
 ): Promise<void> {
   try {
     // Data is backed up via backend HTTP API endpoint
     // This function is a no-op for frontend compatibility
-    console.log('✅ Backup queued (backend handles Firestore persistence)');
+    console.log('Backup queued (backend handles Firestore persistence)');
   } catch (err) {
     console.warn('Backup warning:', err);
   }
@@ -74,7 +75,7 @@ export async function restoreDataFromFirestore(): Promise<any | null> {
   try {
     // Data restoration via backend HTTP API
     // Frontend would call /api/export-backup or similar
-    console.log('ℹ️ Restore handled via backend API');
+    console.log('Restore handled via backend API');
     return null;
   } catch (err) {
     console.warn('Restore unavailable:', err);

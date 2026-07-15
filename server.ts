@@ -100,16 +100,18 @@ const distPath = (() => {
   return path.join(__dirname, "../dist");
 })();
 
-app.use(express.static(distPath));
+if (!process.env.VERCEL) {
+  app.use(express.static(distPath));
 
-// SPA Fallback: Non-API routes go to index.html
-app.get("*", (req: Request, res: Response, next: NextFunction) => {
-  if (!req.path.startsWith("/api")) {
-    res.sendFile(path.join(distPath, "index.html"));
-  } else {
-    next();
-  }
-});
+  // SPA Fallback: Non-API routes go to index.html
+  app.get("*", (req: Request, res: Response, next: NextFunction) => {
+    if (!req.path.startsWith("/api")) {
+      res.sendFile(path.join(distPath, "index.html"));
+    } else {
+      next();
+    }
+  });
+}
 
 // ============================================
 // MIDDLEWARE: Authentication
@@ -148,9 +150,9 @@ app.get("/api/health", async (req: Request, res: Response) => {
     if (firebaseReady && firestoreDb) {
       try {
         await firestoreDb.collection("_health").doc("test").get();
-        health.firebaseConnection = "connected";
+        (health as any).firebaseConnection = "connected";
       } catch (err) {
-        health.firebaseConnection = "failed";
+        (health as any).firebaseConnection = "failed";
         health.status = "degraded";
       }
     }
@@ -854,15 +856,20 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
 // ============================================
 
 app.get("/api/settings", async (req: AuthRequest, res: Response) => {
-  try {
-    const defaultSettings = {
-      language: "tr",
-      merchantName: "İşletmem",
-      merchantPhone: "",
-      merchantWhatsApp: "",
-    };
+  const defaultSettings = {
+    language: "tr",
+    merchantName: "İşletmem",
+    merchantPhone: "",
+    merchantWhatsApp: "",
+  };
 
-    const userId = req.user!.userId;
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId || !firebaseReady || !firestoreDb) {
+      return res.json(defaultSettings);
+    }
+
     const doc = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -870,17 +877,10 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       .doc("user_data")
       .get();
 
-    const settings = doc.exists ? doc.data() : defaultSettings;
-    res.json(settings);
+    res.json(doc.exists ? doc.data() : defaultSettings);
   } catch (err) {
     console.error("Error fetching settings:", err);
-    // Fallback: return default settings on error
-    res.json({
-      language: "tr",
-      merchantName: "İşletmem",
-      merchantPhone: "",
-      merchantWhatsApp: "",
-    });
+    res.json(defaultSettings);
   }
 });
 
