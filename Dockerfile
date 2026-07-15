@@ -26,7 +26,6 @@ RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
 
 # Copy built files from builder
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/db_data.json ./db_data.json 2>/dev/null || true
 
 # Create backups directory and persistent data directory
 RUN mkdir -p .backups /var/data
