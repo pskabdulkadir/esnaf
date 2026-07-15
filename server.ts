@@ -41,21 +41,13 @@ async function initializeFirebase() {
     // The service account object requires ONLY these three properties.
     // Extra properties can cause initialization to fail.
     const serviceAccount = {
-    const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      clientId: process.env.FIREBASE_CLIENT_ID,
-      authUri: "https://accounts.google.com/o/oauth2/auth",
-      tokenUri: "https://oauth2.googleapis.com/token",
     };
  
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
-      console.warn("  - projectId:", serviceAccount.projectId ? "✅" : "❌");
-      console.warn("  - privateKey:", serviceAccount.privateKey ? "✅" : "❌");
-      console.warn("  - clientEmail:", serviceAccount.clientEmail ? "✅" : "❌");
       firebaseReady = false;
       return;
     }
@@ -161,10 +153,8 @@ app.get("/api/health", async (req: Request, res: Response) => {
     res.status(health.status === "ok" ? 200 : 503).json(health);
   } catch (err) {
     res.status(500).json({
-    res.status(503).json({
       status: "degraded",
       error: "Health check endpoint failed unexpectedly.",
-      error: "Health check error",
       message: String(err)
     });
   }
@@ -866,11 +856,21 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: "",
     };
 
-    if (!firebaseReady || !firestoreDb) {
+    const userId = req.user?.userId;
+    if (!userId || !firebaseReady || !firestoreDb) {
       console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
       return res.json(defaultSettings);
     }
 
+    const doc = await firestoreDb
+      .collection("users")
+      .doc(userId)
+      .collection("data")
+      .doc("user_data")
+      .get();
+
+    const settings = doc.exists ? doc.data() : defaultSettings;
+    res.json(settings);
   } catch (err) {
     console.error("Error fetching settings:", err);
     // Fallback: return default settings on error
@@ -883,8 +883,13 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.post("/api/settings", async (req: AuthRequest, res: Response) => {
+app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user!.userId;
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Database not available in fallback mode" });
+    }
+
     const settingsData = {
       language: req.body.language || "tr",
       merchantName: req.body.merchantName,
@@ -892,6 +897,10 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: req.body.merchantWhatsApp,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Database not available in fallback mode" });
+    }
 
     await firestoreDb
       .collection("users")
