@@ -309,7 +309,8 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       return res.status(503).json({ error: "Firestore unavailable" });
     }
 
-    const userId = typeof req.query.userId === "string" ? req.query.userId : "";
+    const rawUserId = typeof req.query.userId === "string" ? req.query.userId : "";
+    const userId = rawUserId && rawUserId !== "undefined" && rawUserId !== "null" ? rawUserId : "";
     const slug = typeof req.query.slug === "string" ? req.query.slug : "";
 
     const discountsQuery = slug
