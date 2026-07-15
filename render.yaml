@@ -3,7 +3,7 @@ services:
     name: esnaf
     env: node
     buildCommand: npm install && npm run build
-    startCommand: node --loader tsx/esm --no-warnings server.mjs
+    startCommand: node dist/server.cjs
     envVars:
       - key: NODE_ENV
         value: production

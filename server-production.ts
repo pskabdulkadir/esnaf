@@ -67,7 +67,7 @@ async function initializeFirebase() {
 }
 
 // Initialize on startup
-await initializeFirebase();
+void initializeFirebase();
 
 // ============================================
 // EXPRESS APP
@@ -117,23 +117,10 @@ app.get("/api/health", async (req: Request, res: Response) => {
     // If Firestore ready, do a quick test
     if (firebaseReady && firestoreDb) {
       try {
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 27aad49c287f0d696f4803f2fd459c9d4308d4f4
-        const testDoc = await firestoreDb.collection("_health").doc("test").get();
+        await firestoreDb.collection("_health").doc("test").get();
         health.firebaseConnection = "connected";
       } catch (err) {
         health.firebaseConnection = "failed";
-<<<<<<< HEAD
-=======
-=======
-        await firestoreDb.collection("_health").doc("test").get();
-        (health as any).firebaseConnection = "connected";
-      } catch (err) {
-        (health as any).firebaseConnection = "failed";
->>>>>>> origin/main
->>>>>>> 27aad49c287f0d696f4803f2fd459c9d4308d4f4
         health.status = "degraded";
       }
     }
