@@ -862,11 +862,7 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: "",
     };
 
-    if (!firebaseReady || !firestoreDb) {
-      console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
-      return res.json(defaultSettings);
-    }
-
+    const userId = req.user!.userId;
     const doc = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -888,11 +884,11 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
+app.post("/api/settings", async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
-    if (!firebaseReady || !firestoreDb) {
-      return res.status(503).json({ error: "Database not available in fallback mode" });
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "userId gerekli" });
     }
 
     const settingsData = {
