@@ -29,6 +29,13 @@
   ],
   "rewrites": [
     {
+<<<<<<< HEAD
+=======
+      "source": "/api/:path*",
+      "destination": "/api/[...path]"
+    },
+    {
+>>>>>>> e4478c8 (Vercel API rotalarını düzelt)
       "source": "/:path*",
       "destination": "/index.html"
     }
