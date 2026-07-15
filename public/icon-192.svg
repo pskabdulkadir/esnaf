@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#0f172a;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- Arka Plan -->
+  <rect width="192" height="192" fill="url(#grad1)" rx="45"/>
+  
+  <!-- Dış Halka -->
+  <circle cx="96" cy="96" r="85" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.2"/>
+  
+  <!-- Ana Sembol - Üçgen (İş, Yönetim) -->
+  <g transform="translate(96, 96)">
+    <!-- Üst Üçgen -->
+    <path d="M 0,-35 L 30,15 L -30,15 Z" fill="#10b981" opacity="0.9"/>
+    
+    <!-- Orta Daire -->
+    <circle cx="0" cy="5" r="18" fill="#06b6d4" opacity="0.8"/>
+    
+    <!-- Alt Üçgen -->
+    <path d="M 0,35 L 25,-5 L -25,-5 Z" fill="#f59e0b" opacity="0.8"/>
+  </g>
+  
+  <!-- Köşe Aksentleri -->
+  <circle cx="30" cy="30" r="8" fill="#10b981" opacity="0.6"/>
+  <circle cx="162" cy="30" r="8" fill="#06b6d4" opacity="0.6"/>
+  <circle cx="30" cy="162" r="8" fill="#f59e0b" opacity="0.6"/>
+  <circle cx="162" cy="162" r="8" fill="#10b981" opacity="0.6"/>
+</svg>

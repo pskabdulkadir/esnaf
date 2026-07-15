@@ -1,0 +1,6 @@
+{
+  "name": "İndirim Vitrini",
+  "description": "Küresel ve Yerel İndirim Pazaryeri: Esnaflar ve müşteriler için konum bazlı ve global indirim vitrini.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

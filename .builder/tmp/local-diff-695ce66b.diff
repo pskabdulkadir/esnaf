@@ -1,0 +1,107 @@
+diff --git a/src/components/Marketer.tsx b/src/components/Marketer.tsx
+index f94febe..7264fd0 100644
+--- a/src/components/Marketer.tsx
++++ b/src/components/Marketer.tsx
+@@ -329,7 +329,7 @@ const CATEGORIES_TRANSLATION_MAP: Record<string, Record<string, string>> = {
+[L:329]    }
+[L:330]  };
+[L:331]  
+[L:332] -export default function Marketer({ brandName, language }: { brandName?: string; language?: "tr" | "en" | "de" }) {
+[L:332] +export default function Marketer({ brandName, language, userId }: { brandName?: string; language?: "tr" | "en" | "de"; userId?: string }) {
+[L:333]    // Is this visitor on the 100% Isolated Public URL?
+[L:334]    const [isPublicUrlLocked, setIsPublicUrlLocked] = useState(false);
+[L:335]    const [isCustomerShowcase, setIsCustomerShowcase] = useState(false);
+@@ -472,7 +472,11 @@ export default function Marketer({ brandName, language }: { brandName?: string;
+[L:472]  
+[L:473]        // 2. Fetch public active discounts
+[L:474]        try {
+[L:475] -        const pubRes = await fetch("/api/public-discounts");
+[L:475] +        // ⭐ userId'yi query parameter olarak gönder
+[L:476] +        const apiUrl = userId
+[L:477] +          ? `/api/public-discounts?userId=${encodeURIComponent(userId)}`
+[L:478] +          : `/api/public-discounts`;
+[L:479] +        const pubRes = await fetch(apiUrl);
+[L:480/476]          if (pubRes.ok) {
+[L:481/477]            const discountsData = await pubRes.json();
+[L:482/478]            setPublicDiscounts(discountsData);
+@@ -865,6 +869,7 @@ export default function Marketer({ brandName, language }: { brandName?: string;
+[L:869/865]          headers: { "Content-Type": "application/json" },
+[L:870/866]          body: JSON.stringify({
+[L:871/867]            productId: "prod-" + Date.now(),
+[L:872] +          userId: userId,  // ⭐ Yeni: Kampanyayı kimin yayınladığını gönder
+[L:873/868]            productName: prodName,
+[L:874/869]            originalPrice: Number(prodPrice),
+[L:875/870]            discountPrice: Number(prodDiscountPrice),
+[L:876/871] 
+diff --git a/src/App.tsx b/src/App.tsx
+index 4974bc1..82e2f8f 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -1664,6 +1664,7 @@ export default function App() {
+[L:1664]                <Marketer
+[L:1665]                  brandName={brandName}
+[L:1666]                  language={language}
+[L:1667] +                userId={userId}
+[L:1668/1667]                />
+[L:1669/1668]              </Suspense>
+[L:1670/1669]            )}
+diff --git a/server.ts b/server.ts
+index b313fd4..fd77990 100644
+--- a/server.ts
++++ b/server.ts
+@@ -408,24 +408,35 @@ app.post("/api/trigger-campaign", async (req, res) => {
+[L:408]  // 1. Get all public landing pages
+[L:409]  app.get("/api/public-discounts", (req, res) => {
+[L:410]    const db = readDatabase();
+[L:411] -  res.json(db.publicDiscounts || []);
+[L:411] +  const userId = req.query.userId as string;
+[L:412] +
+[L:413] +  // ⭐ Eğer userId sağlandıysa, o kullanıcının kampanyalarını filtrele
+[L:414] +  // Eğer userId yoksa (müşteri görüşü), tüm kampanyaları döndür
+[L:415] +  if (userId) {
+[L:416] +    const filtered = (db.publicDiscounts || []).filter((d: any) => d.userId === userId || d.publishMode === 'global');
+[L:417] +    res.json(filtered);
+[L:418] +  } else {
+[L:419] +    // Müşteri görüşü: tüm aktif kampanyalar
+[L:420] +    res.json((db.publicDiscounts || []).filter((d: any) => d.isActive !== false));
+[L:421] +  }
+[L:422/412]  });
+[L:423/413]  
+[L:424/414]  // 2. Publish a new public landing page
+[L:425/415]  app.post("/api/public-discounts", (req, res) => {
+[L:426/416]    const db = readDatabase();
+[L:417] -  const { 
+[L:418] -    productId, 
+[L:419] -    productName, 
+[L:420] -    originalPrice, 
+[L:421] -    discountPrice, 
+[L:422] -    category, 
+[L:423] -    merchantName, 
+[L:424] -    merchantPhone, 
+[L:427] +  const {
+[L:428] +    productId,
+[L:429] +    userId,  // ⭐ Yeni: Kampanyayı kimin yayınladığını kaydet
+[L:430] +    productName,
+[L:431] +    originalPrice,
+[L:432] +    discountPrice,
+[L:433] +    category,
+[L:434] +    merchantName,
+[L:435] +    merchantPhone,
+[L:436/425]      merchantWhatsApp,
+[L:426] -    seoTitle, 
+[L:427] -    seoDescription, 
+[L:428] -    seoKeywords, 
+[L:437] +    seoTitle,
+[L:438] +    seoDescription,
+[L:439] +    seoKeywords,
+[L:440/429]      openGraphImage,
+[L:441/430]      publishMode,
+[L:442/431]      latitude,
+@@ -451,6 +462,7 @@ app.post("/api/public-discounts", (req, res) => {
+[L:462/451]    const newPublicDiscount = {
+[L:463/452]      id: "pub-" + Date.now(),
+[L:464/453]      productId,
+[L:465] +    userId: userId || "unknown",  // ⭐ Yeni: Kampanya sahibini kaydet
+[L:466/454]      productName,
+[L:467/455]      slug: randomizedSlug,
+[L:468/456]      originalPrice: Number(originalPrice) || 0,

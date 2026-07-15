@@ -1,0 +1,45 @@
+node_modules
+dist
+build/
+coverage/
+.DS_Store
+*.log
+
+# Environment & Secrets (CRITICAL - NEVER COMMIT)
+.env
+.env.local
+.env.*.local
+firebaseServiceAccount*.json
+serviceAccountKey.json
+
+# Firebase
+.firebase/
+.firebaserc
+firebase-debug.log
+
+# Database (Legacy - removed with Firebase migration)
+db_data.json
+.backups/
+*.backup.json
+
+# Logs
+logs/
+npm-debug.log*
+yarn-debug.log*
+
+# Render artifacts
+.render/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Dependencies
+!.env.example
