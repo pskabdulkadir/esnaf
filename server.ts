@@ -29,6 +29,10 @@ interface AuthRequest extends Request {
 let firestoreDb: any = null;
 let firebaseReady = false;
 
+function serverTimestamp() {
+  return firebaseReady ? admin.firestore.FieldValue.serverTimestamp() : new Date().toISOString();
+}
+
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
@@ -315,8 +319,8 @@ app.post("/api/products", requireAuth, async (req: AuthRequest, res: Response) =
       category: req.body.category || "Genel",
       expiryDate: req.body.expiryDate || "",
       isSpecialDiscount: req.body.isSpecialDiscount === true,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: serverTimestamp(),
+      createdAt: serverTimestamp(),
     };
 
     await firestoreDb
@@ -359,7 +363,7 @@ app.put("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response
 
     const updateData = {
       ...req.body,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      lastUpdated: serverTimestamp(),
     };
 
     await docRef.update(updateData);
@@ -539,9 +543,9 @@ app.post("/api/public-discounts", async (req: Request, res: Response) => {
       views: 0,
       shares: 0,
       isActive: true,
-      publishedAt: admin.firestore.FieldValue.serverTimestamp(),
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      publishedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
     console.log(`\n📝 POST /api/public-discounts BAŞLADI`);
@@ -716,7 +720,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
           const updatedData = {
             ...doc.data(),
             views: (doc.data().views || 0) + 1,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: serverTimestamp()
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -797,7 +801,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
           const updatedData = {
             ...doc.data(),
             shares: (doc.data().shares || 0) + 1,
-            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+            updatedAt: serverTimestamp()
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -896,7 +900,7 @@ app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) =
       merchantName: req.body.merchantName,
       merchantPhone: req.body.merchantPhone,
       merchantWhatsApp: req.body.merchantWhatsApp,
-      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: serverTimestamp(),
     };
 
     await firestoreDb
