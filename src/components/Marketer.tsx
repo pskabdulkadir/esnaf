@@ -1067,7 +1067,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
         const pubData = await pubResponse.json();
 
         // 🌐 Google'a URL'i index et
-        const discountUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${encodeURIComponent(pubData.slug)}&view=showcase`;
+        const shareUserId = pubData.userId || userId;
+        const discountUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${encodeURIComponent(pubData.slug)}&view=showcase${shareUserId ? `&userId=${encodeURIComponent(shareUserId)}` : ""}`;
         try {
           const googleRes = await fetch("/api/google-index-url", {
             method: "POST",
@@ -3405,7 +3406,8 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
               <button
                 type="button"
                 onClick={() => {
-                  const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${encodeURIComponent(selectedDetailDiscount.slug)}&view=showcase`;
+                  const shareUserId = selectedDetailDiscount.userId || userId;
+                  const shareUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?slug=${encodeURIComponent(selectedDetailDiscount.slug)}&view=showcase${shareUserId ? `&userId=${encodeURIComponent(shareUserId)}` : ""}`;
                   copyToClipboard(shareUrl);
                   incrementShareCount(selectedDetailDiscount.id);
                   setCopiedId(selectedDetailDiscount.id);

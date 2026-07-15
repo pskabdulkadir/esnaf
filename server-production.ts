@@ -329,6 +329,7 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
     const discounts = snapshot.docs
       .map((doc: any) => ({
         id: doc.id,
+        userId: userId || doc.ref.parent.parent?.id || "",
         ...doc.data(),
       }))
       .filter((discount: any) => !slug || discount.isActive !== false);
@@ -381,7 +382,7 @@ app.post("/api/public-discounts", requireAuth, async (req: AuthRequest, res: Res
       .doc(discountId)
       .set(discountData);
 
-    res.status(201).json({ id: discountId, ...discountData });
+    res.status(201).json({ id: discountId, userId, ...discountData });
   } catch (err) {
     console.error("Error creating discount:", err);
     res.status(500).json({ error: "İndirim kaydedilemedi" });

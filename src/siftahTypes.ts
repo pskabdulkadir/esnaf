@@ -46,6 +46,7 @@ export interface StockProblem {
 
 export interface PublicDiscount {
   id: string;
+  userId?: string;
   productId: string;
   productName: string;
   slug: string;
