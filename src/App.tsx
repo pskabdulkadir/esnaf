@@ -843,7 +843,9 @@ export default function App() {
         const pdRes = await fetch(`/api/public-discounts?userId=${encodeURIComponent(userId)}`);
         if (pdRes.ok) publicDiscountsList = await pdRes.json();
 
-        const setRes = await fetch("/api/settings");
+        const setRes = await fetch("/api/settings", {
+          headers: { "Authorization": `Bearer ${userId}` }
+        });
         if (setRes.ok) storeSettings = await setRes.json();
 
         const campRes = await fetch("/api/campaigns");

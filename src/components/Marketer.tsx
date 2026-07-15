@@ -493,7 +493,9 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
     try {
       // 1. Fetch persistent store settings
       try {
-        const settingsRes = await fetch("/api/settings");
+        const settingsRes = await fetch("/api/settings", {
+          headers: { "Authorization": `Bearer ${userId}` }
+        });
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json();
           setSettings(settingsData);
@@ -1036,7 +1038,10 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
 
       const pubResponse = await fetch("/api/public-discounts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${userId}`
+        },
         body: JSON.stringify({
           productId: "prod-" + Date.now(),
           userId: userId,  // ⭐ Yeni: Kampanyayı kimin yayınladığını gönder
