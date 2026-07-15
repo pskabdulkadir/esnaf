@@ -29,40 +29,23 @@ interface AuthRequest extends Request {
 let firestoreDb: any = null;
 let firebaseReady = false;
 
-function serverTimestamp() {
-  return firebaseReady ? admin.firestore.FieldValue.serverTimestamp() : new Date().toISOString();
-}
-
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
  
-    if (!admin?.credential?.cert || !admin?.initializeApp || !admin?.firestore) {
-      console.warn("⚠️  Firebase Admin SDK eksik metotlar - fallback to file-based mode");
-      firebaseReady = false;
-      return;
-    }
     const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      clientId: process.env.FIREBASE_CLIENT_ID,
-      authUri: "https://accounts.google.com/o/oauth2/auth",
-      tokenUri: "https://oauth2.googleapis.com/token",
     };
  
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
-      console.warn("  - projectId:", serviceAccount.projectId ? "✅" : "❌");
-      console.warn("  - privateKey:", serviceAccount.privateKey ? "✅" : "❌");
-      console.warn("  - clientEmail:", serviceAccount.clientEmail ? "✅" : "❌");
       firebaseReady = false;
       return;
     }
  
     if (!admin.apps || admin.apps.length === 0) {
-      console.log("🔧 Firebase initializeApp çağrılıyor...");
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
@@ -88,34 +71,6 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 // Increase JSON payload limit for images (up to 50MB for base64 images)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
-
-// ============================================
-// STATIC FILES & SPA FALLBACK
-// ============================================
-
-// Serve frontend static files (built by Vite)
-// __dirname = process.cwd(), so dist is at ./dist or ../dist depending on runtime
-const distPath = (() => {
-  // Development: dist is in project root
-  // Production: dist is in project root after build
-  const p1 = path.join(__dirname, "dist");
-  if (fs.existsSync(p1)) return p1;
-  // Fallback for legacy paths
-  return path.join(__dirname, "../dist");
-})();
-
-if (!process.env.VERCEL) {
-  app.use(express.static(distPath));
-
-  // SPA Fallback: Non-API routes go to index.html
-  app.get("*", (req: Request, res: Response, next: NextFunction) => {
-    if (!req.path.startsWith("/api")) {
-      res.sendFile(path.join(distPath, "index.html"));
-    } else {
-      next();
-    }
-  });
-}
 
 // ============================================
 // MIDDLEWARE: Authentication
@@ -154,21 +109,16 @@ app.get("/api/health", async (req: Request, res: Response) => {
     if (firebaseReady && firestoreDb) {
       try {
         await firestoreDb.collection("_health").doc("test").get();
-        (health as any).firebaseConnection = "connected";
+        health.firebaseConnection = "connected";
       } catch (err) {
-        (health as any).firebaseConnection = "failed";
+        health.firebaseConnection = "failed";
         health.status = "degraded";
       }
     }
 
-    // Always return 200 for health check (even in fallback mode)
-    res.status(200).json(health);
+    res.status(health.status === "ok" ? 200 : 503).json(health);
   } catch (err) {
-    res.status(503).json({
-      status: "degraded",
-      error: "Health check error",
-      message: String(err)
-    });
+    res.status(500).json({ error: "Health check failed", message: String(err) });
   }
 });
 
@@ -178,37 +128,9 @@ app.get("/api/health", async (req: Request, res: Response) => {
 
 async function notifyGoogleIndexing(url: string): Promise<boolean> {
   try {
-    // Google Indexing API endpoint
-    const endpoint = "https://www.googleapis.com/indexing/v3/urlNotifications:publish";
-    const apiKey = process.env.GOOGLE_INDEXING_API_KEY;
-
-    if (!apiKey) {
-      console.warn(`⚠️ GOOGLE_INDEXING_API_KEY env variable yok, mock mod kullanılıyor`);
-      console.log(`📡 [MOCK] Google Indexing notification logged for: ${url}`);
-      return true;
-    }
-
-    const requestBody = {
-      url: url,
-      type: "URL_UPDATED"
-    };
-
-    const response = await fetch(`${endpoint}?key=${apiKey}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    if (response.ok) {
-      console.log(`✅ Google Indexing API: URL başarıyla gönderildi: ${url}`);
-      return true;
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      console.warn(`⚠️ Google Indexing API error (${response.status}):`, errorData);
-      return false;
-    }
+    // Google Indexing API logic can be complex, for now, we just log it.
+    console.log(`[MOCK] Google Indexing notification for: ${url}`);
+    return true;
   } catch (err) {
     console.error("Google Indexing API error:", err);
     return false;
@@ -220,15 +142,10 @@ async function notifyGoogleIndexing(url: string): Promise<boolean> {
 // ============================================
 
 app.get("/api/google-config", (req: Request, res: Response) => {
-  try {
-    const config = {
-      googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || "",
-      googleAdsId: process.env.GOOGLE_ADS_ID || "",
-    };
-    res.json(config);
-  } catch (err) {
-    res.status(500).json({ error: "Google config not available" });
-  }
+  res.json({
+    googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || "",
+    googleAdsId: process.env.GOOGLE_ADS_ID || "",
+  });
 });
 
 // ============================================
@@ -263,11 +180,6 @@ app.post("/api/google-index-url", async (req: Request, res: Response) => {
 app.get("/api/products", async (req: AuthRequest, res: Response) => {
   try {
     // If Firestore available, use it; otherwise serve empty (fallback mode)
-    if (!firebaseReady || !firestoreDb) {
-      // Fallback mode: return empty array
-      return res.json([]);
-    }
-
     const userId = req.user?.userId;
     if (!userId) {
       return res.status(401).json({ error: "Yetkilendirme gerekli" });
@@ -278,6 +190,11 @@ app.get("/api/products", async (req: AuthRequest, res: Response) => {
       .doc(userId)
       .collection("products")
       .get();
+
+    if (!firebaseReady || !firestoreDb) {
+      // Fallback mode: return empty array
+      return res.json([]);
+    }
 
     const products = snapshot.docs.map((doc: any) => ({
       id: doc.id,
@@ -319,8 +236,8 @@ app.post("/api/products", requireAuth, async (req: AuthRequest, res: Response) =
       category: req.body.category || "Genel",
       expiryDate: req.body.expiryDate || "",
       isSpecialDiscount: req.body.isSpecialDiscount === true,
-      lastUpdated: serverTimestamp(),
-      createdAt: serverTimestamp(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     await firestoreDb
@@ -363,7 +280,7 @@ app.put("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response
 
     const updateData = {
       ...req.body,
-      lastUpdated: serverTimestamp(),
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     await docRef.update(updateData);
@@ -543,9 +460,9 @@ app.post("/api/public-discounts", async (req: Request, res: Response) => {
       views: 0,
       shares: 0,
       isActive: true,
-      publishedAt: serverTimestamp(),
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
     console.log(`\n📝 POST /api/public-discounts BAŞLADI`);
@@ -720,7 +637,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
           const updatedData = {
             ...doc.data(),
             views: (doc.data().views || 0) + 1,
-            updatedAt: serverTimestamp()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -801,7 +718,7 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
           const updatedData = {
             ...doc.data(),
             shares: (doc.data().shares || 0) + 1,
-            updatedAt: serverTimestamp()
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -859,18 +776,18 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
 // API: SETTINGS
 // ============================================
 
-app.get("/api/settings", async (req: AuthRequest, res: Response) => {
-  const defaultSettings = {
-    language: "tr",
-    merchantName: "İşletmem",
-    merchantPhone: "",
-    merchantWhatsApp: "",
-  };
-
+app.get("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const defaultSettings = {
+      language: "tr",
+      merchantName: "İşletmem",
+      merchantPhone: "",
+      merchantWhatsApp: "",
+    };
 
+    const userId = req.user?.userId;
     if (!userId || !firebaseReady || !firestoreDb) {
+      console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
       return res.json(defaultSettings);
     }
 
@@ -881,18 +798,25 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       .doc("user_data")
       .get();
 
-    res.json(doc.exists ? doc.data() : defaultSettings);
+    const settings = doc.exists ? doc.data() : defaultSettings;
+    res.json(settings);
   } catch (err) {
     console.error("Error fetching settings:", err);
-    res.json(defaultSettings);
+    // Fallback: return default settings on error
+    res.json({
+      language: "tr",
+      merchantName: "İşletmem",
+      merchantPhone: "",
+      merchantWhatsApp: "",
+    });
   }
 });
 
-app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
+app.post("/api/settings", async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.userId;
-    if (!firebaseReady || !firestoreDb) {
-      return res.status(503).json({ error: "Database not available in fallback mode" });
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "userId gerekli" });
     }
 
     const settingsData = {
@@ -900,8 +824,12 @@ app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) =
       merchantName: req.body.merchantName,
       merchantPhone: req.body.merchantPhone,
       merchantWhatsApp: req.body.merchantWhatsApp,
-      updatedAt: serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Database not available in fallback mode" });
+    }
 
     await firestoreDb
       .collection("users")

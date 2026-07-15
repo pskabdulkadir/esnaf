@@ -1,7 +1,7 @@
 {
   "functions": {
     "api/[...path].ts": {
-      "includeFiles": "server.ts"
+      "includeFiles": "dist/server.cjs"
     }
   },
   "headers": [
