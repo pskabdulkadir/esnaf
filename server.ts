@@ -41,13 +41,21 @@ async function initializeFirebase() {
     // The service account object requires ONLY these three properties.
     // Extra properties can cause initialization to fail.
     const serviceAccount = {
+    const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      clientId: process.env.FIREBASE_CLIENT_ID,
+      authUri: "https://accounts.google.com/o/oauth2/auth",
+      tokenUri: "https://oauth2.googleapis.com/token",
     };
  
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
+      console.warn("  - projectId:", serviceAccount.projectId ? "✅" : "❌");
+      console.warn("  - privateKey:", serviceAccount.privateKey ? "✅" : "❌");
+      console.warn("  - clientEmail:", serviceAccount.clientEmail ? "✅" : "❌");
       firebaseReady = false;
       return;
     }
@@ -153,8 +161,10 @@ app.get("/api/health", async (req: Request, res: Response) => {
     res.status(health.status === "ok" ? 200 : 503).json(health);
   } catch (err) {
     res.status(500).json({
+    res.status(503).json({
       status: "degraded",
       error: "Health check endpoint failed unexpectedly.",
+      error: "Health check error",
       message: String(err)
     });
   }
