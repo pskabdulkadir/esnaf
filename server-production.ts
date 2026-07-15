@@ -309,22 +309,28 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       return res.status(503).json({ error: "Firestore unavailable" });
     }
 
-    const userId = req.query.userId as string;
-    if (!userId) {
-      return res.status(400).json({ error: "userId query parametresi gerekli" });
+    const userId = typeof req.query.userId === "string" ? req.query.userId : "";
+    const slug = typeof req.query.slug === "string" ? req.query.slug : "";
+
+    const discountsQuery = slug
+      ? userId
+        ? firestoreDb.collection("users").doc(userId).collection("publicDiscounts").where("slug", "==", slug)
+        : firestoreDb.collectionGroup("publicDiscounts").where("slug", "==", slug)
+      : userId
+        ? firestoreDb.collection("users").doc(userId).collection("publicDiscounts").where("isActive", "==", true)
+        : null;
+
+    if (!discountsQuery) {
+      return res.status(400).json({ error: "userId veya slug query parametresi gerekli" });
     }
 
-    const snapshot = await firestoreDb
-      .collection("users")
-      .doc(userId)
-      .collection("publicDiscounts")
-      .where("isActive", "==", true)
-      .get();
-
-    const discounts = snapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data(),
-    }));
+    const snapshot = await discountsQuery.get();
+    const discounts = snapshot.docs
+      .map((doc: any) => ({
+        id: doc.id,
+        ...doc.data(),
+      }))
+      .filter((discount: any) => !slug || discount.isActive !== false);
 
     res.json(discounts);
   } catch (err) {
@@ -441,6 +447,46 @@ app.put("/api/public-discounts/:id/views", async (req: Request, res: Response) =
   } catch (err) {
     console.error("Error updating views:", err);
     res.status(500).json({ error: "Görüntülemeler güncellenemedi" });
+  }
+});
+
+app.put("/api/public-discounts/:id/shares", async (req: Request, res: Response) => {
+  try {
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Firestore unavailable" });
+    }
+
+    const userId = typeof req.query.userId === "string" ? req.query.userId : "";
+    if (!userId) {
+      return res.status(400).json({ error: "userId query parametresi gerekli" });
+    }
+
+    const docRef = firestoreDb
+      .collection("users")
+      .doc(userId)
+      .collection("publicDiscounts")
+      .doc(req.params.id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "İndirim bulunamadı" });
+    }
+
+    const updatedDiscount = {
+      id: doc.id,
+      ...doc.data(),
+      shares: (doc.data()?.shares || 0) + 1,
+      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+    };
+    await docRef.update({
+      shares: updatedDiscount.shares,
+      updatedAt: updatedDiscount.updatedAt,
+    });
+
+    res.json(updatedDiscount);
+  } catch (err) {
+    console.error("Error updating shares:", err);
+    res.status(500).json({ error: "Paylaşım sayısı güncellenemedi" });
   }
 });
 
