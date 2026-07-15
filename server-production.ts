@@ -132,6 +132,45 @@ app.get("/api/health", async (req: Request, res: Response) => {
   }
 });
 
+app.get("/api/google-config", (req: Request, res: Response) => {
+  res.json({
+    googleAnalyticsId: process.env.GOOGLE_ANALYTICS_ID || "",
+    googleAdsId: process.env.GOOGLE_ADS_ID || "",
+  });
+});
+
+app.post("/api/google-index-url", async (req: Request, res: Response) => {
+  const { url } = req.body;
+  if (!url || typeof url !== "string") {
+    return res.status(400).json({ error: "URL gerekli" });
+  }
+
+  const apiKey = process.env.GOOGLE_INDEXING_API_KEY;
+  if (!apiKey) {
+    return res.json({ success: true, url, message: "Google Indexing API anahtarı yapılandırılmadı" });
+  }
+
+  try {
+    const response = await fetch(
+      `https://www.googleapis.com/indexing/v3/urlNotifications:publish?key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url, type: "URL_UPDATED" }),
+      },
+    );
+
+    res.status(response.ok ? 200 : 502).json({
+      success: response.ok,
+      url,
+      message: response.ok ? "Google'a bildirim gönderildi" : "Google bildirimi başarısız",
+    });
+  } catch (err) {
+    console.error("Google indexing error:", err);
+    res.status(502).json({ error: "Google indexing başarısız" });
+  }
+});
+
 // ============================================
 // API: PRODUCTS
 // ============================================
@@ -362,6 +401,46 @@ app.delete("/api/public-discounts/:id", requireAuth, async (req: AuthRequest, re
   } catch (err) {
     console.error("Error deleting discount:", err);
     res.status(500).json({ error: "İndirim silinemedi" });
+  }
+});
+
+app.put("/api/public-discounts/:id/views", async (req: Request, res: Response) => {
+  try {
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Firestore unavailable" });
+    }
+
+    const userId = typeof req.query.userId === "string" ? req.query.userId : "";
+    if (!userId) {
+      return res.status(400).json({ error: "userId query parametresi gerekli" });
+    }
+
+    const docRef = firestoreDb
+      .collection("users")
+      .doc(userId)
+      .collection("publicDiscounts")
+      .doc(req.params.id);
+    const doc = await docRef.get();
+
+    if (!doc.exists) {
+      return res.status(404).json({ error: "İndirim bulunamadı" });
+    }
+
+    const updatedDiscount = {
+      id: doc.id,
+      ...doc.data(),
+      views: (doc.data()?.views || 0) + 1,
+      updatedAt: firebaseAdmin.firestore.FieldValue.serverTimestamp(),
+    };
+    await docRef.update({
+      views: updatedDiscount.views,
+      updatedAt: updatedDiscount.updatedAt,
+    });
+
+    res.json(updatedDiscount);
+  } catch (err) {
+    console.error("Error updating views:", err);
+    res.status(500).json({ error: "Görüntülemeler güncellenemedi" });
   }
 });
 
