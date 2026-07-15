@@ -79,6 +79,7 @@ const PORT = parseInt(process.env.PORT || "3000", 10);
 // Increase JSON payload limit for images (up to 50MB for base64 images)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.static(path.join(process.cwd(), "dist")));
 
 // ============================================
 // MIDDLEWARE: Authentication
@@ -125,8 +126,7 @@ app.get("/api/health", async (req: Request, res: Response) => {
       }
     }
 
-    const statusCode = health.status === "ok" ? 200 : 503;
-    res.status(statusCode).json(health);
+    res.status(200).json(health);
   } catch (err) {
     res.status(500).json({ error: "Health check failed", message: String(err) });
   }
@@ -427,6 +427,14 @@ app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) =
     console.error("Error updating settings:", err);
     res.status(500).json({ error: "Ayarlar güncellenemedi" });
   }
+});
+
+// Serve the Vite app for client-side routes.
+app.get("*", (req: Request, res: Response, next: NextFunction) => {
+  if (req.path.startsWith("/api/")) {
+    return next();
+  }
+  res.sendFile(path.join(process.cwd(), "dist", "index.html"));
 });
 
 // ============================================
