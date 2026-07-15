@@ -158,7 +158,7 @@ app.get("/api/health", async (req: Request, res: Response) => {
     // Always return 200 for health check (even in fallback mode)
     res.status(200).json(health);
   } catch (err) {
-    res.status(200).json({
+    res.status(503).json({
       status: "degraded",
       error: "Health check error",
       message: String(err)
