@@ -38,21 +38,16 @@ async function initializeFirebase() {
       firebaseReady = false;
       return;
     }
-    const serviceAccount: any = {
+    // The service account object requires ONLY these three properties.
+    // Extra properties can cause initialization to fail.
+    const serviceAccount = {
       projectId: process.env.FIREBASE_PROJECT_ID,
-      privateKeyId: process.env.FIREBASE_PRIVATE_KEY_ID,
       privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      clientId: process.env.FIREBASE_CLIENT_ID,
-      authUri: "https://accounts.google.com/o/oauth2/auth",
-      tokenUri: "https://oauth2.googleapis.com/token",
     };
  
     if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
       console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
-      console.warn("  - projectId:", serviceAccount.projectId ? "✅" : "❌");
-      console.warn("  - privateKey:", serviceAccount.privateKey ? "✅" : "❌");
-      console.warn("  - clientEmail:", serviceAccount.clientEmail ? "✅" : "❌");
       firebaseReady = false;
       return;
     }
@@ -155,12 +150,11 @@ app.get("/api/health", async (req: Request, res: Response) => {
       }
     }
 
-    // Always return 200 for health check (even in fallback mode)
-    res.status(200).json(health);
+    res.status(health.status === "ok" ? 200 : 503).json(health);
   } catch (err) {
-    res.status(200).json({
+    res.status(500).json({
       status: "degraded",
-      error: "Health check error",
+      error: "Health check endpoint failed unexpectedly.",
       message: String(err)
     });
   }
