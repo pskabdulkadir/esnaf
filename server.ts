@@ -186,7 +186,7 @@ app.use((req: AuthRequest, res: Response, next: NextFunction) => {
 });
 
 function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
-  if (!req.user?.userId) {
+  if (!req.user || !req.user.userId) {
     return res.status(401).json({ error: "Yetkilendirme gerekli (Bearer token)" });
   }
   next();
@@ -324,7 +324,11 @@ app.get("/api/products", async (req: AuthRequest, res: Response) => {
       return res.json([]);
     }
 
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
     const snapshot = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -343,13 +347,17 @@ app.get("/api/products", async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.post("/api/products", async (req: AuthRequest, res: Response) => {
+app.post("/api/products", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      // requireAuth bunu zaten yapar ama yine de güvenli kodlama için ekleyelim
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
 
     if (!req.body.name || typeof req.body.name !== "string" || req.body.name.trim().length === 0) {
       return res.status(400).json({ error: "Ürün adı gereklidir" });
@@ -385,13 +393,17 @@ app.post("/api/products", async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
+app.put("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
     const { id } = req.params;
 
     const docRef = firestoreDb
@@ -418,13 +430,17 @@ app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.delete("/api/products/:id", async (req: AuthRequest, res: Response) => {
+app.delete("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
-    const userId = req.user!.userId;
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
     const { id } = req.params;
 
     await firestoreDb
@@ -548,7 +564,7 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
+app.post("/api/public-discounts", async (req: Request, res: Response) => {
   try {
     const { productId, productName, originalPrice, discountPrice, seoTitle } = req.body;
 
@@ -557,7 +573,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
     }
 
     // Get userId from query, body, or auth header
-    const userId = req.query.userId as string || req.body.userId || req.user?.userId || "unknown";
+    const userId = req.query.userId as string || req.body.userId || (req as AuthRequest).user?.userId || "unknown";
 
     const discountId = "discount_" + Date.now();
     const discountData = {
@@ -575,7 +591,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       seoDescription: req.body.seoDescription || "",
       seoKeywords: req.body.seoKeywords || "",
       openGraphImage: req.body.openGraphImage || "",
-      publishMode: req.body.publishMode || "local",
+      publishMode: req.body.publishMode || "global",
       latitude: req.body.latitude || 0,
       longitude: req.body.longitude || 0,
       radiusKm: req.body.radiusKm || 5,
@@ -662,7 +678,7 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
 
 app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.query.userId as string || req.user?.userId;
+    const userId = req.query.userId as string || req.user?.userId || req.body.userId;
     const { id } = req.params;
 
     console.log(`🗑️ DELETE /api/public-discounts/${id} - userId: ${userId}, firebaseReady: ${firebaseReady}`);
@@ -736,7 +752,7 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
 app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = req.query.userId as string || req.user?.userId;
+    const userId = req.query.userId as string || req.user?.userId || req.body.userId;
 
     console.log(`📊 PUT /api/public-discounts/${id}/views - userId: ${userId}`);
 
@@ -817,7 +833,7 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
 app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = req.query.userId as string || req.user?.userId;
+    const userId = req.query.userId as string || req.user?.userId || req.body.userId;
 
     console.log(`📊 PUT /api/public-discounts/${id}/shares - userId: ${userId}`);
 
@@ -908,17 +924,7 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: "",
     };
 
-    if (!firebaseReady || !firestoreDb) {
-      // Fallback: return default settings
-      return res.json(defaultSettings);
-    }
-
-    const userId = req.user?.userId;
-    if (!userId) {
-      console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
-      return res.json(defaultSettings);
-    }
-
+    const userId = req.user!.userId;
     const doc = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -940,13 +946,9 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
   }
 });
 
-app.post("/api/settings", async (req: AuthRequest, res: Response) => {
+app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user?.userId;
-    if (!userId) {
-      return res.status(401).json({ error: "userId gerekli" });
-    }
-
+    const userId = req.user!.userId;
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
