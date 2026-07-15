@@ -5,8 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
+<<<<<<< HEAD
     "build": "vite build",
     "start": "sh ./start.sh",
+=======
+    "build:client": "vite build",
+    "build:server": "esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs",
+    "build": "npm run build:client && npm run build:server",
+    "start": "node dist/server.cjs",
+>>>>>>> origin/main
     "lint": "tsc --noEmit",
     "migrate-firestore": "tsx scripts/migrate-to-firestore.ts",
     "fix-discounts": "node scripts/fix-discounts-api.cjs",

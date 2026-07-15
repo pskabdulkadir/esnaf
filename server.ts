@@ -3,11 +3,19 @@ import path from "path";
 import fs from "fs";
 import dotenv from "dotenv";
 
+<<<<<<< HEAD
+=======
+// Firebase Admin SDK'yı standart import ile en başa alıyoruz.
+// Bu, Vercel'in derleme sürecinde modülü doğru şekilde paketlemesini sağlar.
+import admin from "firebase-admin";
+
+>>>>>>> origin/main
 dotenv.config();
 
 // ESM/CJS uyumlu __dirname tanımı
 const __dirname = process.cwd();
 
+<<<<<<< HEAD
 // Firebase Admin SDK - Dynamic async import for proper ESM/CJS interop
 let firebaseAdmin: any = null;
 let firebaseImported = false;
@@ -42,6 +50,8 @@ async function loadFirebaseAdminSDK() {
   return firebasePromise;
 }
 
+=======
+>>>>>>> origin/main
 // ============================================
 // TYPES
 // ============================================
@@ -62,6 +72,7 @@ let firebaseReady = false;
 async function initializeFirebase() {
   try {
     console.log("🔥 Firestore initialization başlıyor...");
+<<<<<<< HEAD
 
     // Firebase Admin SDK'yı async import et
     const admin = await loadFirebaseAdminSDK();
@@ -85,11 +96,15 @@ async function initializeFirebase() {
     console.log("  - admin.initializeApp type:", typeof admin?.initializeApp);
     console.log("  - admin.firestore type:", typeof admin?.firestore);
 
+=======
+ 
+>>>>>>> origin/main
     if (!admin?.credential?.cert || !admin?.initializeApp || !admin?.firestore) {
       console.warn("⚠️  Firebase Admin SDK eksik metotlar - fallback to file-based mode");
       firebaseReady = false;
       return;
     }
+<<<<<<< HEAD
 
     const serviceAccount: any = {
       projectId: process.env.FIREBASE_PROJECT_ID,
@@ -110,11 +125,28 @@ async function initializeFirebase() {
       return;
     }
 
+=======
+    // The service account object requires ONLY these three properties.
+    // Extra properties can cause initialization to fail.
+    const serviceAccount = {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    };
+ 
+    if (!serviceAccount.projectId || !serviceAccount.privateKey || !serviceAccount.clientEmail) {
+      console.warn("⚠️  Firestore credentials eksik - fallback to file-based mode");
+      firebaseReady = false;
+      return;
+    }
+ 
+>>>>>>> origin/main
     if (!admin.apps || admin.apps.length === 0) {
       console.log("🔧 Firebase initializeApp çağrılıyor...");
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
       });
+<<<<<<< HEAD
       console.log("✅ Firebase initializeApp başarılı");
     }
 
@@ -126,6 +158,12 @@ async function initializeFirebase() {
     // Health check happens asynchronously when first query runs
     console.log("✅ Firestore instance ready (health check on first query)");
 
+=======
+    }
+ 
+    firestoreDb = admin.firestore();
+ 
+>>>>>>> origin/main
     console.log("✅ Firestore initialized successfully");
     firebaseReady = true;
   } catch (err) {
@@ -134,8 +172,11 @@ async function initializeFirebase() {
   }
 }
 
+<<<<<<< HEAD
 // Firebase initialization will be done before server starts
 
+=======
+>>>>>>> origin/main
 // ============================================
 // EXPRESS APP
 // ============================================
@@ -186,7 +227,11 @@ app.use((req: AuthRequest, res: Response, next: NextFunction) => {
 });
 
 function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+<<<<<<< HEAD
   if (!req.user?.userId) {
+=======
+  if (!req.user || !req.user.userId) {
+>>>>>>> origin/main
     return res.status(401).json({ error: "Yetkilendirme gerekli (Bearer token)" });
   }
   next();
@@ -217,12 +262,20 @@ app.get("/api/health", async (req: Request, res: Response) => {
       }
     }
 
+<<<<<<< HEAD
     // Always return 200 for health check (even in fallback mode)
     res.status(200).json(health);
   } catch (err) {
     res.status(200).json({
       status: "degraded",
       error: "Health check error",
+=======
+    res.status(health.status === "ok" ? 200 : 503).json(health);
+  } catch (err) {
+    res.status(500).json({
+      status: "degraded",
+      error: "Health check endpoint failed unexpectedly.",
+>>>>>>> origin/main
       message: String(err)
     });
   }
@@ -324,7 +377,15 @@ app.get("/api/products", async (req: AuthRequest, res: Response) => {
       return res.json([]);
     }
 
+<<<<<<< HEAD
     const userId = req.user!.userId;
+=======
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+>>>>>>> origin/main
     const snapshot = await firestoreDb
       .collection("users")
       .doc(userId)
@@ -343,13 +404,25 @@ app.get("/api/products", async (req: AuthRequest, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
 app.post("/api/products", async (req: AuthRequest, res: Response) => {
+=======
+app.post("/api/products", requireAuth, async (req: AuthRequest, res: Response) => {
+>>>>>>> origin/main
   try {
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
+<<<<<<< HEAD
     const userId = req.user!.userId;
+=======
+    const userId = req.user?.userId;
+    if (!userId) {
+      // requireAuth bunu zaten yapar ama yine de güvenli kodlama için ekleyelim
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+>>>>>>> origin/main
 
     if (!req.body.name || typeof req.body.name !== "string" || req.body.name.trim().length === 0) {
       return res.status(400).json({ error: "Ürün adı gereklidir" });
@@ -367,8 +440,13 @@ app.post("/api/products", async (req: AuthRequest, res: Response) => {
       category: req.body.category || "Genel",
       expiryDate: req.body.expiryDate || "",
       isSpecialDiscount: req.body.isSpecialDiscount === true,
+<<<<<<< HEAD
       lastUpdated: new Date().toISOString(),
       createdAt: new Date().toISOString(),
+=======
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+>>>>>>> origin/main
     };
 
     await firestoreDb
@@ -385,13 +463,25 @@ app.post("/api/products", async (req: AuthRequest, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
 app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
+=======
+app.put("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+>>>>>>> origin/main
   try {
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
+<<<<<<< HEAD
     const userId = req.user!.userId;
+=======
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+>>>>>>> origin/main
     const { id } = req.params;
 
     const docRef = firestoreDb
@@ -407,7 +497,11 @@ app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
 
     const updateData = {
       ...req.body,
+<<<<<<< HEAD
       lastUpdated: new Date().toISOString(),
+=======
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+>>>>>>> origin/main
     };
 
     await docRef.update(updateData);
@@ -418,13 +512,25 @@ app.put("/api/products/:id", async (req: AuthRequest, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
 app.delete("/api/products/:id", async (req: AuthRequest, res: Response) => {
+=======
+app.delete("/api/products/:id", requireAuth, async (req: AuthRequest, res: Response) => {
+>>>>>>> origin/main
   try {
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
 
+<<<<<<< HEAD
     const userId = req.user!.userId;
+=======
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ error: "Yetkilendirme gerekli" });
+    }
+
+>>>>>>> origin/main
     const { id } = req.params;
 
     await firestoreDb
@@ -548,7 +654,11 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
 app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
+=======
+app.post("/api/public-discounts", async (req: Request, res: Response) => {
+>>>>>>> origin/main
   try {
     const { productId, productName, originalPrice, discountPrice, seoTitle } = req.body;
 
@@ -557,7 +667,11 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
     }
 
     // Get userId from query, body, or auth header
+<<<<<<< HEAD
     const userId = req.query.userId as string || req.body.userId || req.user?.userId || "unknown";
+=======
+    const userId = req.query.userId as string || req.body.userId || (req as AuthRequest).user?.userId || "unknown";
+>>>>>>> origin/main
 
     const discountId = "discount_" + Date.now();
     const discountData = {
@@ -575,7 +689,11 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       seoDescription: req.body.seoDescription || "",
       seoKeywords: req.body.seoKeywords || "",
       openGraphImage: req.body.openGraphImage || "",
+<<<<<<< HEAD
       publishMode: req.body.publishMode || "local",
+=======
+      publishMode: req.body.publishMode || "global",
+>>>>>>> origin/main
       latitude: req.body.latitude || 0,
       longitude: req.body.longitude || 0,
       radiusKm: req.body.radiusKm || 5,
@@ -583,9 +701,15 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
       views: 0,
       shares: 0,
       isActive: true,
+<<<<<<< HEAD
       publishedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+=======
+      publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+>>>>>>> origin/main
     };
 
     console.log(`\n📝 POST /api/public-discounts BAŞLADI`);
@@ -662,7 +786,11 @@ app.post("/api/public-discounts", async (req: AuthRequest, res: Response) => {
 
 app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) => {
   try {
+<<<<<<< HEAD
     const userId = req.query.userId as string || req.user?.userId;
+=======
+    const userId = req.query.userId as string || req.user?.userId || req.body.userId;
+>>>>>>> origin/main
     const { id } = req.params;
 
     console.log(`🗑️ DELETE /api/public-discounts/${id} - userId: ${userId}, firebaseReady: ${firebaseReady}`);
@@ -736,7 +864,11 @@ app.delete("/api/public-discounts/:id", async (req: AuthRequest, res: Response) 
 app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+<<<<<<< HEAD
     const userId = req.query.userId as string || req.user?.userId;
+=======
+    const userId = req.query.userId as string || req.user?.userId || req.body.userId;
+>>>>>>> origin/main
 
     console.log(`📊 PUT /api/public-discounts/${id}/views - userId: ${userId}`);
 
@@ -760,7 +892,11 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
           const updatedData = {
             ...doc.data(),
             views: (doc.data().views || 0) + 1,
+<<<<<<< HEAD
             updatedAt: new Date().toISOString()
+=======
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+>>>>>>> origin/main
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -794,7 +930,11 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
 
         if (discount) {
           discount.views = (discount.views || 0) + 1;
+<<<<<<< HEAD
           discount.updatedAt = new Date().toISOString();
+=======
+          discount.updatedAt = new Date().toISOString(); // Fallback'te ISO string kalabilir
+>>>>>>> origin/main
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
           console.log(`  ✅ db_data.json'da güncellendi (views: ${discount.views})`);
           res.json(discount);
@@ -817,7 +957,11 @@ app.put("/api/public-discounts/:id/views", async (req: AuthRequest, res: Respons
 app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+<<<<<<< HEAD
     const userId = req.query.userId as string || req.user?.userId;
+=======
+    const userId = req.query.userId as string || req.user?.userId || req.body.userId;
+>>>>>>> origin/main
 
     console.log(`📊 PUT /api/public-discounts/${id}/shares - userId: ${userId}`);
 
@@ -841,7 +985,11 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
           const updatedData = {
             ...doc.data(),
             shares: (doc.data().shares || 0) + 1,
+<<<<<<< HEAD
             updatedAt: new Date().toISOString()
+=======
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+>>>>>>> origin/main
           };
           await doc.ref.update(updatedData);
           updated = true;
@@ -875,7 +1023,11 @@ app.put("/api/public-discounts/:id/shares", async (req: AuthRequest, res: Respon
 
         if (discount) {
           discount.shares = (discount.shares || 0) + 1;
+<<<<<<< HEAD
           discount.updatedAt = new Date().toISOString();
+=======
+          discount.updatedAt = new Date().toISOString(); // Fallback'te ISO string kalabilir
+>>>>>>> origin/main
           fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2), "utf-8");
           console.log(`  ✅ db_data.json'da güncellendi (shares: ${discount.shares})`);
           res.json(discount);
@@ -908,6 +1060,7 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantWhatsApp: "",
     };
 
+<<<<<<< HEAD
     if (!firebaseReady || !firestoreDb) {
       // Fallback: return default settings
       return res.json(defaultSettings);
@@ -915,6 +1068,10 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
 
     const userId = req.user?.userId;
     if (!userId) {
+=======
+    const userId = req.user?.userId;
+    if (!userId || !firebaseReady || !firestoreDb) {
+>>>>>>> origin/main
       console.warn("⚠️ /api/settings: userId bulunamadı, default döndürülüyor");
       return res.json(defaultSettings);
     }
@@ -940,6 +1097,7 @@ app.get("/api/settings", async (req: AuthRequest, res: Response) => {
   }
 });
 
+<<<<<<< HEAD
 app.post("/api/settings", async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user?.userId;
@@ -947,6 +1105,11 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ error: "userId gerekli" });
     }
 
+=======
+app.post("/api/settings", requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+>>>>>>> origin/main
     if (!firebaseReady || !firestoreDb) {
       return res.status(503).json({ error: "Database not available in fallback mode" });
     }
@@ -956,9 +1119,19 @@ app.post("/api/settings", async (req: AuthRequest, res: Response) => {
       merchantName: req.body.merchantName,
       merchantPhone: req.body.merchantPhone,
       merchantWhatsApp: req.body.merchantWhatsApp,
+<<<<<<< HEAD
       updatedAt: new Date().toISOString(),
     };
 
+=======
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (!firebaseReady || !firestoreDb) {
+      return res.status(503).json({ error: "Database not available in fallback mode" });
+    }
+
+>>>>>>> origin/main
     await firestoreDb
       .collection("users")
       .doc(userId)
@@ -1219,6 +1392,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   res.status(500).json({ error: "Internal server error" });
 });
 
+<<<<<<< HEAD
 // Start server after Firebase initialization completes
 (async () => {
   console.log("\n🚀 Firebase initialization başlatılıyor...");
@@ -1253,5 +1427,47 @@ const server = app.listen(PORT, () => {
     });
   });
 })();
+=======
+let firebaseInitialization: Promise<void> | null = null;
+export function ensureFirebaseInitialized() {
+  if (!firebaseInitialization) {
+    firebaseInitialization = initializeFirebase();
+  }
+  return firebaseInitialization;
+}
+if (!process.env.VERCEL) {
+  (async () => {
+    console.log("\n🚀 Firebase initialization başlatılıyor...");
+    await ensureFirebaseInitialized();
+    console.log("✅ Firebase initialization tamamlandı.\n");
+    const server = app.listen(PORT, () => {
+      console.log(`\n${"=".repeat(60)}`);
+      console.log(`✅ Production Server running on port ${PORT}`);
+      console.log(`📍 Health Check: http://localhost:${PORT}/api/health`);
+      console.log(`🔥 Database Mode: ${firebaseReady ? "✅ FIRESTORE (siftah-app-v1)" : "⚠️  FALLBACK MODE"}`);
+      console.log(`⏰ Startup Time: ${new Date().toISOString()}`);
+      console.log(`NODE_ENV: ${process.env.NODE_ENV}`);
+      console.log(`${"=".repeat(60)}\n`);
+
+      if (firebaseReady) {
+        console.log("🎉 Firebase Firestore bağlantısı BAŞARILI!");
+        console.log("   ✅ Tüm veriler Firestore'a yazılacak");
+        console.log("   ✅ Server restart'ta veriler kaybolmayacak\n");
+      } else {
+        console.warn("⚠️  WARNING: Firestore initialize olmadı!");
+        console.warn("   📄 Veriler db_data.json'a yazılacak (geçici)");
+        console.warn("   ⚠️  Server restart'ta veriler kaybolabilir\n");
+      }
+    });
+    process.on("SIGTERM", () => {
+      console.log("SIGTERM received, shutting down gracefully...");
+      server.close(() => {
+        console.log("Server closed");
+        process.exit(0);
+      });
+    });
+  })();
+}
+>>>>>>> origin/main
 
 export default app;

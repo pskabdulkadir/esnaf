@@ -1,4 +1,12 @@
 {
+<<<<<<< HEAD
+=======
+  "functions": {
+    "api/[...path].ts": {
+      "includeFiles": "dist/server.cjs"
+    }
+  },
+>>>>>>> origin/main
   "headers": [
     {
       "source": "/manifest.json",
@@ -27,10 +35,24 @@
       ]
     }
   ],
+<<<<<<< HEAD
   "rewrites": [
     {
       "source": "/:path*",
       "destination": "/index.html"
+=======
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/[...path]"
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+>>>>>>> origin/main
     }
   ]
 }
