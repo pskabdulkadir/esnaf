@@ -457,14 +457,16 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
     if (firebaseReady && firestoreDb && userId) {
       try {
         console.log(`🔥 Firestore'dan okuyuyor - users/${userId}/publicDiscounts`);
-
-        // ⭐ ÖNEMLI: slug varsa da, userId'nin TÜM ürünlerini getir
-        // slug detay olarak açılacak, vitrin tüm ürünleri gösterecek
+        
         let query: any = firestoreDb
           .collection("users")
           .doc(userId)
           .collection("publicDiscounts")
           .where("isActive", "==", true);
+
+        // ⭐ DÜZELTME: `slug` parametresi artık Firestore sorgusunu filtrelemek için kullanılmıyor.
+        // Eğer bir `userId` varsa, o kullanıcıya ait TÜM ürünleri getiriyoruz.
+        // `slug`'a göre filtreleme, tüm ürünler yüklendikten sonra ön yüzde (client-side) yapılacak.
 
         const snapshot = await query.get();
         console.log(`🔍 Firestore snapshot: ${snapshot.size} docs bulundu`);
@@ -475,7 +477,7 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
         }));
 
         if (slug) {
-          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu (slug=${slug} detay aç, vitrin tüm ürünleri göster)`);
+          console.log(`✅ Firestore'dan ${discounts.length} indirim okundu (slug='${slug}' detayı ön yüzde açılacak)`);
         } else {
           console.log(`✅ Firestore'dan ${discounts.length} indirim okundu`);
         }
@@ -508,22 +510,22 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // ⭐ Her kullanıcı kendi ürünlerini görecek
-    // ⭐ ÖNEMLI: slug varsa, paylaşılan linktir
-    //   - userId'nin TÜM ürünlerini vitrinde göster
-    //   - slug ürünü detay olarak seç
+    // ⭐ DÜZELTME: Fallback modunda da mantığı düzeltiyoruz.
+    // `userId` varsa, o kullanıcıya ait tüm ürünleri döndür.
+    // `slug` filtresini kaldır, bu işlem ön yüzde yapılacak.
     let userDiscounts = allDiscounts.filter((d: any) => {
       const isActive = d.isActive === true;
 
       if (userId) {
-        // userId varsa: her zaman userId'nin tüm ürünlerini göster
-        // (slug varsa bile, vitrin tüm ürünleri gösterecek, slug detay olarak aç)
         return isActive && d.userId === userId;
       } else if (slug) {
-        // Slug varsa ama userId yoksa: slug'u ara (fallback)
-        return isActive && d.slug === slug;
+        // Eğer sadece slug varsa ve userId yoksa, bu slug'a sahip tüm kullanıcıların
+        // ürünlerini bul ve birleştir. Bu, slug'ın tekil olmadığı bir senaryo için
+        // bir geri dönüş mekanizmasıdır. İdeali, slug ile birlikte her zaman userId olmasıdır.
+        const matchingUsers = allDiscounts.filter(item => item.slug === slug).map(item => item.userId);
+        return isActive && matchingUsers.includes(d.userId);
       } else {
-        return isActive;
+        return false; // userId veya slug olmadan genel bir liste döndürmüyoruz.
       }
     });
 
