@@ -490,97 +490,61 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
   // Load backend configurations & active campaigns
   const fetchData = async () => {
     setIsLoading(true);
+    const urlParams = new URLSearchParams(window.location.search);
+    const slugFromUrl = urlParams.get("slug") || initialSlug;
+    const userIdFromUrl = urlParams.get("userId");
+    const viewMode = urlParams.get("view");
+
+    // Öncelik sırası: URL'deki userId > props'tan gelen admin userId
+    const merchantIdToFetch = userIdFromUrl || userId;
+
+    // Eğer bir paylaşım linkiyle gelinmişse (slug veya view=showcase varsa)
+    // müşteri vitrinini kilitle.
+    if (slugFromUrl || viewMode === "showcase") {
+      setIsCustomerShowcase(true);
+      setIsPublicUrlLocked(true);
+    }
+
     try {
       // 1. Fetch persistent store settings
-      try {
+      if (userId && !userIdFromUrl) { // Sadece admin kendi paneline bakıyorsa ayarları çek
         const settingsRes = await fetch("/api/settings", {
           headers: { "Authorization": `Bearer ${userId}` }
         });
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json();
           setSettings(settingsData);
-        } else {
-          console.error(`Ayarlar yüklenemedi (HTTP ${settingsRes.status})`);
         }
-      } catch (err) {
-        console.error("Settings API detailed error:", err);
       }
 
       // 2. Fetch public active discounts
-      try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const discountId = urlParams.get("discountId");
-        const slug = urlParams.get("slug") || initialSlug;  // ⭐ initialSlug'ı fallback olarak kullan
-        const urlUserId = urlParams.get("userId");  // ⭐ URL'den userId al
-        const merchantId = urlParams.get("merchantId") || urlUserId;
-
-        // ⭐ userId veya URL parametrelerini query parameter olarak ekle
-        let apiUrl = "/api/public-discounts";
-        const queryParams = new URLSearchParams();
-
-        // ⭐ ÖNEMLI: slug varsa her zaman gönder (public share için)
-        if (slug) {
-          queryParams.append("slug", slug);
-          // Public slug linklerinde ziyaretçinin kendi userId'si kullanılmaz.
-          // userId yalnızca paylaşım URL'sinde varsa gönderilir.
-          if (urlUserId) queryParams.append("userId", urlUserId);
-        } else if (userId) {
-          // Slug yoksa userId gönder (admin panel)
-          queryParams.append("userId", userId);
-        } else {
-          // Diğer parametreler
-          if (discountId) queryParams.append("discountId", discountId);
-          if (merchantId) queryParams.append("merchantId", merchantId);
-        }
-
-        const queryString = queryParams.toString();
-        if (queryString) {
-          apiUrl += `?${queryString}`;
-        }
-
-        console.log('Marketer fetchData - fetching from URL:', apiUrl);
+      if (merchantIdToFetch) {
+        const apiUrl = `/api/public-discounts?userId=${encodeURIComponent(merchantIdToFetch)}`;
+        console.log('Marketer fetchData - API çağrısı:', apiUrl);
         const pubRes = await fetch(apiUrl);
+
         if (pubRes.ok) {
-          const discountsData = await pubRes.json();
-          console.log('Marketer fetchData - received discounts:', discountsData.length);
-          setPublicDiscounts(discountsData);
+          const allDiscounts = await pubRes.json();
+          console.log(`✅ ${allDiscounts.length} adet kampanya yüklendi.`);
+          setPublicDiscounts(allDiscounts);
 
-          // Analyze URL params for Isolasyon and Deep linking
-          const urlParams = new URLSearchParams(window.location.search);
-          const discountId = urlParams.get("discountId");
-          const slug = urlParams.get("slug");
-          const viewMode = urlParams.get("view");
-
-          // If explicitly requested Showcase view, trigger isolated showcase lock
-          if (viewMode === "showcase" || slug || discountId) {
-            setIsCustomerShowcase(true);
-            setIsPublicUrlLocked(true); // Locks user screen into isolated showcase mode (no admin options)
-          }
-
-          if (slug) {
-            const matched = discountsData.find((d: any) => d.slug === slug);
+          // Eğer URL'de bir 'slug' varsa, o ürünü bul ve modal'da açmak için state'e ata
+          if (slugFromUrl) {
+            const matched = allDiscounts.find((d: any) => d.slug === slugFromUrl);
             if (matched) {
-              console.log('🎯 fetchData: Slug eşleşti, ürün açılıyor:', matched.productName);
+              console.log(`🎯 Paylaşılan link ürünü bulundu: "${matched.productName}". Detaylar açılıyor.`);
               setSelectedDetailDiscount(matched);
               incrementViewCount(matched.id);
             } else {
-              console.warn('⚠️ fetchData: Slug bulunamadı:', slug);
-            }
-          } else if (discountId) {
-            const matched = discountsData.find((d: any) => d.id === discountId);
-            if (matched) {
-              console.log('🎯 fetchData: Discount ID eşleşti, ürün açılıyor:', matched.productName);
-              setSelectedDetailDiscount(matched);
-              incrementViewCount(matched.id);
-            } else {
-              console.warn('⚠️ fetchData: Discount ID bulunamadı:', discountId);
+              console.warn(`⚠️ Paylaşılan linkteki ürün ('${slugFromUrl}') vitrinde bulunamadı.`);
             }
           }
         } else {
           console.error(`İndirimler yüklenemedi (HTTP ${pubRes.status})`);
         }
-      } catch (err) {
-        console.error("Discounts API detailed error:", err);
+      } else {
+        console.warn("Veri çekmek için esnaf kimliği (userId) bulunamadı.");
+        setPublicDiscounts([]);
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
@@ -591,17 +555,9 @@ export default function Marketer({ brandName, language, userId, initialSlug }: {
   };
 
   // ⭐ Component mount olduğunda window.location'dan slug oku
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const slugFromUrl = urlParams.get("slug");
-    const userIdFromUrl = urlParams.get("userId");
-    console.log('📍 Component mounted - window.location.search:', window.location.search);
-    console.log('📍 slug from URL:', slugFromUrl);
-    console.log('📍 userId from URL:', userIdFromUrl);
-
-    // Slug varsa fetchData'yı çalıştır
+  useEffect(() => {    
     fetchData();
-  }, [userId]);
+  }, [userId, initialSlug]); // userId (admin) veya initialSlug (public) değiştiğinde çalışır
 
   // Fetch sitemap data for Google Search Console
   const fetchSitemapData = async () => {
