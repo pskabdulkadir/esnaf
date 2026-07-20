@@ -464,15 +464,15 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
           .collection("publicDiscounts")
           .where("isActive", "==", true);
 
-        // ⭐ DÜZELTME: `slug` parametresi artık Firestore sorgusunu filtrelemek için kullanılmıyor.
-        // Eğer bir `userId` varsa, o kullanıcıya ait TÜM ürünleri getiriyoruz.
-        // `slug`'a göre filtreleme, tüm ürünler yüklendikten sonra ön yüzde (client-side) yapılacak.
-
+        // slug parametresi varsa, bu sadece frontend'in hangi ürünü
+        // öne çıkaracağını belirlemesi içindir. Backend TÜM ürünleri döndürür.
+        // Backend'de slug'a göre filtreleme YAPMIYORUZ.
         const snapshot = await query.get();
         console.log(`🔍 Firestore snapshot: ${snapshot.size} docs bulundu`);
 
         let discounts = snapshot.docs.map((doc: any) => ({
           id: doc.id,
+          userId: userId, // Her indirime ait kullanıcı kimliğini ekleyelim
           ...doc.data(),
         }));
 
@@ -510,18 +510,13 @@ app.get("/api/public-discounts", async (req: Request, res: Response) => {
       console.warn(`⚠️ db_data.json bulunamadı (path: ${dbPath})`);
     }
 
-    // ⭐ DÜZELTME: Fallback modunda da mantığı düzeltiyoruz.
-    // `userId` varsa, o kullanıcıya ait tüm ürünleri döndür.
-    // `slug` filtresini kaldır, bu işlem ön yüzde yapılacak.
     let userDiscounts = allDiscounts.filter((d: any) => {
       const isActive = d.isActive === true;
 
       if (userId) {
-        return isActive && d.userId === userId;
+        return isActive && d.userId === userId; // userId varsa, sadece o kullanıcının ürünlerini döndür
       } else if (slug) {
-        // Eğer sadece slug varsa ve userId yoksa, bu slug'a sahip tüm kullanıcıların
-        // ürünlerini bul ve birleştir. Bu, slug'ın tekil olmadığı bir senaryo için
-        // bir geri dönüş mekanizmasıdır. İdeali, slug ile birlikte her zaman userId olmasıdır.
+        // userId yoksa ama slug varsa, bu slug'a sahip tüm kullanıcıların ürünlerini bul
         const matchingUsers = allDiscounts.filter(item => item.slug === slug).map(item => item.userId);
         return isActive && matchingUsers.includes(d.userId);
       } else {
